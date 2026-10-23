@@ -1,0 +1,49 @@
+package store
+
+import (
+	"context"
+
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
+)
+
+// Store adalah antarmuka akses data untuk modul sertifikasi benih BP3MBTP.
+// Diekspor agar mudah diimplementasikan ulang (misal in-memory untuk tes)
+// tanpa mengubah lapisan service atau handler.
+type Store interface {
+	// User / RBAC
+	CreateUser(ctx context.Context, u db.User) (int64, error)
+	GetUserByID(ctx context.Context, id int64) (*db.User, error)
+	GetUserByUsername(ctx context.Context, username string) (*db.User, error)
+
+	// Fase 1: Permohonan & pembayaran
+	CreatePermohonan(ctx context.Context, p db.PermohonanBenih) (int64, error)
+	GetPermohonan(ctx context.Context, id int64) (*db.PermohonanBenih, error)
+	UpdatePermohonanStatus(ctx context.Context, id int64, status, pembayaranAwalStatus string) error
+	CreatePembayaran(ctx context.Context, pb db.Pembayaran) (int64, error)
+
+	// Fase 1: Inspeksi 4 fase & buku induk
+	CreateInspeksiFase(ctx context.Context, i db.InspeksiFase) (int64, error)
+	ListInspeksiFase(ctx context.Context, permohonanID int64) ([]db.InspeksiFase, error)
+	CreateBukuInduk(ctx context.Context, b db.BukuInduk) (int64, error)
+	GetBukuInduk(ctx context.Context, permohonanID int64) (*db.BukuInduk, error)
+
+	// Audit
+	CreateAuditLog(ctx context.Context, a db.AuditLog) (int64, error)
+
+	// Health
+	Ping(ctx context.Context) error
+}
+
+// DBStore adalah implementasi Store menggunakan database.MySQL melalui db.DB.
+type DBStore struct {
+	db *db.DB
+}
+
+func NewDBStore(database *db.DB) *DBStore {
+	return &DBStore{db: database}
+}
+
+// Ping memeriksa koneksi database (diisi implementasi penuh progresif per tabel).
+func (s *DBStore) Ping(ctx context.Context) error {
+	return s.db.Health(ctx)
+}
