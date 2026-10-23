@@ -1,0 +1,77 @@
+name: sitani-diy
+
+services:
+  database:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?MYSQL_DATABASE wajib diisi}
+      MYSQL_USER: ${MYSQL_USER:?MYSQL_USER wajib diisi}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD wajib diisi}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD wajib diisi}
+      TZ: Asia/Jakarta
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - internal
+
+  backend:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      TZ: Asia/Jakarta
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    networks:
+      - internal
+
+  frontend:
+    build:
+      context: ../frontend
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:8080
+      TZ: Asia/Jakarta
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    networks:
+      - internal
+
+volumes:
+  mysql_data:
+
+networks:
+  internal:
+    driver: bridge

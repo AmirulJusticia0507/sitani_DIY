@@ -4,7 +4,7 @@
 - [x] Analisis kondisi awal dan pedoman kerja agen (`docs/analisis-proyek.md`, `AGENTS.md`)
 - [x] Setup Repository & Struktur Proyek (Backend Go 1.23 & Frontend Next.js 16; aktual Next.js 16 karena dukungan keamanan)
 - [x] Verifikasi fondasi: backend `go build`/`go vet`/`go test` lulus; endpoint `GET /health` tersedia; frontend `typecheck`/`lint`/`build` lulus
-- [ ] Konfigurasi Docker / Containerization (3 Container: DB, BE, FE)
+- [x] Konfigurasi Docker / Containerization (3 Container: DB, BE, FE)
 - [ ] Integrasi SSO Jogjaprov (Realm JSP untuk Umum & Realm Satriya untuk ASN)
 - [ ] Setup Integrasi SPL / Cakra API Gateway (`spl.jogjaprov.go.id`)
 - [ ] Setup Database MySQL & Skema Dasar
