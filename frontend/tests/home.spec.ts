@@ -5,7 +5,7 @@ test("menampilkan identitas dan modul utama", async ({ page }, testInfo) => {
 
   await expect(page).toHaveTitle("SiTani DIY — Portal Pertanian dan Ketahanan Pangan DIY");
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "Portal Pertanian dan Ketahanan Pangan DIY",
+    "Data tumbuh.Layanan bergerak.",
   );
   await expect(page.getByRole("heading", { name: "Repository Data Lokal" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Registrasi Hortikultura" })).toBeVisible();
