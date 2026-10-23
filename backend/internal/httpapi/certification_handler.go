@@ -28,6 +28,10 @@ func (h *certificationHandler) register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/permohonan/{id}/pembayaran/awal", h.bayarAwal)
 	mux.HandleFunc("POST /v1/permohonan/{id}/inspeksi", h.catatInspeksi)
 	mux.HandleFunc("POST /v1/permohonan/{id}/buku-induk", h.catatBukuInduk)
+	mux.HandleFunc("POST /v1/sampel", h.ambilSampel)
+	mux.HandleFunc("POST /v1/sampel/{id}/kodifikasi", h.kodifikasiSampel)
+	mux.HandleFunc("POST /v1/uji-mutu", h.inputHasilUji)
+	mux.HandleFunc("POST /v1/laporan-mutu", h.susunLaporanMutu)
 }
 
 type permohonanRequest struct {
@@ -51,6 +55,31 @@ type inspeksiRequest struct {
 type bukuIndukRequest struct {
 	NomorBukuInduk string `json:"nomor_buku_induk"`
 	Catatan        string `json:"catatan"`
+}
+
+type ambilSampelRequest struct {
+	PermohonanID       int64  `json:"permohonan_id"`
+	JumlahSampel       int    `json:"jumlah_sampel"`
+	TanggalPengambilan string `json:"tanggal_pengambilan"`
+}
+
+type kodifikasiSampelRequest struct {
+	KodeSampel string `json:"kode_sampel"`
+}
+
+type inputHasilUjiRequest struct {
+	SampelID    int64  `json:"sampel_id"`
+	Parameter   string `json:"parameter"`
+	Hasil       string `json:"hasil"`
+	StatusLulus bool   `json:"status_lulus"`
+	Catatan     string `json:"catatan"`
+	TanggalUji  string `json:"tanggal_uji"`
+}
+
+type susunLaporanMutuRequest struct {
+	SampelID   int64  `json:"sampel_id"`
+	Kesimpulan string `json:"kesimpulan"`
+	IsiLaporan string `json:"isi_laporan"`
 }
 
 func (h *certificationHandler) buatPermohonan(w http.ResponseWriter, r *http.Request) {
@@ -187,6 +216,87 @@ func (h *certificationHandler) catatBukuInduk(w http.ResponseWriter, r *http.Req
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]string{"status": "buku induk dicatat"})
+}
+
+func (h *certificationHandler) ambilSampel(w http.ResponseWriter, r *http.Request) {
+	userID, role, err := identitasDariHeader(r)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	var req ambilSampelRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
+		return
+	}
+	samp, err := h.svc.AmbilSampel(r.Context(), req.PermohonanID, userID, role, req.JumlahSampel, req.TanggalPengambilan)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusCreated, samp)
+}
+
+func (h *certificationHandler) kodifikasiSampel(w http.ResponseWriter, r *http.Request) {
+	userID, role, err := identitasDariHeader(r)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "id sampel tidak valid")
+		return
+	}
+	var req kodifikasiSampelRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
+		return
+	}
+	if err := h.svc.KodifikasiSampel(r.Context(), id, req.KodeSampel, userID, role); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]string{"status": "sampel dikodekan"})
+}
+
+func (h *certificationHandler) inputHasilUji(w http.ResponseWriter, r *http.Request) {
+	userID, role, err := identitasDariHeader(r)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	var req inputHasilUjiRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
+		return
+	}
+	uji, err := h.svc.InputHasilUji(r.Context(), req.SampelID, req.Parameter, req.Hasil, req.StatusLulus, req.Catatan, userID, role, req.TanggalUji)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusCreated, uji)
+}
+
+func (h *certificationHandler) susunLaporanMutu(w http.ResponseWriter, r *http.Request) {
+	userID, role, err := identitasDariHeader(r)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	var req susunLaporanMutuRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
+		return
+	}
+	laporan, err := h.svc.SusunLaporanMutu(r.Context(), req.SampelID, req.Kesimpulan, req.IsiLaporan, userID, role)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusCreated, laporan)
 }
 
 // identitasDariHeader membaca identitas pengembang dari header permintaan.

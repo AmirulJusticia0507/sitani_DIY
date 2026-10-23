@@ -98,6 +98,86 @@ func (s *DBStore) GetBukuInduk(ctx context.Context, permohonanID int64) (*db.Buk
 	return scanBukuInduk(row)
 }
 
+func (s *DBStore) CreateSampel(ctx context.Context, s2 db.SampelBenih) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `INSERT INTO sampel_benih (permohonan_id,kode_sampel,pengawas_id,analis_id,jumlah_sampel,tanggal_pengambilan,status) VALUES (?,?,?,?,?,?,?)`,
+		s2.PermohonanID, s2.KodeSampel, s2.PengawasID, s2.AnalisID, s2.JumlahSampel, s2.TanggalPengambilan, s2.Status)
+	if err != nil {
+		return 0, fmt.Errorf("insert sampel: %w", err)
+	}
+	return res.LastInsertId()
+}
+
+func (s *DBStore) GetSampel(ctx context.Context, id int64) (*db.SampelBenih, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT id,permohonan_id,kode_sampel,pengawas_id,analis_id,jumlah_sampel,tanggal_pengambilan,status,created_at,updated_at FROM sampel_benih WHERE id=?`, id)
+	var samp db.SampelBenih
+	var analisID sql.NullInt64
+	if err := row.Scan(&samp.ID, &samp.PermohonanID, &samp.KodeSampel, &samp.PengawasID, &analisID, &samp.JumlahSampel, &samp.TanggalPengambilan, &samp.Status, &samp.CreatedAt, &samp.UpdatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("scan sampel: %w", err)
+	}
+	if analisID.Valid {
+		samp.AnalisID = &analisID.Int64
+	}
+	return &samp, nil
+}
+
+func (s *DBStore) KodifikasiSampel(ctx context.Context, id int64, kodeSampel string, analisID int64) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE sampel_benih SET kode_sampel=?, analis_id=?, status='dikodekan', updated_at=CURRENT_TIMESTAMP WHERE id=?`, kodeSampel, analisID, id)
+	if err != nil {
+		return fmt.Errorf("kodifikasi sampel: %w", err)
+	}
+	return nil
+}
+
+func (s *DBStore) CreateUjiMutu(ctx context.Context, u db.UjiMutu) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `INSERT INTO uji_mutu (sampel_id,parameter,hasil,status_lulus,catatan,diuji_oleh,tanggal_uji) VALUES (?,?,?,?,?,?,?)`,
+		u.SampelID, u.Parameter, u.Hasil, boolToInt(u.StatusLulus), u.Catatan, u.DiujiOleh, u.TanggalUji)
+	if err != nil {
+		return 0, fmt.Errorf("insert uji mutu: %w", err)
+	}
+	return res.LastInsertId()
+}
+
+func (s *DBStore) ListUjiMutu(ctx context.Context, sampelID int64) ([]db.UjiMutu, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id,sampel_id,parameter,hasil,status_lulus,catatan,diuji_oleh,tanggal_uji,created_at FROM uji_mutu WHERE sampel_id=?`, sampelID)
+	if err != nil {
+		return nil, fmt.Errorf("query uji mutu: %w", err)
+	}
+	defer rows.Close()
+	var out []db.UjiMutu
+	for rows.Next() {
+		var u db.UjiMutu
+		if err := rows.Scan(&u.ID, &u.SampelID, &u.Parameter, &u.Hasil, &u.StatusLulus, &u.Catatan, &u.DiujiOleh, &u.TanggalUji, &u.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan uji mutu: %w", err)
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+func (s *DBStore) CreateLaporanMutu(ctx context.Context, l db.LaporanMutu) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `INSERT INTO laporan_mutu (sampel_id,kesimpulan,isi_laporan,disusun_oleh) VALUES (?,?,?,?)`,
+		l.SampelID, l.Kesimpulan, l.IsiLaporan, l.DisusunOleh)
+	if err != nil {
+		return 0, fmt.Errorf("insert laporan mutu: %w", err)
+	}
+	return res.LastInsertId()
+}
+
+func (s *DBStore) GetLaporanMutu(ctx context.Context, sampelID int64) (*db.LaporanMutu, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT id,sampel_id,kesimpulan,isi_laporan,disusun_oleh,created_at FROM laporan_mutu WHERE sampel_id=?`, sampelID)
+	var l db.LaporanMutu
+	if err := row.Scan(&l.ID, &l.SampelID, &l.Kesimpulan, &l.IsiLaporan, &l.DisusunOleh, &l.CreatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("scan laporan mutu: %w", err)
+	}
+	return &l, nil
+}
+
 func (s *DBStore) CreateAuditLog(ctx context.Context, a db.AuditLog) (int64, error) {
 	var actorID *int64
 	if a.ActorID != nil {

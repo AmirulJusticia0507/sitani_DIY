@@ -27,6 +27,15 @@ type Store interface {
 	CreateBukuInduk(ctx context.Context, b db.BukuInduk) (int64, error)
 	GetBukuInduk(ctx context.Context, permohonanID int64) (*db.BukuInduk, error)
 
+	// Fase 2: Pengujian Lab Mutu
+	CreateSampel(ctx context.Context, s db.SampelBenih) (int64, error)
+	GetSampel(ctx context.Context, id int64) (*db.SampelBenih, error)
+	KodifikasiSampel(ctx context.Context, id int64, kodeSampel string, analisID int64) error
+	CreateUjiMutu(ctx context.Context, u db.UjiMutu) (int64, error)
+	ListUjiMutu(ctx context.Context, sampelID int64) ([]db.UjiMutu, error)
+	CreateLaporanMutu(ctx context.Context, l db.LaporanMutu) (int64, error)
+	GetLaporanMutu(ctx context.Context, sampelID int64) (*db.LaporanMutu, error)
+
 	// Audit
 	CreateAuditLog(ctx context.Context, a db.AuditLog) (int64, error)
 

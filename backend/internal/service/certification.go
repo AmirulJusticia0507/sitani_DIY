@@ -277,3 +277,168 @@ type BuatPermohonanRequest struct {
 	LuasLahan    float64
 	LokasiKebun  string
 }
+
+// AmbilSampel mencatat pengambilan sampel benih oleh Pengawas (Fase 2).
+func (s *Service) AmbilSampel(ctx context.Context, permohonanID int64, pengawasID int64, pengawasRole string, jumlahSampel int, tanggalPengambilan string) (*db.SampelBenih, error) {
+	if !boleh(pengawasRole, "inspeksi:catat") {
+		return nil, errors.New("role tidak diizinkan mengambil sampel")
+	}
+	p, err := s.st.GetPermohonan(ctx, permohonanID)
+	if err != nil {
+		return nil, fmt.Errorf("ambil permohonan: %w", err)
+	}
+	if p == nil {
+		return nil, ErrNotFound
+	}
+	if p.Status != "diinspeksi" {
+		return nil, errors.New("sampel hanya dapat diambil setelah buku induk dicatat")
+	}
+	samp := db.SampelBenih{
+		PermohonanID:       permohonanID,
+		JumlahSampel:       jumlahSampel,
+		TanggalPengambilan: tanggalPengambilan,
+		PengawasID:         pengawasID,
+		Status:             "dikumpulkan",
+	}
+	id, err := s.st.CreateSampel(ctx, samp)
+	if err != nil {
+		return nil, fmt.Errorf("buat sampel: %w", err)
+	}
+	samp.ID = id
+	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
+		ActorID:   &pengawasID,
+		ActorRole: pengawasRole,
+		Action:    "sampel:ambil",
+		Entity:    "sampel_benih",
+		EntityID:  &id,
+		Detail:    fmt.Sprintf("permohonan_id=%d jumlah=%d", permohonanID, jumlahSampel),
+	}); err != nil {
+		return nil, fmt.Errorf("catat audit: %w", err)
+	}
+	return &samp, nil
+}
+
+// KodifikasiSampel memberi kode unik pengujian pada sampel oleh Analis.
+func (s *Service) KodifikasiSampel(ctx context.Context, sampelID int64, kodeSampel string, analisID int64, analisRole string) error {
+	if !boleh(analisRole, "permohonan:lihat") {
+		return errors.New("role tidak diizinkan mengkodifikasi sampel")
+	}
+	if kodeSampel == "" {
+		return errors.New("kode sampel wajib diisi")
+	}
+	samp, err := s.st.GetSampel(ctx, sampelID)
+	if err != nil {
+		return fmt.Errorf("ambil sampel: %w", err)
+	}
+	if samp == nil {
+		return ErrNotFound
+	}
+	if samp.Status != "dikumpulkan" {
+		return errors.New("sampel belum dalam status dikumpulkan")
+	}
+	if err := s.st.KodifikasiSampel(ctx, sampelID, kodeSampel, analisID); err != nil {
+		return fmt.Errorf("kodifikasi: %w", err)
+	}
+	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
+		ActorID:   &analisID,
+		ActorRole: analisRole,
+		Action:    "sampel:kodifikasi",
+		Entity:    "sampel_benih",
+		EntityID:  &sampelID,
+		Detail:    fmt.Sprintf("kode_sampel=%s", kodeSampel),
+	}); err != nil {
+		return fmt.Errorf("catat audit: %w", err)
+	}
+	return nil
+}
+
+// InputHasilUji mencatat hasil pengujian lab oleh Analis.
+func (s *Service) InputHasilUji(ctx context.Context, sampelID int64, parameter string, hasil string, statusLulus bool, catatan string, diujiOleh int64, diujiOlehRole string, tanggalUji string) (*db.UjiMutu, error) {
+	if !boleh(diujiOlehRole, "permohonan:lihat") {
+		return nil, errors.New("role tidak diizinkan input hasil uji")
+	}
+	samp, err := s.st.GetSampel(ctx, sampelID)
+	if err != nil {
+		return nil, fmt.Errorf("ambil sampel: %w", err)
+	}
+	if samp == nil {
+		return nil, ErrNotFound
+	}
+	if samp.Status != "dikodekan" {
+		return nil, errors.New("sampel harus dikodekan sebelum diuji")
+	}
+	u := db.UjiMutu{
+		SampelID:    sampelID,
+		Parameter:   parameter,
+		Hasil:       hasil,
+		StatusLulus: statusLulus,
+		Catatan:     catatan,
+		DiujiOleh:   diujiOleh,
+		TanggalUji:  tanggalUji,
+	}
+	id, err := s.st.CreateUjiMutu(ctx, u)
+	if err != nil {
+		return nil, fmt.Errorf("buat uji mutu: %w", err)
+	}
+	u.ID = id
+	if _, err := s.st.ListUjiMutu(ctx, sampelID); err != nil {
+		return nil, fmt.Errorf("daftar uji mutu: %w", err)
+	}
+	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
+		ActorID:   &diujiOleh,
+		ActorRole: diujiOlehRole,
+		Action:    "uji_mutu:input",
+		Entity:    "uji_mutu",
+		EntityID:  &id,
+		Detail:    fmt.Sprintf("parameter=%s lulus=%v", parameter, statusLulus),
+	}); err != nil {
+		return nil, fmt.Errorf("catat audit: %w", err)
+	}
+	return &u, nil
+}
+
+// SusunLaporanMutu menyusun kesimpulan pengujian mutu oleh Analis.
+func (s *Service) SusunLaporanMutu(ctx context.Context, sampelID int64, kesimpulan string, isiLaporan string, disusunOleh int64, disusunOlehRole string) (*db.LaporanMutu, error) {
+	if !boleh(disusunOlehRole, "permohonan:lihat") {
+		return nil, errors.New("role tidak diizinkan menyusun laporan mutu")
+	}
+	if kesimpulan != "lulus" && kesimpulan != "tidak_lulus" {
+		return nil, errors.New("kesimpulan harus lulus atau tidak_lulus")
+	}
+	samp, err := s.st.GetSampel(ctx, sampelID)
+	if err != nil {
+		return nil, fmt.Errorf("ambil sampel: %w", err)
+	}
+	if samp == nil {
+		return nil, ErrNotFound
+	}
+	uji, err := s.st.ListUjiMutu(ctx, sampelID)
+	if err != nil {
+		return nil, fmt.Errorf("daftar uji mutu: %w", err)
+	}
+	if len(uji) == 0 {
+		return nil, errors.New("belum ada hasil uji mutu untuk sampel ini")
+	}
+	l := db.LaporanMutu{
+		SampelID:    sampelID,
+		Kesimpulan:  kesimpulan,
+		IsiLaporan:  isiLaporan,
+		DisusunOleh: disusunOleh,
+	}
+	id, err := s.st.CreateLaporanMutu(ctx, l)
+	if err != nil {
+		return nil, fmt.Errorf("buat laporan mutu: %w", err)
+	}
+	l.ID = id
+	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
+		ActorID:   &disusunOleh,
+		ActorRole: disusunOlehRole,
+		Action:    "laporan_mutu:susun",
+		Entity:    "laporan_mutu",
+		EntityID:  &id,
+		Detail:    fmt.Sprintf("kesimpulan=%s", kesimpulan),
+	}); err != nil {
+		return nil, fmt.Errorf("catat audit: %w", err)
+	}
+	return &l, nil
+}
