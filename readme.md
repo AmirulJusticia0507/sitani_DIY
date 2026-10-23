@@ -46,6 +46,31 @@ Aplikasi dijalankan dalam 3 container utama:
 
 ---
 
+## 🌾 Arsitektur Alur Sertifikasi Benih BP3MBTP (berdasarkan Diagram XML)
+
+Alur sertifikasi benih mengikuti 3 fase dan 7 aktor swimlane:
+
+**Fase 1 — Verifikasi Lapangan (Pengawas/PBT)**
+Permohonan & Pembayaran Awal → Verifikasi Dokumen → Inspeksi 4 Fase → Pencatatan Buku Induk & Laporan Verifikasi
+
+**Fase 2 — Pengujian Lab Mutu (Pengawas + Analis Lab)**
+Pengambilan Sampel Benih → Kodifikasi Sampel → Pengujian Lab → Penyusunan Laporan Mutu
+
+**Fase 3 — Sertifikasi & Penerbitan Label**
+- Jalur Lulus: Pembuatan Sertifikat Benih → Penandatanganan Pejabat (TTE) → Draft Label & Integrasi SIM Perbenihan → Cetak di Percetakan → Legalisasi Label → Penyerahan Sertifikat/Label ke Pelanggan & Pembayaran Akhir
+- Jalur Tidak Lulus: Pengiriman Laporan Lengkap Pengujian ke Pelanggan → Proses selesai
+
+### Komponen Integrasi
+- **SIM Perbenihan:** integrasi kode unik/barcode label dan data sertifikasi benih.
+- **Modul Legalisasi:** verifikasi dan legalisasi label sebelum penyerahan.
+- **Percetakan:** cetak label resmi setelah draft disetujui.
+- **Gateway Pembayaran:** pembayaran awal pada permohonan dan pembayaran akhir pada penyerahan dokumen.
+- **TTE Sadewa:** penandatanganan sertifikat oleh pejabat berwenang.
+
+7 Aktor: Pelanggan, Admin, Pengawas/PBT, Analis Lab, Penandatangan TTE, Legalisasi, Percetakan.
+
+---
+
 ## 🚀 Panduan Pengembangan Integrasi
 
 - **Panduan Sadewa TTE:** [Integration Guide Sadewa](https://wiki.jogjaprov.go.id/en/diskominfo/panduan/panduan-integrasi-sadewa-central-sign)
@@ -75,3 +100,14 @@ npm run dev
 Pemeriksaan frontend dapat dijalankan dengan `npm run lint`, `npm run typecheck`, `npm run build`, dan `npm run test:e2e`. Pengujian browser memakai Chrome yang terpasang melalui channel Playwright `chrome`.
 
 Salin `.env.example` menjadi `.env` sesuai lingkungan. Jangan menyimpan kredensial atau token di repository.
+
+## Menjalankan dengan Docker Compose
+
+Salin `.env.example` menjadi `.env`, ganti seluruh password contoh, lalu jalankan dari root repository:
+
+```powershell
+docker compose --env-file .env -f infra/compose.yml up --build -d
+docker compose --env-file .env -f infra/compose.yml ps
+```
+
+Compose menjalankan tiga container utama: MySQL, API backend, dan frontend. Volume `mysql_data` mempertahankan data database. MinIO tetap merupakan dependensi eksternal dan belum dimasukkan sebelum task integrasinya dikerjakan.

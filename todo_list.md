@@ -26,3 +26,13 @@
 - [ ] Integrasi Sentry Error Logging
 - [ ] Testing Unit & Integration Test
 - [ ] User Acceptance Testing (UAT) bersama DPKP DIY & Diskominfo DIY
+
+## 📍 Tahap 5: Modul Sertifikasi Benih BP3MBTP (Alur XML 7 Aktor)
+- [ ] Implementasi Swimlane Roles & RBAC (Pelanggan, Admin, Pengawas/PBT, Analis Lab, Penandatangan TTE, Legalisasi, Percetakan)
+- [ ] Fase 1 Verifikasi Lapangan: Permohonan & Pembayaran Awal, Verifikasi Dokumen & Inspeksi 4 Fase, Pencatatan Buku Induk & Laporan Verifikasi
+- [ ] Fase 2 Pengujian Lab Mutu: Pengambilan Sampel oleh Pengawas, Kodifikasi Sampel oleh Analis, Pengujian Lab, Penyusunan Laporan Mutu
+- [ ] Modul Manajemen Uji Mutu Lab: Pemberian Kode Pengujian Sampel, Input Hasil Uji, Laporan Mutu
+- [ ] Logic Percabangan Lulus / Tidak Lulus: Auto-trigger Sertifikat & Label vs Notifikasi Gagal ke Pelanggan
+- [ ] Fase 3 Sertifikasi & Penerbitan Label (Jalur Lulus): Pembuatan Sertifikat Benih, Penandatanganan Pejabat (TTE), Draft Label & Integrasi SIM Perbenihan, Cetak di Percetakan, Legalisasi Label, Penyerahan Sertifikat/Label & Pembayaran Akhir
+- [ ] Jalur Tidak Lulus: Pengiriman Laporan Lengkap Pengujian ke Pelanggan (Proses selesai)
+- [ ] Modul Draft Label, Kode Unik/Barcode SIM Perbenihan, Legalisasi Label, dan Penyerahan Dokumen
