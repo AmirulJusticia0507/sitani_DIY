@@ -1,66 +1,87 @@
 import Link from "next/link";
 import { Layout } from "../components/layout";
 
-const services = [
-  { number: "01", title: "Repository Data Lokal", description: "Data pertanian lintas bidang dalam satu ruang kerja yang rapi dan mudah ditelusuri.", href: "/repository-data", tone: "blue" },
-  { number: "02", title: "Registrasi Hortikultura", description: "Pengajuan kebun, verifikasi dokumen, inspeksi, dan penerbitan registrasi secara terpadu.", href: "/horticulture", tone: "green" },
-  { number: "03", title: "Sertifikasi Benih BP3MBTP", description: "Alur sertifikasi tujuh aktor dari pemeriksaan lapangan hingga label benih resmi.", href: "/certification", tone: "gold" },
-  { number: "04", title: "Registrasi & Penjualan Benih", description: "Kelola lot, stok, transaksi, masa berlaku, dan audit penjualan benih.", href: "/benih", tone: "mint" },
+const modules = [
+  { title: "Repository Data Lokal", description: "Pusat data pertanian lintas bidang untuk pelaporan dan visualisasi terpadu.", href: "/repository-data", icon: "chart", label: "Data & pelaporan" },
+  { title: "Registrasi Hortikultura", description: "Pengajuan kebun, verifikasi dokumen, inspeksi, dan penerbitan registrasi.", href: "/horticulture", icon: "leaf", label: "Layanan kebun" },
+  { title: "Sertifikasi Benih BP3MBTP", description: "Alur tujuh aktor dari verifikasi lapangan sampai sertifikat dan label resmi.", href: "/certification", icon: "seed", label: "Sertifikasi" },
+  { title: "Registrasi & Penjualan Benih", description: "Kelola registrasi lot, persediaan, transaksi, masa berlaku, dan audit.", href: "/benih", icon: "grain", label: "Benih & stok" },
 ] as const;
+
+function ModuleIcon({ type }: { type: string }) {
+  return (
+    <svg viewBox="0 0 48 48" aria-hidden="true">
+      {type === "chart" ? <><path d="M9 37V23h7v14M20 37V12h7v25M31 37V18h7v19" /><path d="M7 40h34" /></> : null}
+      {type === "leaf" ? <><path d="M38 9C21 10 10 19 11 34c15 2 26-8 27-25Z" /><path d="M12 36c6-8 12-13 22-21" /></> : null}
+      {type === "seed" ? <><path d="M24 39V20" /><path d="M24 25c-8 0-13-5-13-12 8 0 13 5 13 12ZM24 31c8 0 13-5 13-12-8 0-13 5-13 12Z" /></> : null}
+      {type === "grain" ? <><path d="M24 40V9" /><path d="M24 17c-6 0-9-3-9-8 6 0 9 3 9 8ZM24 25c6 0 9-3 9-8-6 0-9 3-9 8ZM24 33c-6 0-9-3-9-8 6 0 9 3 9 8Z" /></> : null}
+    </svg>
+  );
+}
 
 export default function Home() {
   return (
     <Layout>
-      <main className="landing">
-        <section className="landing-hero">
-          <div className="landing-shell landing-hero-grid">
-            <div className="hero-copy">
-              <p className="landing-kicker"><span /> Portal layanan pertanian DIY</p>
-              <h1>Data tumbuh.<br />Layanan bergerak.</h1>
-              <p className="landing-lead">Satu ruang digital untuk petani, pelaku usaha, laboratorium, dan perangkat daerah—dirancang agar setiap proses lebih jelas dan dapat dipercaya.</p>
-              <div className="landing-actions">
-                <Link href="#layanan" className="landing-button landing-button-primary">Jelajahi layanan <span aria-hidden="true">↗</span></Link>
-                <Link href="/tentang" className="landing-text-link">Kenali SiTani DIY <span aria-hidden="true">→</span></Link>
+      <main className="portal-home">
+        <section className="portal-hero">
+          <div className="portal-shell portal-hero-grid">
+            <div className="portal-hero-copy">
+              <p className="portal-eyebrow"><span /> DPKP Daerah Istimewa Yogyakarta</p>
+              <h1>Portal Pertanian dan Ketahanan Pangan <em>DIY</em></h1>
+              <p>Satu pintu layanan dan data pertanian untuk masyarakat, pelaku usaha, serta perangkat daerah. Lebih sederhana, terukur, dan terpercaya.</p>
+              <div className="portal-actions">
+                <Link href="#layanan" className="portal-primary-action">Mulai layanan <span aria-hidden="true">↗</span></Link>
+                <Link href="/tentang" className="portal-secondary-action">Tentang portal <span aria-hidden="true">→</span></Link>
               </div>
             </div>
-            <div className="hero-visual" aria-label="Ilustrasi ekosistem data pertanian">
-              <div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="hero-sun" />
-              <div className="data-card data-card-main">
-                <span className="data-label">Musim tanam 2026</span>
-                <strong>Terhubung dari lahan<br />hingga sertifikasi.</strong>
-                <div className="data-chart"><i /><i /><i /><i /><i /><i /></div>
+            <div className="portal-hero-art" aria-label="Ringkasan layanan SiTani DIY">
+              <div className="portal-orbit" />
+              <div className="portal-art-card">
+                <span>Ekosistem SiTani</span>
+                <strong>Layanan publik yang saling terhubung.</strong>
+                <div className="portal-mini-chart"><i /><i /><i /><i /><i /></div>
               </div>
-              <div className="data-card data-card-float"><span className="pulse-dot" /> Sistem aktif</div>
-              <svg className="field-lines" viewBox="0 0 520 260" role="img" aria-label="Garis kontur lahan">
-                <path d="M0 190C95 120 147 225 251 155s164-28 269-112" /><path d="M0 222c105-68 166 30 267-44s159-24 253-91" /><path d="M12 256c96-61 169 25 270-41s153-18 231-72" />
-              </svg>
+              <div className="portal-art-badge"><i /> Sistem aktif</div>
+              <svg viewBox="0 0 520 160" aria-hidden="true"><path d="M0 125c84-68 153 19 238-41s157-16 282-73" /><path d="M0 152c102-61 169 20 265-40s151-11 255-63" /></svg>
             </div>
           </div>
         </section>
 
-        <section className="landing-intro"><div className="landing-shell intro-grid">
-          <p className="section-index">01 / Tentang</p>
-          <div><p className="intro-statement">Teknologi yang tenang di permukaan, kuat di balik layar.</p><p className="intro-detail">SiTani DIY menyatukan proses yang sebelumnya tersebar menjadi alur digital yang aman, transparan, dan mudah dipahami. Identitas diverifikasi melalui SSO Jogjaprov, sementara setiap perubahan penting meninggalkan jejak audit.</p></div>
-        </div></section>
+        <section className="portal-stats" aria-label="Ringkasan portal">
+          <div className="portal-shell portal-stats-grid">
+            <article><strong>4</strong><span>modul layanan utama</span></article>
+            <article><strong>7</strong><span>aktor sertifikasi benih</span></article>
+            <article><strong>2</strong><span>realm SSO Jogjaprov</span></article>
+            <div className="portal-stats-note"><span className="portal-live-dot" /> Fondasi layanan tersedia</div>
+          </div>
+        </section>
 
-        <section className="services-showcase" id="layanan"><div className="landing-shell">
-          <div className="services-heading"><p className="section-index light">02 / Layanan utama</p><h2>Empat layanan.<br />Satu ekosistem.</h2><p>Dari data dasar sampai dokumen resmi, setiap modul saling terhubung dan tetap mudah digunakan.</p></div>
-          <div className="service-grid">{services.map((service) => (
-            <Link className={`service-card service-${service.tone}`} href={service.href} key={service.number}>
-              <span className="service-number">{service.number}</span><div className="service-icon" aria-hidden="true"><span /></div><h3>{service.title}</h3><p>{service.description}</p><span className="service-arrow" aria-hidden="true">↗</span>
-            </Link>
-          ))}</div>
-        </div></section>
+        <section className="portal-services" id="layanan">
+          <div className="portal-shell">
+            <header className="portal-section-head">
+              <div><p className="portal-eyebrow"><span /> Layanan utama</p><h2>Satu portal untuk setiap kebutuhan.</h2></div>
+              <p>Pilih layanan yang dibutuhkan. Setiap modul dirancang sebagai bagian dari alur data yang sama.</p>
+            </header>
+            <div className="portal-module-grid">
+              {modules.map((module, index) => (
+                <Link href={module.href} className="portal-module-card" key={module.title}>
+                  <div className="portal-module-top"><span>0{index + 1}</span><span>{module.label}</span></div>
+                  <div className="portal-module-icon"><ModuleIcon type={module.icon} /></div>
+                  <h3>{module.title}</h3><p>{module.description}</p>
+                  <span className="portal-card-link">Buka layanan <i aria-hidden="true">↗</i></span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
 
-        <section className="impact-section"><div className="landing-shell">
-          <div className="impact-head"><div><p className="section-index">03 / Ekosistem</p><h2>Dibangun untuk kerja nyata.</h2></div><p>Alur digital yang menyatukan pemohon, petugas lapangan, analis laboratorium, pejabat, legalisasi, dan percetakan.</p></div>
-          <div className="impact-grid"><article><strong>4</strong><span>modul layanan utama</span></article><article><strong>7</strong><span>aktor sertifikasi benih</span></article><article><strong>2</strong><span>realm SSO Jogjaprov</span></article><article><strong>1</strong><span>sumber data terpadu</span></article></div>
-        </div></section>
-
-        <section className="landing-cta"><div className="landing-shell cta-inner">
-          <p className="landing-kicker light"><span /> Siap digunakan</p><h2>Mulai dari kebutuhanmu.<br />Kami bantu alurnya.</h2>
-          <div className="landing-actions"><Link href="/dashboard" className="landing-button landing-button-light">Buka dashboard <span aria-hidden="true">↗</span></Link><Link href="/bantuan" className="landing-text-link light-link">Lihat panduan <span aria-hidden="true">→</span></Link></div>
-        </div><div className="landscape" aria-hidden="true"><i /><i /><i /></div></section>
+        <section className="portal-sso" id="tentang">
+          <div className="portal-shell portal-sso-grid">
+            <div><p className="portal-eyebrow portal-eyebrow-light"><span /> Akses aman</p><h2>Satu identitas untuk layanan yang terhubung.</h2></div>
+            <div className="portal-sso-copy"><p>Identitas pengguna diverifikasi melalui SSO Pemda DIY. Gunakan JSP untuk masyarakat dan pelaku usaha, atau Satriya untuk ASN dan aparatur pemerintah.</p><Link href="/dashboard">Masuk ke dashboard <span aria-hidden="true">→</span></Link></div>
+          </div>
+          <div className="portal-landscape" aria-hidden="true"><i /><i /></div>
+        </section>
       </main>
     </Layout>
   );

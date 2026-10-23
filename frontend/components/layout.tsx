@@ -29,6 +29,7 @@ const FOOTER_LINKS = [
 export function Layout({ children }: { children: React.ReactNode }) {
   const [principal, setPrincipal] = useState<Principal | null>(null);
   const [loading, setLoading] = useState(true);
+  const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -82,9 +83,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <span className="brand-mark">🌾</span>
               <span className="brand-name">SiTani DIY</span>
             </Link>
-            <nav className="nav-list" aria-label="Navigasi utama">
+            <button
+              type="button"
+              className="portal-menu-toggle"
+              aria-expanded={navOpen}
+              aria-controls="portal-navigation"
+              onClick={() => setNavOpen((value) => !value)}
+            >
+              <span aria-hidden="true">{navOpen ? "×" : "☰"}</span>
+              <span>Menu</span>
+            </button>
+            <nav id="portal-navigation" className={`nav-list${navOpen ? " is-open" : ""}`} aria-label="Navigasi utama">
               {NAV_LINKS.map((link) => (
-                <Link key={link.label} href={link.href} className="nav-link">
+                <Link key={link.label} href={link.href} className="nav-link" onClick={() => setNavOpen(false)}>
                   {link.label}
                 </Link>
               ))}
