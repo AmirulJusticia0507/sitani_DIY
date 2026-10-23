@@ -1,6 +1,7 @@
 # TODO List Pengembangan Portal Pertanian & Ketahanan Pangan DIY
 
 ## 📍 Tahap 1: Setup Lingkungan & Arsitektur dasar
+- [x] Analisis kondisi awal dan pedoman kerja agen (`docs/analisis-proyek.md`, `AGENTS.md`)
 - [ ] Setup Repository & Struktur Proyek (Backend Golang 1.23 & Frontend Next.js 15)
 - [ ] Konfigurasi Docker / Containerization (3 Container: DB, BE, FE)
 - [ ] Integrasi SSO Jogjaprov (Realm JSP untuk Umum & Realm Satriya untuk ASN)

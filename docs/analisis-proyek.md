@@ -1,0 +1,64 @@
+# Analisis kondisi proyek
+
+Tanggal pemeriksaan: 23 Oktober 2026.
+
+## Ringkasan
+
+Proyek berada pada tahap perencanaan. Saat pemeriksaan awal, direktori hanya berisi `readme.md`, `analisis_kebutuhan.md`, dan `todo_list.md`. Belum ada source code, manifest dependency, skema database, konfigurasi container, pengujian, ataupun repository Git. Karena itu, fungsi aplikasi dan integrasi belum dapat diuji.
+
+## Kebutuhan yang sudah tersedia
+
+- Dua domain utama: repository data lokal serta layanan registrasi hortikultura.
+- Tahapan layanan: pengajuan, verifikasi, inspeksi/audit GAP, evaluasi, dan penerbitan dokumen dengan TTE.
+- Kelompok pengguna masyarakat, pelaku usaha/organisasi, ASN, dan internal OPD.
+- Stack dan sistem integrasi pemerintah telah disebutkan.
+
+## Kekurangan spesifikasi dan tindak lanjut
+
+| Area | Kondisi saat ini | Tindak lanjut |
+| --- | --- | --- |
+| Hak akses | Daftar kategori pengguna, belum matriks izin | Definisikan pemohon, verifikator, inspektor, evaluator, penandatangan, admin; petakan izin dan lingkup organisasi |
+| Workflow | Alur sukses tersedia | Tentukan revisi, penolakan, pembatalan, pengajuan ulang, kewenangan transisi, dan SLA |
+| Data lokal | Import Excel/CSV disebutkan | Tetapkan dataset, template, unit, periode, referensi wilayah, aturan duplikasi, dan pelaporan baris gagal |
+| Registrasi | Daftar dokumen masih umum | Definisikan field wajib, jenis layanan, validasi lahan, checklist audit, dan format nomor registrasi |
+| SSO | Nama realm tersedia | Dapatkan issuer, client, redirect URI, discovery, claims dan pemetaan akun dari pengelola |
+| SPL/Sadewa | Referensi dokumentasi tersedia | Verifikasi kontrak, sandbox, autentikasi, callback, retry dan idempotensi |
+| Penyimpanan | MinIO dipilih | Tentukan bucket privat, batas file, retensi, backup, dan akses unduhan |
+| Operasional | Logging disebutkan | Definisikan health/readiness, redaksi log, backup/restore, dan parameter deployment |
+| QA | Tahap testing/UAT tersedia | Tetapkan acceptance criteria per task dan skenario lintas peran |
+
+Kategori pengguna tidak otomatis menjadi role operasional. Contohnya, ASN DIY tidak otomatis berhak memverifikasi atau menandatangani permohonan.
+
+## Arsitektur yang disarankan
+
+Gunakan monorepo dengan backend modular dan frontend terpisah. Modul awal: identitas/akses, katalog layanan, permohonan, dokumen, workflow/audit, dataset/import, dan integrasi. Backend menjadi sumber validasi dan otorisasi. Frontend mengakses API melalui konfigurasi gateway sesuai lingkungan.
+
+Tiga container pada dokumen awal merujuk pada komponen utama aplikasi. MinIO tetap membutuhkan instance eksternal atau container tambahan untuk pengembangan. SSO dan SPL memiliki peran berbeda: SSO menangani identitas; SPL menangani routing/integrasi API. Urutan diagram kebutuhan tidak cukup untuk menetapkan protokol autentikasi.
+
+Entitas kandidat untuk desain skema: pengguna, organisasi, keanggotaan, role/izin, layanan, permohonan, lahan, tanaman, lampiran, riwayat status, inspeksi, penilaian, sertifikat, dataset, batch import, dan audit event. Skema final mengikuti aturan bisnis yang telah divalidasi.
+
+## Urutan pengerjaan
+
+1. Dokumentasikan aturan agen dan kondisi awal; inisialisasi Git.
+2. Siapkan struktur backend/frontend dan endpoint health dengan build yang dapat direproduksi.
+3. Siapkan environment example, container, MySQL, dan mekanisme migrasi.
+4. Definisikan kontrak akses/workflow; implementasikan adaptor SSO setelah konfigurasi resmi tersedia.
+5. Implementasikan satu alur vertikal permohonan sampai verifikasi beserta penyimpanan dokumen dan audit.
+6. Lanjutkan inspeksi, evaluasi, dan integrasi TTE melalui sandbox.
+7. Implementasikan dataset/import dan dashboard berdasarkan template data yang tersedia.
+8. Lengkapi observabilitas, pengujian integrasi, backup/restore, dan UAT.
+
+Task yang membutuhkan layanan eksternal harus ditandai terblokir sampai konfigurasi tersedia, sementara pekerjaan lokal yang independen dapat dilanjutkan.
+
+## Kriteria verifikasi
+
+- Fondasi: backend/frontend dapat dibangun; health endpoint teruji; konfigurasi terdokumentasi.
+- Workflow: transisi valid berhasil, transisi ilegal dan akses lintas pemohon ditolak, audit tercatat.
+- Import: data valid diterima, kesalahan menunjuk baris/field, dan strategi duplikasi diuji.
+- Dokumen: unggah/unduh mengikuti hak akses dan kegagalan storage ditangani.
+- Integrasi: bukti pengujian sandbox mencakup sukses, timeout, retry, dan kegagalan autentikasi.
+- UI: halaman benar-benar dirender dan alur utama diverifikasi lewat browser.
+
+## Dependensi eksternal yang belum tersedia
+
+Pada pemeriksaan lanjutan, repository Git telah tersedia dengan commit awal dan remote `https://github.com/AmirulJusticia0507/sitani_DIY.git`. Kredensial dan konfigurasi SSO, SPL, Sadewa, MinIO, serta dataset contoh belum terdapat dalam proyek. Ini membatasi verifikasi integrasi nyata, bukan pekerjaan dokumentasi atau fondasi lokal.

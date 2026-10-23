@@ -6,6 +6,10 @@ Portal Pertanian dan Ketahanan Pangan DIY adalah platform terpadu yang dikembang
 
 ## 🛠 Tech Stack
 
+> Status: tahap perencanaan; stack di bawah merupakan target implementasi.
+> Analisis kondisi aktual: [docs/analisis-proyek.md](docs/analisis-proyek.md).
+> Pedoman pengerjaan agen: [AGENTS.md](AGENTS.md).
+
 - **Backend:** Golang 1.23
 - **Frontend:** Next.js 15 (React)
 - **Database:** MySQL

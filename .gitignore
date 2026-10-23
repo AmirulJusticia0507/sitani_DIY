@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+node_modules/
+.next/
+out/
+dist/
+coverage/
+*.log
+*.exe
+*.test
+.DS_Store
+Thumbs.db
