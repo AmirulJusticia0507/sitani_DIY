@@ -8,7 +8,9 @@ tasks:
     desc: Jalankan backend Go untuk pengembangan lokal
     dir: backend
     env:
-      DB_DSN: '{{.DB_DSN | default (printf "%s:%s@tcp(127.0.0.1:3306)/%s?parseTime=true&charset=utf8mb4" .MYSQL_USER .MYSQL_PASSWORD .MYSQL_DATABASE)}}'
+      PORT: '{{.DEV_BACKEND_PORT}}'
+      FRONTEND_PUBLIC_URL: '{{.DEV_FRONTEND_URL}}'
+      DB_DSN: '{{.DB_DSN | default (printf "%s:%s@tcp(127.0.0.1:%s)/%s?parseTime=true&charset=utf8mb4" .MYSQL_USER .MYSQL_PASSWORD .MYSQL_HOST_PORT .MYSQL_DATABASE)}}'
     cmds:
       - go run ./cmd/api
 
@@ -16,15 +18,17 @@ tasks:
     desc: Terapkan migrasi ke MySQL lokal
     dir: backend
     env:
-      DB_DSN: '{{.DB_DSN | default (printf "%s:%s@tcp(127.0.0.1:3306)/%s?parseTime=true&charset=utf8mb4" .MYSQL_USER .MYSQL_PASSWORD .MYSQL_DATABASE)}}'
+      DB_DSN: '{{.DB_DSN | default (printf "%s:%s@tcp(127.0.0.1:%s)/%s?parseTime=true&charset=utf8mb4" .MYSQL_USER .MYSQL_PASSWORD .MYSQL_HOST_PORT .MYSQL_DATABASE)}}'
     cmds:
       - go run ./cmd/migrate
 
   frontend:
     desc: Jalankan frontend Next.js untuk pengembangan lokal
     dir: frontend
+    env:
+      NEXT_PUBLIC_BACKEND_URL: '{{.DEV_BACKEND_URL}}'
     cmds:
-      - npm run dev
+      - npm run dev -- --hostname 127.0.0.1 --port {{.DEV_FRONTEND_PORT}}
 
   test:
     desc: Jalankan seluruh unit test backend

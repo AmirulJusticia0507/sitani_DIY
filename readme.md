@@ -103,11 +103,12 @@ task dev
 task frontend
 ```
 
-Frontend tersedia di `http://localhost:3000`, backend di
-`http://localhost:8080`, dan pemeriksaan backend di
-`http://localhost:8080/health`. Task `dev` memuat variabel dari `.env` root
-sebelum menjalankan backend. Task `frontend` juga mewarisi konfigurasi tersebut,
-termasuk `NEXT_PUBLIC_BACKEND_URL` bila ditambahkan ke `.env`.
+Frontend lokal tersedia di `http://localhost:3002`, backend di
+`http://localhost:8081`, dan pemeriksaan backend di
+`http://localhost:8081/health`. Port tersebut dipisah dari Docker Compose,
+yang secara default memakai 3000/8080. Task `dev` memuat variabel dari `.env`
+root sebelum menjalankan backend. Task `frontend` mengarahkan browser ke backend
+lokal melalui `NEXT_PUBLIC_BACKEND_URL`.
 
 Perintah pengembangan tambahan: `task test` untuk unit test backend dan
 `task check` untuk `go vet` serta build. Perintah Next.js langsung tetap tersedia
@@ -115,12 +116,21 @@ di folder `frontend` (`npm run dev`, `npm run lint`, `npm run typecheck`,
 `npm run build`, dan `npm run test:e2e`).
 
 Task `dev` menyusun `DB_DSN` lokal dari `MYSQL_USER`, `MYSQL_PASSWORD`, dan
-`MYSQL_DATABASE` di `.env` (host `127.0.0.1:3306`); nilai `DB_DSN` eksplisit
-di `.env` akan dipakai jika tersedia. Jadi MySQL harus sudah berjalan. Cara
-mudah menyalakannya: `docker compose --env-file .env -f infra/compose.yml up -d
-database`. Setelah itu terapkan migrasi dengan `task migrate`, lalu jalankan
-`task dev`. Untuk unggah dokumen, MinIO juga harus tersedia dan `MINIO_*` di
-`.env` dikonfigurasi.
+`MYSQL_DATABASE` di `.env` (host `127.0.0.1:3307`); nilai `DB_DSN` eksplisit
+di `.env` akan dipakai jika tersedia. Jadi MySQL SiTani harus sudah berjalan.
+Cara mudah menyalakannya: `docker compose --env-file .env -f infra/compose.yml up -d database`,
+yang mem-publish MySQL pada port host `MYSQL_HOST_PORT` (3307 pada `.env.example`)
+agar tidak bentrok dengan layanan lain di 3306. Setelah itu terapkan migrasi
+dengan `task migrate`, lalu jalankan `task dev`. Bila ada container lama yang
+masih memetakan 3306, perintah `up -d database` akan menerapkan pemetaan port
+baru tanpa menghapus volume. Untuk unggah dokumen, MinIO juga harus tersedia
+dan `MINIO_*` di `.env` dikonfigurasi.
+
+Jika backend melaporkan `Access denied`, pastikan username/password MySQL pada
+`.env` sama dengan kredensial yang dipakai saat volume database pertama kali
+dibuat. Mengubah `.env` tidak otomatis mengganti password di volume MySQL yang
+sudah ada. Backend lokal juga tidak akan bisa bind bila `DEV_BACKEND_PORT` sedang
+dipakai; ubah nilai itu pada `.env` atau hentikan proses pemilik port.
 
 ### Skema Database & Migrasi
 
