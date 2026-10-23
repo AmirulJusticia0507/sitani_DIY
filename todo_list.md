@@ -29,7 +29,7 @@
 - [x] Integrasi Sentry Error Logging
 - [x] Dokumentasi anticipasi kerentanan Node.js & PHP Oktober 2026 (`docs/keamanan-kerentanan-nodejs-php-oktober-2026.md`)
 - [x] Fondasi PWA (manifest, ikon, service worker terbatas ke aset publik) serta halaman Tentang, Kebijakan Privasi (draf), dan Bantuan
-- [ ] Testing Unit & Integration Test
+- [ ] Testing Unit & Integration Test — cakupan unit backend berjalan (paket `auth`, `dataset`, `db`, `httpapi`, `service`, `spl`; `go test ./...` lulus). Modul `horticulture`, `notify`, `observability`, `storage`, `store`, dan `cmd/*` belum memiliki tes; tes integrasi ke PostgreSQL/MinIO serta CI otomatis belum tersedia.
 - [ ] User Acceptance Testing (UAT) bersama DPKP DIY & Diskominfo DIY
 
 ## 📍 Tahap 5: Modul Sertifikasi Benih BP3MBTP (Alur XML 7 Aktor)
