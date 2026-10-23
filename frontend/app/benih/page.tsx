@@ -1,6 +1,10 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { Layout } from "../../components/layout";
+import { Card } from "../../components/card";
+import { Badge } from "../../components/badge";
+import { Button } from "../../components/button";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ||
@@ -241,306 +245,420 @@ export default function BenihPage() {
     }
   };
 
+  const statusBadge = (status: string) => {
+    const map: Record<string, string> = {
+      aktif: "success",
+      ditangguhkan: "warning",
+      dicabut: "danger",
+      selesai: "success",
+    };
+    return <Badge variant={(map[status] ?? "info") as any}>{status}</Badge>;
+  };
+
   return (
-    <main style={{ padding: 24, fontFamily: "system-ui, sans-serif", maxWidth: 1100 }}>
-      <p>
-        <a href="/">← Kembali ke portal</a>
-      </p>
-      <h1>Registrasi &amp; Penjualan Benih</h1>
-      <p>
-        Registrasi lot, persediaan per lot, penjualan, pembatalan dengan jejak audit, dan laporan.
-        Identitas memakai sesi SSO yang terverifikasi.
-      </p>
-
-      {galat && <p style={{ color: "brown" }}>Galat: {galat}</p>}
-      {pesan && !galat && <p style={{ color: "green" }}>{pesan}</p>}
-
-      <section style={{ marginTop: 24 }}>
-        <h2>Registrasi Benih</h2>
-        <p style={{ fontSize: 14 }}>
-          Lot hanya dapat didaftarkan jika sertifikat sudah ditandatangani TTE dan label sudah
-          dilegalisasi serta terkirim ke SIM Perbenihan.
-        </p>
-        <form onSubmit={buatRegistrasi} style={formGrid}>
-          <input name="permohonan_id" type="number" min="1" placeholder="ID permohonan" required />
-          <input name="komoditas" placeholder="Komoditas" required />
-          <input name="varietas" placeholder="Varietas" required />
-          <input name="produsen" placeholder="Produsen" required />
-          <input name="sumber_benih" placeholder="Sumber benih" required />
-          <input name="nomor_lot" placeholder="Nomor lot" required />
-          <select name="kelas_benih" defaultValue="sebar" required>
-            <option value="penjenis">Penjenis</option>
-            <option value="dasar">Dasar</option>
-            <option value="pokok">Pokok</option>
-            <option value="sebar">Sebar</option>
-          </select>
-          <input name="jumlah" type="number" min="0.001" step="0.001" placeholder="Jumlah" required />
-          <input name="satuan" placeholder="Satuan (kg)" required />
-          <input name="tanggal_produksi" type="date" required />
-          <input name="tanggal_kedaluwarsa" type="date" required />
-          <select name="status_edar" defaultValue="aktif" required>
-            <option value="aktif">Aktif</option>
-            <option value="ditangguhkan">Ditangguhkan</option>
-            <option value="dicabut">Dicabut</option>
-          </select>
-          <button type="submit">Daftarkan Lot</button>
-        </form>
-
-        <div style={{ marginTop: 12 }}>
-          <button type="button" onClick={muatRegistrasi}>
-            Muat Registrasi
-          </button>
+    <Layout>
+      <div className="space-y-6">
+        <div className="container">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-2">
+            <div>
+              <p className="eyebrow">Layanan benih</p>
+              <h1 className="text-2xl font-bold text-sitani-green-800">
+                Registrasi &amp; Penjualan Benih
+              </h1>
+              <p className="text-sitani-muted text-sm">
+                Registrasi lot, persediaan per lot, penjualan, pembatalan dengan jejak audit, dan laporan.
+                Identitas memakai sesi SSO yang terverifikasi.
+              </p>
+            </div>
+          </div>
         </div>
 
-        {registrasi.length > 0 && (
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th>Registrasi</th>
-                <th>Lot</th>
-                <th>Komoditas</th>
-                <th>Kelas</th>
-                <th>Jumlah</th>
-                <th>Kedaluwarsa</th>
-                <th>Status</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {registrasi.map((item) => (
-                <tr key={item.ID}>
-                  <td>{item.NomorRegistrasi}</td>
-                  <td>{item.NomorLot}</td>
-                  <td>
-                    {item.Komoditas} / {item.Varietas}
-                  </td>
-                  <td>{item.KelasBenih}</td>
-                  <td>
-                    {item.Jumlah} {item.Satuan}
-                  </td>
-                  <td>{item.TanggalKedaluwarsa}</td>
-                  <td>{item.StatusEdar}</td>
-                  <td style={{ whiteSpace: "nowrap" }}>
-                    <button type="button" onClick={() => lihatStok(item.ID)}>
-                      Stok
-                    </button>{" "}
-                    {item.StatusEdar === "aktif" ? (
-                      <button type="button" onClick={() => ubahStatus(item.ID, "ditangguhkan")}>
-                        Tangguhkan
-                      </button>
-                    ) : (
-                      <button type="button" onClick={() => ubahStatus(item.ID, "aktif")}>
-                        Aktifkan
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {galat && (
+          <div className="container alert alert-error" role="alert">
+            Galat: {galat}
+          </div>
         )}
-      </section>
-
-      {stokDetail && (
-        <section style={{ marginTop: 24, padding: 16, border: "1px solid #ddd" }}>
-          <h2>Stok Lot {stokDetail.stok.NomorLot}</h2>
-          <p>
-            Tersedia: <b>{stokDetail.stok.JumlahTersedia}</b> {stokDetail.stok.Satuan} | Status:{" "}
-            {stokDetail.stok.StatusEdar} | Kedaluwarsa: {stokDetail.stok.TanggalKedaluwarsa}
-          </p>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th>Waktu</th>
-                <th>Jenis</th>
-                <th>Jumlah</th>
-                <th>Saldo</th>
-                <th>Referensi</th>
-                <th>Catatan</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(stokDetail.mutasi || []).map((mutasi) => (
-                <tr key={mutasi.ID}>
-                  <td>{mutasi.CreatedAt}</td>
-                  <td>{mutasi.Jenis}</td>
-                  <td>{mutasi.Jumlah}</td>
-                  <td>{mutasi.SaldoSetelah}</td>
-                  <td>{mutasi.ReferensiTipe}</td>
-                  <td>{mutasi.Catatan}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-
-      <section style={{ marginTop: 24 }}>
-        <h2>Penjualan Benih</h2>
-        <p style={{ fontSize: 14 }}>
-          Penjualan hanya diterima untuk lot aktif, belum kedaluwarsa, serta memiliki sertifikat
-          dan label yang sah. Stok dikurangi dalam transaksi database.
-        </p>
-        <form onSubmit={jualBenih} style={formGrid}>
-          <input name="nomor_dokumen" placeholder="Nomor dokumen" required />
-          <input name="registrasi_id" type="number" min="1" placeholder="ID registrasi" required />
-          <input name="pembeli" placeholder="Pembeli" required />
-          <input name="jumlah" type="number" min="0.001" step="0.001" placeholder="Jumlah" required />
-          <input
-            name="harga_satuan"
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="Harga satuan"
-            required
-          />
-          <input
-            name="tanggal_transaksi"
-            type="date"
-            defaultValue={tanggalHariIni()}
-            required
-          />
-          <button type="submit">Catat Penjualan</button>
-        </form>
-
-        <div style={{ marginTop: 12 }}>
-          <button type="button" onClick={muatPenjualan}>
-            Muat Penjualan
-          </button>
-        </div>
-
-        {penjualan.length > 0 && (
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th>Dokumen</th>
-                <th>Lot</th>
-                <th>Pembeli</th>
-                <th>Jumlah</th>
-                <th>Total</th>
-                <th>Tanggal</th>
-                <th>Status</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {penjualan.map((item) => (
-                <tr key={item.ID}>
-                  <td>{item.NomorDokumen}</td>
-                  <td>{item.NomorLot}</td>
-                  <td>{item.Pembeli}</td>
-                  <td>{item.Jumlah}</td>
-                  <td>{rupiah.format(item.TotalHarga)}</td>
-                  <td>{item.TanggalTransaksi}</td>
-                  <td>{item.Status}</td>
-                  <td>
-                    {item.Status === "selesai" ? (
-                      <button type="button" onClick={() => batalkanPenjualan(item.ID)}>
-                        Batalkan
-                      </button>
-                    ) : (
-                      item.AlasanPembatalan
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-
-      <section style={{ marginTop: 24 }}>
-        <h2>Laporan</h2>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button type="button" onClick={muatLaporanStok}>
-            Laporan Stok
-          </button>
-          <button type="button" onClick={muatLaporanKedaluwarsa}>
-            Kedaluwarsa ≤ 90 Hari
-          </button>
-          <button type="button" onClick={muatPenjualan}>
-            Laporan Penjualan
-          </button>
-        </div>
-
-        {laporanStok && (
-          <>
-            <h3>Stok Seluruh Lot</h3>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th>Lot</th>
-                  <th>Komoditas</th>
-                  <th>Tersedia</th>
-                  <th>Kedaluwarsa</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {laporanStok.map((item) => (
-                  <tr key={item.RegistrasiID}>
-                    <td>{item.NomorLot}</td>
-                    <td>
-                      {item.Komoditas} / {item.Varietas}
-                    </td>
-                    <td>
-                      {item.JumlahTersedia} {item.Satuan}
-                    </td>
-                    <td>{item.TanggalKedaluwarsa}</td>
-                    <td>{item.StatusEdar}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
+        {pesan && !galat && (
+          <div className="container alert alert-success" role="status">
+            {pesan}
+          </div>
         )}
 
-        {laporanKedaluwarsa && (
-          <>
-            <h3>Lot Mendekati Kedaluwarsa</h3>
-            {laporanKedaluwarsa.length === 0 ? (
-              <p>Tidak ada lot dalam rentang 90 hari.</p>
-            ) : (
-              <table style={tableStyle}>
-                <thead>
-                  <tr>
-                    <th>Lot</th>
-                    <th>Komoditas</th>
-                    <th>Kedaluwarsa</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {laporanKedaluwarsa.map((item) => (
-                    <tr key={item.ID}>
-                      <td>{item.NomorLot}</td>
-                      <td>
-                        {item.Komoditas} / {item.Varietas}
-                      </td>
-                      <td>{item.TanggalKedaluwarsa}</td>
-                      <td>{item.StatusEdar}</td>
+        <div className="container">
+          <section>
+            <h2 className="text-xl font-bold text-sitani-green-800 mb-3">Registrasi Benih</h2>
+            <p className="text-sitani-muted text-sm mb-4">
+              Lot hanya dapat didaftarkan jika sertifikat sudah ditandatangani TTE dan label sudah
+              dilegalisasi serta terkirim ke SIM Perbenihan.
+            </p>
+            <Card>
+              <form onSubmit={buatRegistrasi} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="form-group">
+                  <label className="form-label">ID permohonan</label>
+                  <input
+                    name="permohonan_id"
+                    type="number"
+                    min="1"
+                    className="form-input"
+                    placeholder="ID permohonan"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Komoditas</label>
+                  <input name="komoditas" className="form-input" placeholder="Komoditas" required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Varietas</label>
+                  <input name="varietas" className="form-input" placeholder="Varietas" required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Produsen</label>
+                  <input name="produsen" className="form-input" placeholder="Produsen" required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Sumber benih</label>
+                  <input name="sumber_benih" className="form-input" placeholder="Sumber benih" required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Nomor lot</label>
+                  <input name="nomor_lot" className="form-input" placeholder="Nomor lot" required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Kelas benih</label>
+                  <select name="kelas_benih" defaultValue="sebar" className="form-input" required>
+                    <option value="penjenis">Penjenis</option>
+                    <option value="dasar">Dasar</option>
+                    <option value="pokok">Pokok</option>
+                    <option value="sebar">Sebar</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Jumlah</label>
+                  <input
+                    name="jumlah"
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    className="form-input"
+                    placeholder="Jumlah"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Satuan</label>
+                  <input name="satuan" className="form-input" placeholder="kg" required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Tanggal produksi</label>
+                  <input name="tanggal_produksi" type="date" className="form-input" required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Tanggal kedaluwarsa</label>
+                  <input name="tanggal_kedaluwarsa" type="date" className="form-input" required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Status edar</label>
+                  <select name="status_edar" defaultValue="aktif" className="form-input" required>
+                    <option value="aktif">Aktif</option>
+                    <option value="ditangguhkan">Ditangguhkan</option>
+                    <option value="dicabut">Dicabut</option>
+                  </select>
+                </div>
+                <div className="form-group sm:col-span-2 lg:col-span-3">
+                  <Button type="submit" variant="primary" className="w-auto">
+                    Daftarkan Lot
+                  </Button>
+                </div>
+              </form>
+            </Card>
+
+            <div className="mt-4 flex justify-between items-center">
+              <Button variant="outline" size="sm" onClick={muatRegistrasi}>
+                Muat Registrasi
+              </Button>
+            </div>
+
+            {registrasi.length > 0 && (
+              <div className="mt-6">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Registrasi</th>
+                      <th>Lot</th>
+                      <th>Komoditas</th>
+                      <th>Kelas</th>
+                      <th>Jumlah</th>
+                      <th>Kedaluwarsa</th>
+                      <th>Status</th>
+                      <th>Aksi</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {registrasi.map((item) => (
+                      <tr key={item.ID}>
+                        <td>{item.NomorRegistrasi}</td>
+                        <td>{item.NomorLot}</td>
+                        <td>{item.Komoditas} / {item.Varietas}</td>
+                        <td>{item.KelasBenih}</td>
+                        <td>{item.Jumlah} {item.Satuan}</td>
+                        <td>{item.TanggalKedaluwarsa}</td>
+                        <td>{statusBadge(item.StatusEdar)}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          <Button size="sm" variant="outline" onClick={() => lihatStok(item.ID)}>
+                            Stok
+                          </Button>{" "}
+                          {item.StatusEdar === "aktif" ? (
+                            <Button size="sm" variant="secondary" onClick={() => ubahStatus(item.ID, "ditangguhkan")}>
+                              Tangguhkan
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="secondary" onClick={() => ubahStatus(item.ID, "aktif")}>
+                              Aktifkan
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </>
-        )}
-      </section>
-    </main>
+          </section>
+
+          {stokDetail && (
+            <section className="mt-8">
+              <Card>
+                <h2 className="text-xl font-bold text-sitani-green-800 mb-2">
+                  Stok Lot {stokDetail.stok.NomorLot}
+                </h2>
+                <p className="text-sitani-muted text-sm mb-4">
+                  Tersedia:{" "}
+                  <strong>{stokDetail.stok.JumlahTersedia} {stokDetail.stok.Satuan}</strong>{" "}
+                  | Status:{stokDetail.stok.StatusEdar} | Kedaluwarsa:{" "}
+                  {stokDetail.stok.TanggalKedaluwarsa}
+                </p>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Waktu</th>
+                      <th>Jenis</th>
+                      <th>Jumlah</th>
+                      <th>Saldo</th>
+                      <th>Referensi</th>
+                      <th>Catatan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(stokDetail.mutasi || []).map((mutasi) => (
+                      <tr key={mutasi.ID}>
+                        <td>{mutasi.CreatedAt}</td>
+                        <td>{mutasi.Jenis}</td>
+                        <td>{mutasi.Jumlah}</td>
+                        <td>{mutasi.SaldoSetelah}</td>
+                        <td>{mutasi.ReferensiTipe}</td>
+                        <td>{mutasi.Catatan}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
+            </section>
+          )}
+
+          <section className="mt-8">
+            <h2 className="text-xl font-bold text-sitani-green-800 mb-3">Penjualan Benih</h2>
+            <p className="text-sitani-muted text-sm mb-4">
+              Penjualan hanya diterima untuk lot aktif, belum kedaluwarsa, serta memiliki sertifikat
+              dan label yang sah. Stok dikurangi dalam transaksi database.
+            </p>
+            <Card>
+              <form onSubmit={jualBenih} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="form-group">
+                  <label className="form-label">Nomor dokumen</label>
+                  <input name="nomor_dokumen" className="form-input" placeholder="Nomor dokumen" required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">ID registrasi</label>
+                  <input
+                    name="registrasi_id"
+                    type="number"
+                    min="1"
+                    className="form-input"
+                    placeholder="ID registrasi"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Pembeli</label>
+                  <input name="pembeli" className="form-input" placeholder="Pembeli" required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Jumlah</label>
+                  <input
+                    name="jumlah"
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    className="form-input"
+                    placeholder="Jumlah"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Harga satuan</label>
+                  <input
+                    name="harga_satuan"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="form-input"
+                    placeholder="Harga satuan"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Tanggal transaksi</label>
+                  <input
+                    name="tanggal_transaksi"
+                    type="date"
+                    defaultValue={tanggalHariIni()}
+                    className="form-input"
+                    required
+                  />
+                </div>
+                <div className="form-group sm:col-span-2 lg:col-span-3">
+                  <Button type="submit" variant="primary" className="w-auto">
+                    Catat Penjualan
+                  </Button>
+                </div>
+              </form>
+            </Card>
+
+            <div className="mt-4 flex justify-between items-center">
+              <Button variant="outline" size="sm" onClick={muatPenjualan}>
+                Muat Penjualan
+              </Button>
+            </div>
+
+            {penjualan.length > 0 && (
+              <div className="mt-6">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Dokumen</th>
+                      <th>Lot</th>
+                      <th>Pembeli</th>
+                      <th>Jumlah</th>
+                      <th>Total</th>
+                      <th>Tanggal</th>
+                      <th>Status</th>
+                      <th>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {penjualan.map((item) => (
+                      <tr key={item.ID}>
+                        <td>{item.NomorDokumen}</td>
+                        <td>{item.NomorLot}</td>
+                        <td>{item.Pembeli}</td>
+                        <td>{item.Jumlah}</td>
+                        <td>{rupiah.format(item.TotalHarga)}</td>
+                        <td>{item.TanggalTransaksi}</td>
+                        <td>{statusBadge(item.Status)}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          {item.Status === "selesai" ? (
+                            <Button size="sm" variant="secondary" onClick={() => batalkanPenjualan(item.ID)}>
+                              Batalkan
+                            </Button>
+                          ) : (
+                            item.AlasanPembatalan
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <section className="mt-8">
+            <h2 className="text-xl font-bold text-sitani-green-800 mb-3">Laporan</h2>
+            <div className="flex flex-wrap gap-3 mb-4">
+              <Button variant="outline" size="sm" onClick={muatLaporanStok}>
+                Laporan Stok
+              </Button>
+              <Button variant="outline" size="sm" onClick={muatLaporanKedaluwarsa}>
+                Kedaluwarsa ≤ 90 Hari
+              </Button>
+              <Button variant="outline" size="sm" onClick={muatPenjualan}>
+                Laporan Penjualan
+              </Button>
+            </div>
+
+            {laporanStok && (
+              <>
+                <h3 className="text-sm font-bold text-sitani-green-700 mb-2">Stok Seluruh Lot</h3>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Lot</th>
+                      <th>Komoditas</th>
+                      <th>Tersedia</th>
+                      <th>Kedaluwarsa</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {laporanStok.map((item) => (
+                      <tr key={item.RegistrasiID}>
+                        <td>{item.NomorLot}</td>
+                        <td>{item.Komoditas} / {item.Varietas}</td>
+                        <td>{item.JumlahTersedia} {item.Satuan}</td>
+                        <td>{item.TanggalKedaluwarsa}</td>
+                        <td>{statusBadge(item.StatusEdar)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+
+            {laporanKedaluwarsa && (
+              <div className="mt-6">
+                <h3 className="text-sm font-bold text-sitani-green-700 mb-2">
+                  Lot Mendekati Kedaluwarsa
+                </h3>
+                {laporanKedaluwarsa.length === 0 ? (
+                  <p className="text-sitani-muted text-sm">Tidak ada lot dalam rentang 90 hari.</p>
+                ) : (
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Lot</th>
+                        <th>Komoditas</th>
+                        <th>Kedaluwarsa</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {laporanKedaluwarsa.map((item) => (
+                        <tr key={item.ID}>
+                          <td>{item.NomorLot}</td>
+                          <td>{item.Komoditas} / {item.Varietas}</td>
+                          <td>{item.TanggalKedaluwarsa}</td>
+                          <td>{statusBadge(item.StatusEdar)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
+    </Layout>
   );
 }
-
-const formGrid: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
-  gap: 8,
-  alignItems: "center",
-};
-
-const tableStyle: React.CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-  marginTop: 12,
-  fontSize: 14,
-};

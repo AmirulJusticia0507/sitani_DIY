@@ -5,12 +5,12 @@ export default defineConfig({
   outputDir: "../.ui-check/results",
   reporter: "line",
   webServer: {
-    command: "npm run dev -- --hostname 127.0.0.1 --port 3100",
-    url: "http://127.0.0.1:3100",
-    reuseExistingServer: false,
+    command: "npm run dev -- --hostname 127.0.0.1 --port 3002",
+    url: "http://127.0.0.1:3002",
+    reuseExistingServer: true,
   },
   use: {
-    baseURL: "http://127.0.0.1:3100",
+    baseURL: "http://127.0.0.1:3002",
     channel: "chrome",
     screenshot: "only-on-failure",
   },

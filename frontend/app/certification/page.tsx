@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { Layout } from "../../components/layout";
+import { Card } from "../../components/card";
+import { Badge } from "../../components/badge";
+import { Button } from "../../components/button";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ||
@@ -154,130 +158,169 @@ export default function CertificationPage() {
     }
   };
 
-  const roleLabel: Record<Role, string> = {
-    pelanggan: "Pelanggan",
-    admin: "Admin",
-    pengawas: "Pengawas / PBT",
-    analis: "Analis Lab",
-    penandatangan: "Penandatangan TTE",
-    legalisasi: "Legalisasi",
-    percetakan: "Percetakan",
-  };
-
   return (
-    <main style={{ padding: 24, fontFamily: "system-ui, sans-serif" }}>
-      <h1>Sertifikasi Benih BP3MBTP</h1>
-      <p>Alur 7 aktor berdasarkan diagram XML (Fase 1–3).</p>
+    <Layout>
+      <div className="space-y-6">
+        <div className="container">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-2">
+            <div>
+              <p className="eyebrow">Layanan sertifikasi benih</p>
+              <h1 className="text-2xl font-bold text-sitani-green-800">Sertifikasi Benih BP3MBTP</h1>
+              <p className="text-sitani-muted text-sm">
+                Alur 7 aktor berdasarkan diagram XML (Fase 1–3).
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setRole("pelanggan")}>
+                Pelanggan
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setRole("analis")}>
+                Analis Lab
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setRole("penandatangan")}>
+                Penandatangan
+              </Button>
+            </div>
+          </div>
+        </div>
 
-      <label style={{ marginRight: 8 }}>
-        Peran:{" "}
-        <select
-          value={role}
-          onChange={(e) => setRole(e.currentTarget.value as Role)}
-        >
-          {Object.entries(roleLabel).map(([k, v]) => (
-            <option key={k} value={k as Role}>
-              {v}
-            </option>
-          ))}
-        </select>
-      </label>
-      {error && <p style={{ color: "brown" }}>{error}</p>}
-      {statusMsg && <p style={{ color: "green" }}>{statusMsg}</p>}
+        {error && (
+          <div className="container alert alert-error" role="alert">
+            {error}
+          </div>
+        )}
+        {statusMsg && (
+          <div className="container alert alert-success" role="status">
+            {statusMsg}
+          </div>
+        )}
 
-      {permohonan ? (
-        <>
-          <h2>Permohonan {permohonan.NomorPermohonan}</h2>
-          <p>
-            Status: <b>{permohonan.Status}</b> | Pembayaran awal:
-            {" "}{permohonan.PembayaranAwalStatus}
-          </p>
+        <div className="container">
+          {permohonan ? (
+            <>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-sitani-green-800">
+                    Permohonan {permohonan.NomorPermohonan}
+                  </h2>
+                  <p className="text-sitani-muted text-sm">
+                    Status:{" "}
+                    <Badge variant="success">{permohonan.Status}</Badge>{" "}
+                    | Pembayaran awal:{permohonan.PembayaranAwalStatus}
+                  </p>
+                </div>
+              </div>
 
-          <section style={{ marginTop: 16 }}>
-            <h3>Fase 1 — Verifikasi Lapangan</h3>
-            {!permohonan.PembayaranAwalStatus.startsWith("lunas") && (
-              <button onClick={() => bayarAwal(permohonan.ID)}>
-                Bayar Awal
-              </button>
-            )}
-            <button onClick={() => catatInspeksi(permohonan.ID, 1, "lulus")}>
-              Inspeksi Fase 1 (Lulus)
-            </button>
-            <button onClick={() => catatInspeksi(permohonan.ID, 2, "lulus")}>
-              Inspeksi Fase 2 (Lulus)
-            </button>
-            <button onClick={() => catatInspeksi(permohonan.ID, 3, "lulus")}>
-              Inspeksi Fase 3 (Lulus)
-            </button>
-            <button onClick={() => catatInspeksi(permohonan.ID, 4, "lulus")}>
-              Inspeksi Fase 4 (Lulus)
-            </button>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const form = new FormData(e.currentTarget as HTMLFormElement);
-                catatBukuInduk(permohonan.ID, String(form.get("nomor")));
-              }}
-            >
-              <input name="nomor" placeholder="Nomor Buku Induk" />
-              <button type="submit">Catat Buku Induk</button>
-            </form>
-          </section>
+              <section className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <Card>
+                  <h3 className="text-sm font-bold text-sitani-green-700 uppercase tracking-wider mb-3">
+                    Fase 1 — Verifikasi Lapangan
+                  </h3>
+                  {!permohonan.PembayaranAwalStatus.startsWith("lunas") && (
+                    <Button variant="secondary" size="sm" onClick={() => bayarAwal(permohonan.ID)}>
+                      Bayar Awal
+                    </Button>
+                  )}
+                  <Button size="sm" onClick={() => catatInspeksi(permohonan.ID, 1, "lulus")}>
+                    Inspeksi Fase 1 (Lulus)
+                  </Button>
+                  <Button size="sm" onClick={() => catatInspeksi(permohonan.ID, 2, "lulus")}>
+                    Inspeksi Fase 2 (Lulus)
+                  </Button>
+                  <Button size="sm" onClick={() => catatInspeksi(permohonan.ID, 3, "lulus")}>
+                    Inspeksi Fase 3 (Lulus)
+                  </Button>
+                  <Button size="sm" onClick={() => catatInspeksi(permohonan.ID, 4, "lulus")}>
+                    Inspeksi Fase 4 (Lulus)
+                  </Button>
+                  <form
+                    className="mt-4"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const form = new FormData(e.currentTarget as HTMLFormElement);
+                      catatBukuInduk(permohonan.ID, String(form.get("nomor")));
+                    }}
+                  >
+                    <label className="form-label">Nomor Buku Induk</label>
+                    <input
+                      name="nomor"
+                      className="form-input"
+                      placeholder="Nomor Buku Induk"
+                      required
+                    />
+                    <Button type="submit" variant="primary" size="sm" className="mt-2 w-full">
+                      Catat
+                    </Button>
+                  </form>
+                </Card>
 
-          <section style={{ marginTop: 16 }}>
-            <h3>Fase 2 — Pengujian Lab Mutu</h3>
-            <button onClick={() => ambilSampel(permohonan.ID)}>Ambil Sampel</button>
-            {sampel && (
-              <>
-                <p>Sampel: {sampel.KodeSampel} ({sampel.Status})</p>
-                <button onClick={() => prosesMutu(sampel.ID)}>
-                  Proses Hasil Mutu (Auto Lulus/Tidak Lulus)
-                </button>
-              </>
-            )}
-          </section>
+                <Card>
+                  <h3 className="text-sm font-bold text-sitani-green-700 uppercase tracking-wider mb-3">
+                    Fase 2 — Pengujian Lab Mutu
+                  </h3>
+                  <Button variant="secondary" size="sm" onClick={() => ambilSampel(permohonan.ID)}>
+                    Ambil Sampel
+                  </Button>
+                  {sampel && (
+                    <>
+                      <p className="text-sm text-sitani-muted mb-3">
+                        Sampel: <strong>{sampel.KodeSampel}</strong> ({sampel.Status})
+                      </p>
+                      <Button size="sm" onClick={() => prosesMutu(sampel.ID)}>
+                        Proses Hasil Mutu
+                      </Button>
+                    </>
+                  )}
+                </Card>
 
-          <section style={{ marginTop: 16 }}>
-            <h3>Fase 3 — Sertifikasi & Penerbitan Label</h3>
-            <p>
-              (Jalur lulus: Sertifikat → TTE → Draft Label → SIM Perbenihan →
-              Percetakan → Legalisasi → Penyerahan. Jalur tidak lulus: kirim
-              laporan lengkap, proses selesai.)
-            </p>
-          </section>
-        </>
-      ) : (
-        <section style={{ marginTop: 16 }}>
-          <h3>Fase 1 — Ajukan Permohonan</h3>
-          <form onSubmit={buatPermohonan}>
-            <input
-              name="jenis_benih"
-              placeholder="Jenis benih"
-              required
-              style={{ marginRight: 8 }}
-            />
-            <input
-              name="varietas"
-              placeholder="Varietas"
-              required
-              style={{ marginRight: 8 }}
-            />
-            <input
-              name="luas_lahan"
-              type="number"
-              placeholder="Luas lahan"
-              required
-              style={{ marginRight: 8 }}
-            />
-            <input
-              name="lokasi_kebun"
-              placeholder="Lokasi kebun"
-              required
-            />
-            <button type="submit">Ajukan</button>
-          </form>
-        </section>
-      )}
-    </main>
+                <Card>
+                  <h3 className="text-sm font-bold text-sitani-green-700 uppercase tracking-wider mb-3">
+                    Fase 3 — Sertifikasi & Label
+                  </h3>
+                  <p className="text-xs text-sitani-muted leading-relaxed mb-4">
+                    Jalur lulus: Sertifikat → TTE → Draft Label → SIM Perbenihan →
+                    Percetakan → Legalisasi → Penyerahan.
+                  </p>
+                  <p className="text-xs text-sitani-muted">
+                    Jalur tidak lulus: kirim laporan lengkap, proses selesai.
+                  </p>
+                </Card>
+              </section>
+            </>
+          ) : (
+            <section>
+              <h3 className="text-sm font-bold text-sitani-green-700 uppercase tracking-wider mb-3">
+                Fase 1 — Ajukan Permohonan
+              </h3>
+              <Card>
+                <form onSubmit={buatPermohonan} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="form-group">
+                    <label className="form-label">Jenis benih</label>
+                    <input name="jenis_benih" className="form-input" required />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Varietas</label>
+                    <input name="varietas" className="form-input" required />
+                  </div>
+                  <div className="form-group sm:col-span-2">
+                    <label className="form-label">Luas lahan (ha)</label>
+                    <input name="luas_lahan" type="number" className="form-input" required />
+                  </div>
+                  <div className="form-group sm:col-span-2">
+                    <label className="form-label">Lokasi kebun</label>
+                    <input name="lokasi_kebun" className="form-input" required />
+                  </div>
+                  <div className="form-group sm:col-span-2">
+                    <Button type="submit" variant="primary" className="w-auto">
+                      Ajukan Permohonan
+                    </Button>
+                  </div>
+                </form>
+              </Card>
+            </section>
+          )}
+        </div>
+      </div>
+    </Layout>
   );
 }
