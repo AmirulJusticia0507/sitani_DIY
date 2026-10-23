@@ -4,9 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 )
+
+var ErrNotFound = errors.New("batch import tidak ditemukan")
 
 type Import struct {
 	ID           int64     `json:"id"`
@@ -20,6 +23,7 @@ type Import struct {
 type Repository interface {
 	Simpan(context.Context, int64, string, string, Result) (Import, error)
 	Daftar(context.Context, int64, bool) ([]Import, error)
+	Detail(context.Context, int64) (Import, Result, error)
 }
 
 type MySQLRepository struct{ db *sql.DB }
@@ -80,4 +84,25 @@ func (r *MySQLRepository) Daftar(ctx context.Context, userID int64, semua bool) 
 		return nil, fmt.Errorf("iterasi batch dataset: %w", err)
 	}
 	return result, nil
+}
+
+func (r *MySQLRepository) Detail(ctx context.Context, id int64) (Import, Result, error) {
+	var item Import
+	var headersJSON, rowsJSON []byte
+	err := r.db.QueryRowContext(ctx, `SELECT id,nama_dataset,nama_file,headers_json,jumlah_baris,baris_json,diunggah_oleh,dibuat_pada FROM dataset_imports WHERE id=?`, id).Scan(
+		&item.ID, &item.NamaDataset, &item.NamaFile, &headersJSON, &item.JumlahBaris, &rowsJSON, &item.DiunggahOleh, &item.DibuatPada)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Import{}, Result{}, ErrNotFound
+		}
+		return Import{}, Result{}, fmt.Errorf("ambil detail batch dataset: %w", err)
+	}
+	var parsed Result
+	if err := json.Unmarshal(headersJSON, &parsed.Headers); err != nil {
+		return Import{}, Result{}, fmt.Errorf("decode header batch dataset: %w", err)
+	}
+	if err := json.Unmarshal(rowsJSON, &parsed.Rows); err != nil {
+		return Import{}, Result{}, fmt.Errorf("decode baris batch dataset: %w", err)
+	}
+	return item, parsed, nil
 }

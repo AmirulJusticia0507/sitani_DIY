@@ -31,8 +31,9 @@ header ditolak. Baris kosong dilewati. Respons `201` memuat metadata batch,
 bukan isi dataset.
 
 `GET /v1/dataset/import` mengembalikan metadata batch terbaru (maksimal 100).
-Saat ini belum tersedia API untuk membaca baris impor atau melakukan koreksi/
-penghapusan batch.
+`GET /v1/dataset/import/{id}` mengembalikan metadata, header, dan baris batch;
+batch hanya dapat dibaca pengunggahnya atau admin. Saat ini belum tersedia API
+untuk melakukan koreksi/penghapusan batch.
 
 ## Verifikasi lokal
 

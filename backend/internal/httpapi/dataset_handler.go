@@ -17,6 +17,7 @@ type datasetHandler struct{ repo dataset.Repository }
 func (h *datasetHandler) register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/dataset/import", h.importData)
 	mux.HandleFunc("GET /v1/dataset/import", h.listImports)
+	mux.HandleFunc("GET /v1/dataset/import/{id}", h.getImport)
 }
 
 func datasetRole(role string) bool { return role == "admin" || role == "analis" }
@@ -101,4 +102,38 @@ func (h *datasetHandler) listImports(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]any{"imports": items})
+}
+
+func (h *datasetHandler) getImport(w http.ResponseWriter, r *http.Request) {
+	principal, ok := auth.PrincipalFromContext(r.Context())
+	if !ok || principal.UserID <= 0 {
+		respondError(w, http.StatusUnauthorized, "identitas pengguna tidak tersedia")
+		return
+	}
+	if !datasetRole(principal.Role) {
+		respondError(w, http.StatusForbidden, "peran tidak diizinkan melihat batch import")
+		return
+	}
+	if h.repo == nil {
+		respondError(w, http.StatusServiceUnavailable, "repository dataset belum tersedia")
+		return
+	}
+	id, valid := parsePathID(w, r, "id", "ID batch tidak valid")
+	if !valid {
+		return
+	}
+	item, parsed, err := h.repo.Detail(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, dataset.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "batch import tidak ditemukan")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "gagal membaca detail batch")
+		return
+	}
+	if principal.Role != "admin" && item.DiunggahOleh != principal.UserID {
+		respondError(w, http.StatusForbidden, "batch import bukan milik Anda")
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]any{"import": item, "headers": parsed.Headers, "rows": parsed.Rows})
 }

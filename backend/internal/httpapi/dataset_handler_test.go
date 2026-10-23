@@ -32,6 +32,13 @@ func (f *fakeDatasetRepo) Daftar(_ context.Context, _ int64, all bool) ([]datase
 	return []dataset.Import{f.saved}, nil
 }
 
+func (f *fakeDatasetRepo) Detail(_ context.Context, id int64) (dataset.Import, dataset.Result, error) {
+	if f.saved.ID != id {
+		return dataset.Import{}, dataset.Result{}, dataset.ErrNotFound
+	}
+	return f.saved, f.rows, nil
+}
+
 func datasetRequest(t *testing.T, role string) *http.Request {
 	t.Helper()
 	var body strings.Builder
@@ -93,6 +100,25 @@ func TestDatasetListScopesAdminAndAnalyst(t *testing.T) {
 		h.listImports(w, r)
 		if w.Code != http.StatusOK || repo.all != tc.all {
 			t.Errorf("role %s: status=%d all=%v", tc.role, w.Code, repo.all)
+		}
+	}
+}
+
+func TestDatasetDetailRestrictedToUploaderOrAdmin(t *testing.T) {
+	for _, tc := range []struct {
+		role   string
+		userID int64
+		want   int
+	}{{"analis", 42, http.StatusOK}, {"analis", 99, http.StatusForbidden}, {"admin", 99, http.StatusOK}} {
+		repo := &fakeDatasetRepo{saved: dataset.Import{ID: 9, DiunggahOleh: 42}, rows: dataset.Result{Headers: []string{"nama"}, Rows: []map[string]string{{"nama": "Padi"}}}}
+		h := &datasetHandler{repo: repo}
+		r := httptest.NewRequest(http.MethodGet, "/v1/dataset/import/9", nil)
+		r.SetPathValue("id", "9")
+		r = r.WithContext(auth.WithPrincipal(r.Context(), auth.Principal{UserID: tc.userID, Role: tc.role}))
+		w := httptest.NewRecorder()
+		h.getImport(w, r)
+		if w.Code != tc.want {
+			t.Errorf("role=%s user=%d status=%d, want %d; %s", tc.role, tc.userID, w.Code, tc.want, w.Body.String())
 		}
 	}
 }
