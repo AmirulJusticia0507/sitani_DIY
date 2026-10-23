@@ -1,13 +1,31 @@
 import { AuthPanel } from "./auth-panel";
 
-const modules = [
+interface Module {
+  title: string;
+  description: string;
+  href?: string;
+}
+
+const modules: Module[] = [
   {
     title: "Repository Data Lokal",
     description: "Pusat data pertanian lintas bidang untuk pelaporan dan visualisasi terpadu.",
+    href: "/repository-data",
   },
   {
     title: "Registrasi Hortikultura",
     description: "Alur permohonan, verifikasi, inspeksi, evaluasi, dan penerbitan registrasi.",
+    href: "/horticulture",
+  },
+  {
+    title: "Sertifikasi Benih BP3MBTP",
+    description: "Alur 7 aktor: verifikasi lapangan, pengujian lab mutu, dan penerbitan label.",
+    href: "/certification",
+  },
+  {
+    title: "Registrasi & Penjualan Benih",
+    description: "Registrasi lot, persediaan, penjualan, pembatalan, dan laporan benih.",
+    href: "/benih",
   },
 ];
 
@@ -32,7 +50,9 @@ export default function Home() {
         <div className="grid">
           {modules.map((module) => (
             <article key={module.title}>
-              <h3>{module.title}</h3>
+              <h3>
+                {module.href ? <a href={module.href}>{module.title}</a> : module.title}
+              </h3>
               <p>{module.description}</p>
             </article>
           ))}

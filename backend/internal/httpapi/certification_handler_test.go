@@ -176,6 +176,18 @@ func (p *palsuStore) GetSertifikat(ctx context.Context, permohonanID int64) (*db
 	}
 	return &db.SertifikatBenih{ID: 1, PermohonanID: permohonanID, NomorSertifikat: "SRT-001", TTEStatus: status}, nil
 }
+func (p *palsuStore) GetSertifikatByID(ctx context.Context, id int64) (*db.SertifikatBenih, error) {
+	status := "belum"
+	if p.dokumenValid {
+		status = "ditandatangani"
+	}
+	return &db.SertifikatBenih{ID: id, PermohonanID: 1, NomorSertifikat: "SRT-001", TTEStatus: status}, nil
+}
+
+func (p *palsuStore) GetDraftLabelByID(ctx context.Context, id int64) (*db.DraftLabel, error) {
+	return p.GetDraftLabel(ctx, id)
+}
+
 func (p *palsuStore) UpdateSertifikatTTE(ctx context.Context, permohonanID int64, tteStatus, tteDokumenURL string, ttd *time.Time) error {
 	return nil
 }
@@ -259,7 +271,7 @@ func (p *palsuStore) GetRegistrasiBenihByNomorLot(ctx context.Context, nomorLot 
 }
 
 func (p *palsuStore) ListRegistrasiBenih(ctx context.Context, filter db.RegistrasiFilter) ([]db.RegistrasiBenih, error) {
-	var out []db.RegistrasiBenih
+	out := make([]db.RegistrasiBenih, 0)
 	for id := int64(1); id < p.nextRegID; id++ {
 		r, ok := p.registrasi[id]
 		if !ok {
@@ -296,7 +308,7 @@ func (p *palsuStore) GetStokBenih(ctx context.Context, registrasiID int64) (*db.
 }
 
 func (p *palsuStore) ListStokBenih(ctx context.Context) ([]db.StokBenih, error) {
-	var out []db.StokBenih
+	out := make([]db.StokBenih, 0)
 	for id := int64(1); id < p.nextRegID; id++ {
 		if stok, ok := p.stok[id]; ok {
 			out = append(out, *stok)
@@ -375,7 +387,7 @@ func (p *palsuStore) BatalkanPenjualanBenih(ctx context.Context, id int64, actor
 }
 
 func (p *palsuStore) ListPenjualanBenih(ctx context.Context, filter db.PenjualanFilter) ([]db.PenjualanBenih, error) {
-	var out []db.PenjualanBenih
+	out := make([]db.PenjualanBenih, 0)
 	for id := int64(1); id < p.nextSaleID; id++ {
 		penjualan, ok := p.penjualan[id]
 		if !ok {

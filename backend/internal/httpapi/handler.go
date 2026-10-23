@@ -10,8 +10,9 @@ import (
 	"time"
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/auth"
-	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/dataset"
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/horticulture"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/service"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/storage"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/store"
@@ -27,13 +28,14 @@ type healthResponse struct {
 // Handler menampung dependensi adaptor (database, service, integrasi eksternal)
 // yang akan digunakan oleh semua handler HTTP.
 type Handler struct {
-	mux         *http.ServeMux
-	db          *db.DB
-	svc         *service.Service
-	auth        *auth.Manager
-	dokumen     *dokumenHandler
-	dataset     *datasetHandler
-	storageSiap bool
+	mux          *http.ServeMux
+	db           *db.DB
+	svc          *service.Service
+	auth         *auth.Manager
+	dokumen      *dokumenHandler
+	dataset      *datasetHandler
+	horticulture *horticultureHandler
+	storageSiap  bool
 }
 
 // NewHandler membuat handler HTTP dan mendaftarkan semua rute. db boleh nil
@@ -77,6 +79,12 @@ func NewHandler(database *db.DB) *Handler {
 	}
 	h.dataset = &datasetHandler{repo: datasetRepo}
 	h.dataset.register(h.mux)
+	var horticultureRepo horticulture.Repository
+	if database != nil {
+		horticultureRepo = horticulture.NewMySQLRepository(database.DB)
+	}
+	h.horticulture = &horticultureHandler{repo: horticultureRepo}
+	h.horticulture.register(h.mux)
 	return h
 }
 

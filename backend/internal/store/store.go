@@ -48,9 +48,11 @@ type Store interface {
 	// Fase 3: Sertifikasi & Penerbitan Label
 	CreateSertifikat(ctx context.Context, s db.SertifikatBenih) (int64, error)
 	GetSertifikat(ctx context.Context, permohonanID int64) (*db.SertifikatBenih, error)
+	GetSertifikatByID(ctx context.Context, id int64) (*db.SertifikatBenih, error)
 	UpdateSertifikatTTE(ctx context.Context, permohonanID int64, tteStatus, tteDokumenURL string, ttd *time.Time) error
 	CreateDraftLabel(ctx context.Context, l db.DraftLabel) (int64, error)
 	GetDraftLabel(ctx context.Context, sertifikatID int64) (*db.DraftLabel, error)
+	GetDraftLabelByID(ctx context.Context, id int64) (*db.DraftLabel, error)
 	UpdateDraftLabel(ctx context.Context, id int64, status, integrasiSIM, kodeBarcode string) error
 	CreateLegalisasi(ctx context.Context, l db.LabelLegalisasi) (int64, error)
 	UpdateLegalisasi(ctx context.Context, id int64, status string) error

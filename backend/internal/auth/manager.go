@@ -38,6 +38,12 @@ func PrincipalFromContext(ctx context.Context) (Principal, bool) {
 	return principal, ok
 }
 
+// WithPrincipal menyisipkan principal terverifikasi ke context. Dipakai oleh
+// middleware SSO dan pengujian handler yang tidak melewati verifikasi token.
+func WithPrincipal(ctx context.Context, principal Principal) context.Context {
+	return context.WithValue(ctx, principalKey{}, principal)
+}
+
 type Manager struct {
 	config   Config
 	verifier *Verifier

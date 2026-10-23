@@ -191,18 +191,12 @@ func (s *DBStore) CreateSertifikat(ctx context.Context, s2 db.SertifikatBenih) (
 
 func (s *DBStore) GetSertifikat(ctx context.Context, permohonanID int64) (*db.SertifikatBenih, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT id,permohonan_id,nomor_sertifikat,penandatangan_id,tanggal_ttd,tte_status,tte_dokumen_url,created_at,updated_at FROM sertifikat_benih WHERE permohonan_id=?`, permohonanID)
-	var srt db.SertifikatBenih
-	var ttd sql.NullTime
-	if err := row.Scan(&srt.ID, &srt.PermohonanID, &srt.NomorSertifikat, &srt.PenandatanganID, &ttd, &srt.TTEStatus, &srt.TTEDokumenURL, &srt.CreatedAt, &srt.UpdatedAt); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("scan sertifikat: %w", err)
-	}
-	if ttd.Valid {
-		srt.TanggalTTD = &ttd.Time
-	}
-	return &srt, nil
+	return scanSertifikat(row)
+}
+
+func (s *DBStore) GetSertifikatByID(ctx context.Context, id int64) (*db.SertifikatBenih, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT id,permohonan_id,nomor_sertifikat,penandatangan_id,tanggal_ttd,tte_status,tte_dokumen_url,created_at,updated_at FROM sertifikat_benih WHERE id=?`, id)
+	return scanSertifikat(row)
 }
 
 func (s *DBStore) UpdateSertifikatTTE(ctx context.Context, permohonanID int64, tteStatus, tteDokumenURL string, ttd *time.Time) error {
@@ -224,14 +218,12 @@ func (s *DBStore) CreateDraftLabel(ctx context.Context, l db.DraftLabel) (int64,
 
 func (s *DBStore) GetDraftLabel(ctx context.Context, sertifikatID int64) (*db.DraftLabel, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT id,sertifikat_id,kode_barcode,status,integrasi_sim_status,created_at,updated_at FROM draft_label WHERE sertifikat_id=?`, sertifikatID)
-	var l db.DraftLabel
-	if err := row.Scan(&l.ID, &l.SertifikatID, &l.KodeBarcode, &l.Status, &l.IntegrasiSIMStatus, &l.CreatedAt, &l.UpdatedAt); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("scan draft label: %w", err)
-	}
-	return &l, nil
+	return scanDraftLabel(row)
+}
+
+func (s *DBStore) GetDraftLabelByID(ctx context.Context, id int64) (*db.DraftLabel, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT id,sertifikat_id,kode_barcode,status,integrasi_sim_status,created_at,updated_at FROM draft_label WHERE id=?`, id)
+	return scanDraftLabel(row)
 }
 
 func (s *DBStore) UpdateDraftLabel(ctx context.Context, id int64, status, integrasiSIM, kodeBarcode string) error {
@@ -375,7 +367,8 @@ func scanUser(row *sql.Row) (*db.User, error) {
 func scanPermohonan(row *sql.Row) (*db.PermohonanBenih, error) {
 	var p db.PermohonanBenih
 	var luas sql.NullFloat64
-	if err := row.Scan(&p.ID, &p.NomorPermohonan, &p.PelangganID, &p.JenisBenih, &p.Varietas, &luas, &p.LokasiKebun, &p.Status, &p.PembayaranAwalStatus, &p.BukuIndukNomor, &p.LaporanVerifikasi, &p.CreatedAt, &p.UpdatedAt); err != nil {
+	var varietas, lokasi, bukuInduk, laporan sql.NullString
+	if err := row.Scan(&p.ID, &p.NomorPermohonan, &p.PelangganID, &p.JenisBenih, &varietas, &luas, &lokasi, &p.Status, &p.PembayaranAwalStatus, &bukuInduk, &laporan, &p.CreatedAt, &p.UpdatedAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -383,6 +376,18 @@ func scanPermohonan(row *sql.Row) (*db.PermohonanBenih, error) {
 	}
 	if luas.Valid {
 		p.LuasLahan = luas.Float64
+	}
+	if varietas.Valid {
+		p.Varietas = varietas.String
+	}
+	if lokasi.Valid {
+		p.LokasiKebun = lokasi.String
+	}
+	if bukuInduk.Valid {
+		p.BukuIndukNomor = bukuInduk.String
+	}
+	if laporan.Valid {
+		p.LaporanVerifikasi = laporan.String
 	}
 	return &p, nil
 }
@@ -396,6 +401,32 @@ func scanBukuInduk(row *sql.Row) (*db.BukuInduk, error) {
 		return nil, fmt.Errorf("scan buku induk: %w", err)
 	}
 	return &b, nil
+}
+
+func scanSertifikat(row *sql.Row) (*db.SertifikatBenih, error) {
+	var srt db.SertifikatBenih
+	var ttd sql.NullTime
+	if err := row.Scan(&srt.ID, &srt.PermohonanID, &srt.NomorSertifikat, &srt.PenandatanganID, &ttd, &srt.TTEStatus, &srt.TTEDokumenURL, &srt.CreatedAt, &srt.UpdatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("scan sertifikat: %w", err)
+	}
+	if ttd.Valid {
+		srt.TanggalTTD = &ttd.Time
+	}
+	return &srt, nil
+}
+
+func scanDraftLabel(row *sql.Row) (*db.DraftLabel, error) {
+	var l db.DraftLabel
+	if err := row.Scan(&l.ID, &l.SertifikatID, &l.KodeBarcode, &l.Status, &l.IntegrasiSIMStatus, &l.CreatedAt, &l.UpdatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("scan draft label: %w", err)
+	}
+	return &l, nil
 }
 
 func boolToInt(b bool) int {

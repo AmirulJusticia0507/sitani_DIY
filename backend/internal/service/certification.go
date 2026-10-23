@@ -363,7 +363,7 @@ func (s *Service) BuatDraftLabel(ctx context.Context, sertifikatID int64, kodeBa
 	if kodeBarcode == "" {
 		return nil, errors.New("kode barcode wajib diisi")
 	}
-	srt, err := s.st.GetSertifikat(ctx, sertifikatID)
+	srt, err := s.st.GetSertifikatByID(ctx, sertifikatID)
 	if err != nil {
 		return nil, fmt.Errorf("ambil sertifikat: %w", err)
 	}
@@ -399,7 +399,7 @@ func (s *Service) IntegrasiSIM(ctx context.Context, draftLabelID int64, pembuatI
 	if !boleh(pembuatRole, "permohonan:lihat") {
 		return errors.New("role tidak diizinkan integrasi SIM Perbenihan")
 	}
-	lbl, err := s.st.GetDraftLabel(ctx, draftLabelID)
+	lbl, err := s.st.GetDraftLabelByID(ctx, draftLabelID)
 	if err != nil {
 		return fmt.Errorf("ambil draft label: %w", err)
 	}
@@ -427,7 +427,14 @@ func (s *Service) CetakLabel(ctx context.Context, draftLabelID int64, cetakID in
 	if !boleh(cetakRole, "permohonan:lihat") {
 		return errors.New("role tidak diizinkan mencetak label")
 	}
-	if err := s.st.UpdateDraftLabel(ctx, draftLabelID, "dicetak", "", ""); err != nil {
+	lbl, err := s.st.GetDraftLabelByID(ctx, draftLabelID)
+	if err != nil {
+		return fmt.Errorf("ambil draft label: %w", err)
+	}
+	if lbl == nil {
+		return ErrNotFound
+	}
+	if err := s.st.UpdateDraftLabel(ctx, draftLabelID, "dicetak", lbl.IntegrasiSIMStatus, lbl.KodeBarcode); err != nil {
 		return fmt.Errorf("cetak label: %w", err)
 	}
 	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
@@ -451,7 +458,7 @@ func (s *Service) LegalisasiLabel(ctx context.Context, draftLabelID int64, legal
 	if status != "diverifikasi" && status != "ditolak" {
 		return errors.New("status legalisasi harus diverifikasi atau ditolak")
 	}
-	lbl, err := s.st.GetDraftLabel(ctx, draftLabelID)
+	lbl, err := s.st.GetDraftLabelByID(ctx, draftLabelID)
 	if err != nil {
 		return fmt.Errorf("ambil draft label: %w", err)
 	}
@@ -471,7 +478,7 @@ func (s *Service) LegalisasiLabel(ctx context.Context, draftLabelID int64, legal
 		return fmt.Errorf("update legalisasi: %w", err)
 	}
 	if status == "diverifikasi" {
-		if err := s.st.UpdateDraftLabel(ctx, draftLabelID, "legalisasi", "", ""); err != nil {
+		if err := s.st.UpdateDraftLabel(ctx, draftLabelID, "legalisasi", lbl.IntegrasiSIMStatus, lbl.KodeBarcode); err != nil {
 			return fmt.Errorf("update status label legalisasi: %w", err)
 		}
 	}

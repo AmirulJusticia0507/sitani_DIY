@@ -23,3 +23,16 @@ test("menampilkan identitas dan modul utama", async ({ page }, testInfo) => {
     fullPage: true,
   });
 });
+
+test("menampilkan modul registrasi dan penjualan benih", async ({ page }) => {
+  await page.goto("/benih");
+
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(
+    "Registrasi & Penjualan Benih",
+  );
+  await expect(page.getByRole("heading", { name: "Registrasi Benih", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Penjualan Benih", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Laporan", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Daftarkan Lot" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Catat Penjualan" })).toBeVisible();
+});

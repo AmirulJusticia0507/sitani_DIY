@@ -17,7 +17,7 @@
 - [ ] Development Dashboard & Visualisasi Data Pertanian
 
 ## 📍 Tahap 3: Modul Layanan Registrasi Lahan & Pohon Induk (Hortikultura)
-- [ ] Form Pengajuan Permohonan Registrasi Lahan (Upload Proposal, Peta Kebun, Detail Tanaman)
+- [x] Form Pengajuan Permohonan Registrasi Lahan (data pemohon/lahan/tanaman dan lampiran privat proposal, struktur organisasi, daftar anggota, form kebun, peta; API simpan, akses pemohon, audit dan migrasi 006)
 - [ ] Modul Verifikasi Proposal (Petugas Verifikator)
 - [ ] Modul Jadwal & Form Inspeksi Lapangan / Audit GAP (Petugas Inspektor)
 - [ ] Modul Form Penilaian Pohon Induk / PIT / RIP / PI / RI (PBT & Kasi PMBTP)
