@@ -77,6 +77,8 @@ Pengambilan Sampel Benih → Kodifikasi Sampel → Pengujian Lab → Penyusunan 
 - Koreksi atau pembatalan penjualan wajib meninggalkan audit trail; transaksi historis tidak dihapus secara fisik.
 - Format resmi nomor registrasi, aturan kelas benih, masa berlaku, dan kontrak SIM Perbenihan masih memerlukan validasi BP3MBTP/Diskominfo.
 
+Implementasi backend, migrasi, dan halaman `/benih` didokumentasikan di [docs/registrasi-penjualan-benih.md](docs/registrasi-penjualan-benih.md).
+
 ---
 
 ## 🚀 Panduan Pengembangan Integrasi
@@ -94,6 +96,18 @@ cd backend
 go test ./...
 go run ./cmd/api
 ```
+
+### Skema Database & Migrasi
+
+Skema dasar dikelola sebagai berkas SQL terversi di `backend/migrations` (modul sertifikasi, identitas SSO, registrasi/persediaan/penjualan benih). Pemasangan mandiri:
+
+```powershell
+cd backend
+DB_DSN="user:pass@tcp(127.0.0.1:3306)/sitani?parseTime=true&charset=utf8mb4" go run ./cmd/migrate -dry-run
+DB_DSN="user:pass@tcp(127.0.0.1:3306)/sitani?parseTime=true&charset=utf8mb4" go run ./cmd/migrate
+```
+
+Runner menerapkan berkas berurut nama dalam satu transaksi per berkas dan mencatat versi di tabel `schema_migrations`; menuntun idempoten. Pada Docker Compose, berkas yang sama direplikasi MySQL lewat `docker-entrypoint-initdb.d`, sehingga volume baru penuh tanpa menjalankan CLI.
 
 Endpoint pemeriksaan kesehatan tersedia di `GET http://localhost:8080/health`.
 

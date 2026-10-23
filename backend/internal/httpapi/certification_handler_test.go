@@ -12,13 +12,21 @@ import (
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/service"
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/store"
 )
 
 // palsuStore menyimpan data di memori untuk tes handler tanpa MySQL.
 type palsuStore struct {
-	permohonan map[int64]*db.PermohonanBenih
-	sampel     map[int64]*db.SampelBenih
-	nextID     int64
+	permohonan   map[int64]*db.PermohonanBenih
+	sampel       map[int64]*db.SampelBenih
+	registrasi   map[int64]*db.RegistrasiBenih
+	stok         map[int64]*db.StokBenih
+	mutasi       map[int64][]db.MutasiStokBenih
+	penjualan    map[int64]*db.PenjualanBenih
+	nextID       int64
+	nextRegID    int64
+	nextSaleID   int64
+	dokumenValid bool
 }
 
 func newPalsuStore() *palsuStore {
@@ -26,15 +34,24 @@ func newPalsuStore() *palsuStore {
 		1: {ID: 1, NomorPermohonan: "SPB-1-1", PelangganID: 10, Status: "diinspeksi", PembayaranAwalStatus: "lunas"},
 	}
 	return &palsuStore{
-		permohonan: permohonan,
-		sampel:     map[int64]*db.SampelBenih{},
-		nextID:     1,
+		permohonan:   permohonan,
+		sampel:       map[int64]*db.SampelBenih{},
+		registrasi:   map[int64]*db.RegistrasiBenih{},
+		stok:         map[int64]*db.StokBenih{},
+		mutasi:       map[int64][]db.MutasiStokBenih{},
+		penjualan:    map[int64]*db.PenjualanBenih{},
+		nextID:       1,
+		nextRegID:    1,
+		nextSaleID:   1,
+		dokumenValid: true,
 	}
 }
 
-func (p *palsuStore) CreateUser(ctx context.Context, u db.User) (int64, error)                                   { return 0, nil }
-func (p *palsuStore) GetUserByID(ctx context.Context, id int64) (*db.User, error)                              { return nil, nil }
-func (p *palsuStore) GetUserByUsername(ctx context.Context, username string) (*db.User, error)                 { return nil, nil }
+func (p *palsuStore) CreateUser(ctx context.Context, u db.User) (int64, error)    { return 0, nil }
+func (p *palsuStore) GetUserByID(ctx context.Context, id int64) (*db.User, error) { return nil, nil }
+func (p *palsuStore) GetUserByUsername(ctx context.Context, username string) (*db.User, error) {
+	return nil, nil
+}
 func (p *palsuStore) CreatePermohonan(ctx context.Context, perm db.PermohonanBenih) (int64, error) {
 	id := p.nextID
 	p.nextID++
@@ -56,15 +73,23 @@ func (p *palsuStore) UpdatePermohonanStatus(ctx context.Context, id int64, statu
 	}
 	return nil
 }
-func (p *palsuStore) CreatePembayaran(ctx context.Context, pb db.Pembayaran) (int64, error)       { return 1, nil }
-func (p *palsuStore) CreateInspeksiFase(ctx context.Context, i db.InspeksiFase) (int64, error)    { return 1, nil }
+func (p *palsuStore) CreatePembayaran(ctx context.Context, pb db.Pembayaran) (int64, error) {
+	return 1, nil
+}
+func (p *palsuStore) CreateInspeksiFase(ctx context.Context, i db.InspeksiFase) (int64, error) {
+	return 1, nil
+}
 func (p *palsuStore) ListInspeksiFase(ctx context.Context, permohonanID int64) ([]db.InspeksiFase, error) {
 	return nil, nil
 }
-func (p *palsuStore) CreateBukuInduk(ctx context.Context, b db.BukuInduk) (int64, error)   { return 1, nil }
-func (p *palsuStore) GetBukuInduk(ctx context.Context, permohonanID int64) (*db.BukuInduk, error) { return nil, nil }
-func (p *palsuStore) CreateAuditLog(ctx context.Context, a db.AuditLog) (int64, error)             { return 1, nil }
-func (p *palsuStore) Ping(ctx context.Context) error                                              { return nil }
+func (p *palsuStore) CreateBukuInduk(ctx context.Context, b db.BukuInduk) (int64, error) {
+	return 1, nil
+}
+func (p *palsuStore) GetBukuInduk(ctx context.Context, permohonanID int64) (*db.BukuInduk, error) {
+	return nil, nil
+}
+func (p *palsuStore) CreateAuditLog(ctx context.Context, a db.AuditLog) (int64, error) { return 1, nil }
+func (p *palsuStore) Ping(ctx context.Context) error                                   { return nil }
 func (p *palsuStore) CreateSampel(ctx context.Context, s db.SampelBenih) (int64, error) {
 	id := p.nextID
 	p.nextID++
@@ -87,11 +112,13 @@ func (p *palsuStore) KodifikasiSampel(ctx context.Context, id int64, kodeSampel 
 	}
 	return nil
 }
-func (p *palsuStore) CreateUjiMutu(ctx context.Context, u db.UjiMutu) (int64, error)   { return 1, nil }
+func (p *palsuStore) CreateUjiMutu(ctx context.Context, u db.UjiMutu) (int64, error) { return 1, nil }
 func (p *palsuStore) ListUjiMutu(ctx context.Context, sampelID int64) ([]db.UjiMutu, error) {
 	return []db.UjiMutu{{SampelID: sampelID, Parameter: "keutuhan", StatusLulus: true}}, nil
 }
-func (p *palsuStore) CreateLaporanMutu(ctx context.Context, l db.LaporanMutu) (int64, error) { return 1, nil }
+func (p *palsuStore) CreateLaporanMutu(ctx context.Context, l db.LaporanMutu) (int64, error) {
+	return 1, nil
+}
 func (p *palsuStore) GetLaporanMutu(ctx context.Context, sampelID int64) (*db.LaporanMutu, error) {
 	kesimpulan := "lulus"
 	if sampelID == 2 {
@@ -106,7 +133,11 @@ func (p *palsuStore) CreateSertifikat(ctx context.Context, s db.SertifikatBenih)
 	return id, nil
 }
 func (p *palsuStore) GetSertifikat(ctx context.Context, permohonanID int64) (*db.SertifikatBenih, error) {
-	return &db.SertifikatBenih{ID: 1, PermohonanID: permohonanID}, nil
+	status := "belum"
+	if p.dokumenValid {
+		status = "ditandatangani"
+	}
+	return &db.SertifikatBenih{ID: 1, PermohonanID: permohonanID, NomorSertifikat: "SRT-001", TTEStatus: status}, nil
 }
 func (p *palsuStore) UpdateSertifikatTTE(ctx context.Context, permohonanID int64, tteStatus, tteDokumenURL string, ttd *time.Time) error {
 	return nil
@@ -118,13 +149,21 @@ func (p *palsuStore) CreateDraftLabel(ctx context.Context, l db.DraftLabel) (int
 	return id, nil
 }
 func (p *palsuStore) GetDraftLabel(ctx context.Context, sertifikatID int64) (*db.DraftLabel, error) {
-	return &db.DraftLabel{ID: 1, SertifikatID: sertifikatID}, nil
+	status := "draft"
+	integrasi := "belum"
+	if p.dokumenValid {
+		status = "legalisasi"
+		integrasi = "terkirim"
+	}
+	return &db.DraftLabel{ID: 1, SertifikatID: sertifikatID, KodeBarcode: "SB-2026-0001", Status: status, IntegrasiSIMStatus: integrasi}, nil
 }
 func (p *palsuStore) UpdateDraftLabel(ctx context.Context, id int64, status, integrasiSIM, kodeBarcode string) error {
 	return nil
 }
-func (p *palsuStore) CreateLegalisasi(ctx context.Context, l db.LabelLegalisasi) (int64, error) { return 1, nil }
-func (p *palsuStore) UpdateLegalisasi(ctx context.Context, id int64, status string) error           { return nil }
+func (p *palsuStore) CreateLegalisasi(ctx context.Context, l db.LabelLegalisasi) (int64, error) {
+	return 1, nil
+}
+func (p *palsuStore) UpdateLegalisasi(ctx context.Context, id int64, status string) error { return nil }
 func (p *palsuStore) CreatePenyerahan(ctx context.Context, p2 db.PenyerahanDokumen) (int64, error) {
 	return 1, nil
 }
@@ -133,6 +172,187 @@ func (p *palsuStore) GetPenyerahan(ctx context.Context, permohonanID int64) (*db
 }
 func (p *palsuStore) UpdatePenyerahan(ctx context.Context, permohonanID int64, sertifikatDikirim, labelDikirim bool, pembayaranAkhirStatus string) error {
 	return nil
+}
+
+func (p *palsuStore) CreateRegistrasiBenih(ctx context.Context, r db.RegistrasiBenih) (int64, error) {
+	id := p.nextRegID
+	p.nextRegID++
+	r.ID = id
+	salinan := r
+	p.registrasi[id] = &salinan
+	p.stok[id] = &db.StokBenih{
+		ID:                 id,
+		RegistrasiID:       id,
+		NomorLot:           r.NomorLot,
+		Komoditas:          r.Komoditas,
+		Varietas:           r.Varietas,
+		JumlahTersedia:     r.Jumlah,
+		Satuan:             r.Satuan,
+		TanggalKedaluwarsa: r.TanggalKedaluwarsa,
+		StatusEdar:         r.StatusEdar,
+		UpdatedAt:          time.Now(),
+	}
+	refID := id
+	p.mutasi[id] = append(p.mutasi[id], db.MutasiStokBenih{
+		ID:            int64(len(p.mutasi[id]) + 1),
+		RegistrasiID:  id,
+		Jenis:         "masuk",
+		Jumlah:        r.Jumlah,
+		SaldoSetelah:  r.Jumlah,
+		ReferensiTipe: "registrasi",
+		ReferensiID:   &refID,
+		Catatan:       "stok awal registrasi",
+		CreatedBy:     r.CreatedBy,
+		CreatedAt:     time.Now(),
+	})
+	return id, nil
+}
+
+func (p *palsuStore) GetRegistrasiBenih(ctx context.Context, id int64) (*db.RegistrasiBenih, error) {
+	return p.registrasi[id], nil
+}
+
+func (p *palsuStore) GetRegistrasiBenihByNomorLot(ctx context.Context, nomorLot string) (*db.RegistrasiBenih, error) {
+	for _, r := range p.registrasi {
+		if r.NomorLot == nomorLot {
+			return r, nil
+		}
+	}
+	return nil, nil
+}
+
+func (p *palsuStore) ListRegistrasiBenih(ctx context.Context, filter db.RegistrasiFilter) ([]db.RegistrasiBenih, error) {
+	var out []db.RegistrasiBenih
+	for id := int64(1); id < p.nextRegID; id++ {
+		r, ok := p.registrasi[id]
+		if !ok {
+			continue
+		}
+		if filter.StatusEdar != "" && r.StatusEdar != filter.StatusEdar {
+			continue
+		}
+		if filter.Komoditas != "" && !strings.Contains(strings.ToLower(r.Komoditas), strings.ToLower(filter.Komoditas)) {
+			continue
+		}
+		if filter.KedaluwarsaSebelum != nil && r.TanggalKedaluwarsa > filter.KedaluwarsaSebelum.Format("2006-01-02") {
+			continue
+		}
+		out = append(out, *r)
+	}
+	return out, nil
+}
+
+func (p *palsuStore) UpdateRegistrasiStatus(ctx context.Context, id int64, status string) error {
+	r, ok := p.registrasi[id]
+	if !ok {
+		return nil
+	}
+	r.StatusEdar = status
+	if stok, ok := p.stok[id]; ok {
+		stok.StatusEdar = status
+	}
+	return nil
+}
+
+func (p *palsuStore) GetStokBenih(ctx context.Context, registrasiID int64) (*db.StokBenih, error) {
+	return p.stok[registrasiID], nil
+}
+
+func (p *palsuStore) ListStokBenih(ctx context.Context) ([]db.StokBenih, error) {
+	var out []db.StokBenih
+	for id := int64(1); id < p.nextRegID; id++ {
+		if stok, ok := p.stok[id]; ok {
+			out = append(out, *stok)
+		}
+	}
+	return out, nil
+}
+
+func (p *palsuStore) ListMutasiStok(ctx context.Context, registrasiID int64) ([]db.MutasiStokBenih, error) {
+	return p.mutasi[registrasiID], nil
+}
+
+func (p *palsuStore) CreatePenjualanBenih(ctx context.Context, penjualan db.PenjualanBenih) (*db.PenjualanBenih, error) {
+	stok, ok := p.stok[penjualan.RegistrasiID]
+	if !ok {
+		return nil, store.ErrStokTidakCukup
+	}
+	if stok.JumlahTersedia < penjualan.Jumlah {
+		return nil, store.ErrStokTidakCukup
+	}
+	id := p.nextSaleID
+	p.nextSaleID++
+	stok.JumlahTersedia -= penjualan.Jumlah
+	penjualan.ID = id
+	penjualan.Status = "selesai"
+	salinan := penjualan
+	p.penjualan[id] = &salinan
+	refID := id
+	p.mutasi[penjualan.RegistrasiID] = append(p.mutasi[penjualan.RegistrasiID], db.MutasiStokBenih{
+		ID:            int64(len(p.mutasi[penjualan.RegistrasiID]) + 1),
+		RegistrasiID:  penjualan.RegistrasiID,
+		Jenis:         "keluar",
+		Jumlah:        penjualan.Jumlah,
+		SaldoSetelah:  stok.JumlahTersedia,
+		ReferensiTipe: "penjualan",
+		ReferensiID:   &refID,
+		Catatan:       "penjualan " + penjualan.NomorDokumen,
+		CreatedBy:     penjualan.CreatedBy,
+		CreatedAt:     time.Now(),
+	})
+	return &salinan, nil
+}
+
+func (p *palsuStore) GetPenjualanBenih(ctx context.Context, id int64) (*db.PenjualanBenih, error) {
+	return p.penjualan[id], nil
+}
+
+func (p *palsuStore) BatalkanPenjualanBenih(ctx context.Context, id int64, actorID int64, alasan string, waktu time.Time) (*db.PenjualanBenih, error) {
+	penjualan, ok := p.penjualan[id]
+	if !ok {
+		return nil, store.ErrNotFound
+	}
+	if penjualan.Status == "dibatalkan" {
+		return nil, store.ErrSudahDibatalkan
+	}
+	stok := p.stok[penjualan.RegistrasiID]
+	stok.JumlahTersedia += penjualan.Jumlah
+	penjualan.Status = "dibatalkan"
+	penjualan.AlasanPembatalan = alasan
+	penjualan.DibatalkanOleh = &actorID
+	penjualan.DibatalkanPada = &waktu
+	refID := id
+	p.mutasi[penjualan.RegistrasiID] = append(p.mutasi[penjualan.RegistrasiID], db.MutasiStokBenih{
+		ID:            int64(len(p.mutasi[penjualan.RegistrasiID]) + 1),
+		RegistrasiID:  penjualan.RegistrasiID,
+		Jenis:         "koreksi",
+		Jumlah:        penjualan.Jumlah,
+		SaldoSetelah:  stok.JumlahTersedia,
+		ReferensiTipe: "pembatalan_penjualan",
+		ReferensiID:   &refID,
+		Catatan:       alasan,
+		CreatedBy:     actorID,
+		CreatedAt:     waktu,
+	})
+	return penjualan, nil
+}
+
+func (p *palsuStore) ListPenjualanBenih(ctx context.Context, filter db.PenjualanFilter) ([]db.PenjualanBenih, error) {
+	var out []db.PenjualanBenih
+	for id := int64(1); id < p.nextSaleID; id++ {
+		penjualan, ok := p.penjualan[id]
+		if !ok {
+			continue
+		}
+		if filter.RegistrasiID > 0 && penjualan.RegistrasiID != filter.RegistrasiID {
+			continue
+		}
+		if filter.Status != "" && penjualan.Status != filter.Status {
+			continue
+		}
+		out = append(out, *penjualan)
+	}
+	return out, nil
 }
 
 var _ serviceStore = (*palsuStore)(nil)
@@ -146,6 +366,7 @@ type serviceStore interface {
 func newHandlerWithPalsu() *Handler {
 	h := &Handler{mux: http.NewServeMux(), svc: service.NewService(newPalsuStore())}
 	newCertificationHandler(h.svc).register(h.mux)
+	newRegistryHandler(h.svc).register(h.mux)
 	return h
 }
 

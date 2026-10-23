@@ -46,6 +46,7 @@ func NewHandler(database *db.DB) *Handler {
 	h.mux.HandleFunc("GET /health", h.health)
 	h.auth.RegisterRoutes(h.mux)
 	newCertificationHandler(h.svc).register(h.mux)
+	newRegistryHandler(h.svc).register(h.mux)
 	return h
 }
 

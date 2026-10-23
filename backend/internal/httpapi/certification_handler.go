@@ -44,10 +44,10 @@ func (h *certificationHandler) register(mux *http.ServeMux) {
 }
 
 type permohonanRequest struct {
-	JenisBenih   string  `json:"jenis_benih"`
-	Varietas     string  `json:"varietas"`
-	LuasLahan    float64 `json:"luas_lahan"`
-	LokasiKebun  string  `json:"lokasi_kebun"`
+	JenisBenih  string  `json:"jenis_benih"`
+	Varietas    string  `json:"varietas"`
+	LuasLahan   float64 `json:"luas_lahan"`
+	LokasiKebun string  `json:"lokasi_kebun"`
 }
 
 type pembayaranAwalRequest struct {
@@ -97,7 +97,7 @@ type buatSertifikatRequest struct {
 }
 
 type tandaTanganiTTERequest struct {
-	TTD       string `json:"ttd"`
+	TTD        string `json:"ttd"`
 	DokumenURL string `json:"dokumen_url"`
 }
 
@@ -140,10 +140,10 @@ func (h *certificationHandler) buatPermohonan(w http.ResponseWriter, r *http.Req
 	}
 
 	p, err := h.svc.BuatPermohonan(r.Context(), userID, role, service.BuatPermohonanRequest{
-		JenisBenih:   req.JenisBenih,
-		Varietas:     req.Varietas,
-		LuasLahan:    req.LuasLahan,
-		LokasiKebun:  req.LokasiKebun,
+		JenisBenih:  req.JenisBenih,
+		Varietas:    req.Varietas,
+		LuasLahan:   req.LuasLahan,
+		LokasiKebun: req.LokasiKebun,
 	})
 	if err != nil {
 		respondError(w, http.StatusBadRequest, err.Error())

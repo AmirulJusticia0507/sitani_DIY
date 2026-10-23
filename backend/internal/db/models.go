@@ -17,15 +17,15 @@ const (
 
 // User merekam akter dalam sistem sertifikasi benih.
 type User struct {
-	ID         int64
-	Username   string
-	Email      string
-	NPP        string
-	UnitKerja  string
-	Role       string
-	IsActive   bool
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID        int64
+	Username  string
+	Email     string
+	NPP       string
+	UnitKerja string
+	Role      string
+	IsActive  bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // PermohonanBenih merekam pengajuan sertifikasi benih pelanggan (Fase 1).
@@ -47,24 +47,24 @@ type PermohonanBenih struct {
 
 // InspeksiFase merekam hasil salah satu dari 4 fase inspeksi lapangan oleh Pengawas.
 type InspeksiFase struct {
-	ID            int64
-	PermohonanID  int64
-	Fase          int
-	PengawasID    int64
-	Hasil         string
-	Catatan       string
+	ID              int64
+	PermohonanID    int64
+	Fase            int
+	PengawasID      int64
+	Hasil           string
+	Catatan         string
 	TanggalInspeksi string
-	CreatedAt     time.Time
+	CreatedAt       time.Time
 }
 
 // BukuInduk mencatat pencatatan buku induk setelah verifikasi lapangan.
 type BukuInduk struct {
-	ID            int64
-	PermohonanID  int64
+	ID             int64
+	PermohonanID   int64
 	NomorBukuInduk string
-	Catatan       string
-	DibuatOleh    int64
-	CreatedAt     time.Time
+	Catatan        string
+	DibuatOleh     int64
+	CreatedAt      time.Time
 }
 
 // Pembayaran mencatat pembayaran awal dan akhir melalui Gateway Pembayaran.
@@ -81,29 +81,29 @@ type Pembayaran struct {
 
 // SampelBenih merekam sampel benih yang diambil Pengawas dan dikodekan (Fase 2).
 type SampelBenih struct {
-	ID               int64
-	PermohonanID     int64
-	KodeSampel       string
-	PengawasID       int64
-	AnalisID         *int64
-	JumlahSampel     int
+	ID                 int64
+	PermohonanID       int64
+	KodeSampel         string
+	PengawasID         int64
+	AnalisID           *int64
+	JumlahSampel       int
 	TanggalPengambilan string
-	Status           string
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	Status             string
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 // UjiMutu mencatat hasil pengujian lab oleh Analis.
 type UjiMutu struct {
-	ID           int64
-	SampelID     int64
-	Parameter    string
-	Hasil        string
-	StatusLulus  bool
-	Catatan      string
-	DiujiOleh    int64
-	TanggalUji   string
-	CreatedAt    time.Time
+	ID          int64
+	SampelID    int64
+	Parameter   string
+	Hasil       string
+	StatusLulus bool
+	Catatan     string
+	DiujiOleh   int64
+	TanggalUji  string
+	CreatedAt   time.Time
 }
 
 // LaporanMutu adalah kesimpulan pengujian mutu yang disusun Analis.
@@ -118,51 +118,159 @@ type LaporanMutu struct {
 
 // SertifikatBenih adalah dokumen resmi yang dibuat jika lulus, ditandatangani Pejabat via TTE.
 type SertifikatBenih struct {
-	ID            int64
-	PermohonanID  int64
+	ID              int64
+	PermohonanID    int64
 	NomorSertifikat string
 	PenandatanganID int64
-	TanggalTTD    *time.Time
-	TTEStatus     string
-	TTEDokumenURL string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	TanggalTTD      *time.Time
+	TTEStatus       string
+	TTEDokumenURL   string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 // DraftLabel adalah draft label sebelum cetak, dengan kode unik/barcode terintegrasi SIM Perbenihan.
 type DraftLabel struct {
-	ID               int64
-	SertifikatID     int64
-	KodeBarcode      string
-	Status           string // draft | disetujui | dicetak | legalisasi
+	ID                 int64
+	SertifikatID       int64
+	KodeBarcode        string
+	Status             string // draft | disetujui | dicetak | legalisasi
 	IntegrasiSIMStatus string // belum | terkirim | gagal
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 // LabelLegalisasi mencatat legalisasi label oleh petugas legalisasi.
 type LabelLegalisasi struct {
-	ID            int64
-	DraftLabelID  int64
-	LegalisasiID  int64
-	Status        string // belum | diverifikasi | ditolak | selesai
-	Catatan       string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID           int64
+	DraftLabelID int64
+	LegalisasiID int64
+	Status       string // belum | diverifikasi | ditolak | selesai
+	Catatan      string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 // PenyerahanDokumen mencatat penyerahan sertifikat & label ke pelanggan dan pembayaran akhir.
 type PenyerahanDokumen struct {
-	ID                int64
-	PermohonanID      int64
-	SertifikatDikirim bool
-	LabelDikirim      bool
+	ID                    int64
+	PermohonanID          int64
+	SertifikatDikirim     bool
+	LabelDikirim          bool
 	PembayaranAkhirStatus string
-	TanggalPenyerahan *time.Time
-	DiterimaOleh      string
-	Catatan           string
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	TanggalPenyerahan     *time.Time
+	DiterimaOleh          string
+	Catatan               string
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
+}
+
+// Kelas benih sesuai penggolongan resmi perbenihan.
+const (
+	KelasBenihPenjenis = "penjenis"
+	KelasBenihDasar    = "dasar"
+	KelasBenihPokok    = "pokok"
+	KelasBenihSebar    = "sebar"
+)
+
+// Status edar lot benih.
+const (
+	StatusEdarAktif        = "aktif"
+	StatusEdarDitangguhkan = "ditangguhkan"
+	StatusEdarDicabut      = "dicabut"
+	StatusEdarKedaluwarsa  = "kedaluwarsa"
+)
+
+// RegistrasiBenih adalah master lot benih yang telah tersertifikasi dan siap diedarkan.
+// Nomor registrasi resmi masih menunggu validasi BP3MBTP; format internal memakai "RB-<nomor_lot>".
+type RegistrasiBenih struct {
+	ID                 int64
+	NomorRegistrasi    string
+	PermohonanID       int64
+	SertifikatID       *int64
+	DraftLabelID       *int64
+	NomorSertifikat    string
+	KodeLabel          string
+	Komoditas          string
+	Varietas           string
+	Produsen           string
+	SumberBenih        string
+	NomorLot           string
+	KelasBenih         string
+	Jumlah             float64
+	Satuan             string
+	TanggalProduksi    string
+	TanggalKedaluwarsa string
+	StatusEdar         string
+	CreatedBy          int64
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+}
+
+// StokBenih adalah saldo persediaan terkini untuk satu lot benih.
+type StokBenih struct {
+	ID                 int64
+	RegistrasiID       int64
+	NomorLot           string
+	Komoditas          string
+	Varietas           string
+	JumlahTersedia     float64
+	Satuan             string
+	TanggalKedaluwarsa string
+	StatusEdar         string
+	UpdatedAt          time.Time
+}
+
+// MutasiStokBenih mencatat setiap perubahan saldo stok agar dapat diaudit.
+type MutasiStokBenih struct {
+	ID            int64
+	RegistrasiID  int64
+	Jenis         string // masuk | keluar | koreksi
+	Jumlah        float64
+	SaldoSetelah  float64
+	ReferensiTipe string
+	ReferensiID   *int64
+	Catatan       string
+	CreatedBy     int64
+	CreatedAt     time.Time
+}
+
+// PenjualanBenih mencatat transaksi penjualan lot benih. Transaksi tidak pernah
+// dihapus; pembatalan mengubah status dan membuat mutasi stok pembalik.
+type PenjualanBenih struct {
+	ID               int64
+	NomorDokumen     string
+	RegistrasiID     int64
+	NomorLot         string
+	Pembeli          string
+	Jumlah           float64
+	HargaSatuan      float64
+	TotalHarga       float64
+	TanggalTransaksi string
+	Status           string // selesai | dibatalkan
+	AlasanPembatalan string
+	DibatalkanOleh   *int64
+	DibatalkanPada   *time.Time
+	CreatedBy        int64
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+// RegistrasiFilter membatasi daftar registrasi benih.
+type RegistrasiFilter struct {
+	StatusEdar         string
+	Komoditas          string
+	KedaluwarsaSebelum *time.Time
+	Limit              int
+}
+
+// PenjualanFilter membatasi daftar penjualan benih.
+type PenjualanFilter struct {
+	RegistrasiID int64
+	Status       string
+	Dari         *time.Time
+	Sampai       *time.Time
+	Limit        int
 }
 
 // AuditLog mencatat aksi lintas aktor untuk traceabilitas.

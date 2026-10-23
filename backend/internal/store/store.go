@@ -2,9 +2,17 @@ package store
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
+)
+
+// Kesalahan domain yang perlu dibedakan oleh lapisan service dan HTTP.
+var (
+	ErrNotFound        = errors.New("data tidak ditemukan")
+	ErrStokTidakCukup  = errors.New("stok benih tidak mencukupi")
+	ErrSudahDibatalkan = errors.New("penjualan sudah dibatalkan")
 )
 
 // Store adalah antarmuka akses data untuk modul sertifikasi benih BP3MBTP.
@@ -49,6 +57,20 @@ type Store interface {
 	CreatePenyerahan(ctx context.Context, p db.PenyerahanDokumen) (int64, error)
 	GetPenyerahan(ctx context.Context, permohonanID int64) (*db.PenyerahanDokumen, error)
 	UpdatePenyerahan(ctx context.Context, permohonanID int64, sertifikatDikirim, labelDikirim bool, pembayaranAkhirStatus string) error
+
+	// Registrasi, persediaan, dan penjualan benih
+	CreateRegistrasiBenih(ctx context.Context, r db.RegistrasiBenih) (int64, error)
+	GetRegistrasiBenih(ctx context.Context, id int64) (*db.RegistrasiBenih, error)
+	GetRegistrasiBenihByNomorLot(ctx context.Context, nomorLot string) (*db.RegistrasiBenih, error)
+	ListRegistrasiBenih(ctx context.Context, filter db.RegistrasiFilter) ([]db.RegistrasiBenih, error)
+	UpdateRegistrasiStatus(ctx context.Context, id int64, status string) error
+	GetStokBenih(ctx context.Context, registrasiID int64) (*db.StokBenih, error)
+	ListStokBenih(ctx context.Context) ([]db.StokBenih, error)
+	ListMutasiStok(ctx context.Context, registrasiID int64) ([]db.MutasiStokBenih, error)
+	CreatePenjualanBenih(ctx context.Context, p db.PenjualanBenih) (*db.PenjualanBenih, error)
+	GetPenjualanBenih(ctx context.Context, id int64) (*db.PenjualanBenih, error)
+	BatalkanPenjualanBenih(ctx context.Context, id int64, actorID int64, alasan string, waktu time.Time) (*db.PenjualanBenih, error)
+	ListPenjualanBenih(ctx context.Context, filter db.PenjualanFilter) ([]db.PenjualanBenih, error)
 
 	// Audit
 	CreateAuditLog(ctx context.Context, a db.AuditLog) (int64, error)
