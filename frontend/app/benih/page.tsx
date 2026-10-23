@@ -739,10 +739,9 @@ export default function BenihPage() {
                 )}
               </div>
             )}
-
           </section>
         </div>
-      </main>
+      </div>
     </Layout>
   );
 }
