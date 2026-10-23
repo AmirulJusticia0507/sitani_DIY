@@ -86,7 +86,7 @@ type Store interface {
 	Ping(ctx context.Context) error
 }
 
-// DBStore adalah implementasi Store menggunakan database.MySQL melalui db.DB.
+// DBStore adalah implementasi Store menggunakan PostgreSQL melalui db.DB.
 type DBStore struct {
 	db *db.DB
 }

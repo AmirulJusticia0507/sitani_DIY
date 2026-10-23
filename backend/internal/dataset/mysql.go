@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 )
 
 var ErrNotFound = errors.New("batch import tidak ditemukan")
@@ -26,11 +28,13 @@ type Repository interface {
 	Detail(context.Context, int64) (Import, Result, error)
 }
 
-type MySQLRepository struct{ db *sql.DB }
+type PostgresRepository struct{ db *db.DB }
 
-func NewMySQLRepository(db *sql.DB) *MySQLRepository { return &MySQLRepository{db: db} }
+func NewPostgresRepository(database *db.DB) *PostgresRepository {
+	return &PostgresRepository{db: database}
+}
 
-func (r *MySQLRepository) Simpan(ctx context.Context, uploaderID int64, namaDataset, namaFile string, parsed Result) (Import, error) {
+func (r *PostgresRepository) Simpan(ctx context.Context, uploaderID int64, namaDataset, namaFile string, parsed Result) (Import, error) {
 	headers, err := json.Marshal(parsed.Headers)
 	if err != nil {
 		return Import{}, fmt.Errorf("encode header dataset: %w", err)
@@ -44,14 +48,10 @@ func (r *MySQLRepository) Simpan(ctx context.Context, uploaderID int64, namaData
 		return Import{}, fmt.Errorf("mulai transaksi import dataset: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	res, err := tx.ExecContext(ctx, `INSERT INTO dataset_imports (nama_dataset,nama_file,headers_json,jumlah_baris,baris_json,diunggah_oleh) VALUES (?,?,?,?,?,?)`,
+	id, err := db.InsertID(ctx, tx, `INSERT INTO dataset_imports (nama_dataset,nama_file,headers_json,jumlah_baris,baris_json,diunggah_oleh) VALUES (?,?,?,?,?,?)`,
 		namaDataset, namaFile, string(headers), len(parsed.Rows), string(rows), uploaderID)
 	if err != nil {
 		return Import{}, fmt.Errorf("simpan batch import dataset: %w", err)
-	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return Import{}, fmt.Errorf("baca ID batch import: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return Import{}, fmt.Errorf("commit batch import: %w", err)
@@ -59,7 +59,7 @@ func (r *MySQLRepository) Simpan(ctx context.Context, uploaderID int64, namaData
 	return Import{ID: id, NamaDataset: namaDataset, NamaFile: namaFile, JumlahBaris: len(parsed.Rows), DiunggahOleh: uploaderID, DibuatPada: time.Now()}, nil
 }
 
-func (r *MySQLRepository) Daftar(ctx context.Context, userID int64, semua bool) ([]Import, error) {
+func (r *PostgresRepository) Daftar(ctx context.Context, userID int64, semua bool) ([]Import, error) {
 	query := `SELECT id,nama_dataset,nama_file,jumlah_baris,diunggah_oleh,dibuat_pada FROM dataset_imports`
 	args := []any{}
 	if !semua {
@@ -86,7 +86,7 @@ func (r *MySQLRepository) Daftar(ctx context.Context, userID int64, semua bool) 
 	return result, nil
 }
 
-func (r *MySQLRepository) Detail(ctx context.Context, id int64) (Import, Result, error) {
+func (r *PostgresRepository) Detail(ctx context.Context, id int64) (Import, Result, error) {
 	var item Import
 	var headersJSON, rowsJSON []byte
 	err := r.db.QueryRowContext(ctx, `SELECT id,nama_dataset,nama_file,headers_json,jumlah_baris,baris_json,diunggah_oleh,dibuat_pada FROM dataset_imports WHERE id=?`, id).Scan(

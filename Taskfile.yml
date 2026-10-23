@@ -10,15 +10,15 @@ tasks:
     env:
       PORT: '{{.DEV_BACKEND_PORT}}'
       FRONTEND_PUBLIC_URL: '{{.DEV_FRONTEND_URL}}'
-      DB_DSN: '{{.DB_DSN | default (printf "%s:%s@tcp(127.0.0.1:%s)/%s?parseTime=true&charset=utf8mb4" .MYSQL_USER .MYSQL_PASSWORD .MYSQL_HOST_PORT .MYSQL_DATABASE)}}'
+      DB_DSN: '{{.DB_DSN | default (printf "postgres://%s:%s@127.0.0.1:%s/%s?sslmode=disable" .POSTGRES_USER .POSTGRES_PASSWORD .POSTGRES_HOST_PORT .POSTGRES_DB)}}'
     cmds:
       - go run ./cmd/api
 
   migrate:
-    desc: Terapkan migrasi ke MySQL lokal
+    desc: Terapkan migrasi PostgreSQL lokal
     dir: backend
     env:
-      DB_DSN: '{{.DB_DSN | default (printf "%s:%s@tcp(127.0.0.1:%s)/%s?parseTime=true&charset=utf8mb4" .MYSQL_USER .MYSQL_PASSWORD .MYSQL_HOST_PORT .MYSQL_DATABASE)}}'
+      DB_DSN: '{{.DB_DSN | default (printf "postgres://%s:%s@127.0.0.1:%s/%s?sslmode=disable" .POSTGRES_USER .POSTGRES_PASSWORD .POSTGRES_HOST_PORT .POSTGRES_DB)}}'
     cmds:
       - go run ./cmd/migrate
 

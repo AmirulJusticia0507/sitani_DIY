@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 )
 
 var ErrNotFound = errors.New("permohonan tidak ditemukan")
@@ -91,11 +93,13 @@ type Evaluation struct {
 	CreatedAt      time.Time `json:"dibuat_pada"`
 }
 
-type MySQLRepository struct{ db *sql.DB }
+type PostgresRepository struct{ db *db.DB }
 
-func NewMySQLRepository(db *sql.DB) *MySQLRepository { return &MySQLRepository{db: db} }
+func NewPostgresRepository(database *db.DB) *PostgresRepository {
+	return &PostgresRepository{db: database}
+}
 
-func (r *MySQLRepository) Verify(ctx context.Context, id, actorID int64, decision string, note string) (Application, error) {
+func (r *PostgresRepository) Verify(ctx context.Context, id, actorID int64, decision string, note string) (Application, error) {
 	if decision != "diverifikasi" && decision != "perlu_perbaikan" && decision != "ditolak" {
 		return Application{}, errors.New("keputusan verifikasi tidak valid")
 	}
@@ -137,7 +141,7 @@ func (r *MySQLRepository) Verify(ctx context.Context, id, actorID int64, decisio
 	return r.Get(ctx, id)
 }
 
-func (r *MySQLRepository) ScheduleInspection(ctx context.Context, schedule InspectionSchedule, actorID int64) (InspectionSchedule, error) {
+func (r *PostgresRepository) ScheduleInspection(ctx context.Context, schedule InspectionSchedule, actorID int64) (InspectionSchedule, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return InspectionSchedule{}, fmt.Errorf("mulai transaksi jadwal inspeksi: %w", err)
@@ -165,11 +169,7 @@ func (r *MySQLRepository) ScheduleInspection(ctx context.Context, schedule Inspe
 		_, err = tx.ExecContext(ctx, `UPDATE horticulture_inspection_schedules SET inspector_id=?,scheduled_at=?,location=?,notes=? WHERE id=?`, schedule.InspectorID, schedule.ScheduledAt, schedule.Location, schedule.Notes, existingID)
 		schedule.ID = existingID
 	} else {
-		var result sql.Result
-		result, err = tx.ExecContext(ctx, `INSERT INTO horticulture_inspection_schedules (application_id,inspector_id,scheduled_at,location,notes,status) VALUES (?,?,?,?,?,'terjadwal')`, schedule.ApplicationID, schedule.InspectorID, schedule.ScheduledAt, schedule.Location, schedule.Notes)
-		if err == nil {
-			schedule.ID, err = result.LastInsertId()
-		}
+		schedule.ID, err = db.InsertID(ctx, tx, `INSERT INTO horticulture_inspection_schedules (application_id,inspector_id,scheduled_at,location,notes,status) VALUES (?,?,?,?,?,'terjadwal')`, schedule.ApplicationID, schedule.InspectorID, schedule.ScheduledAt, schedule.Location, schedule.Notes)
 	}
 	if err != nil {
 		return InspectionSchedule{}, fmt.Errorf("simpan jadwal inspeksi: %w", err)
@@ -187,7 +187,7 @@ func (r *MySQLRepository) ScheduleInspection(ctx context.Context, schedule Inspe
 	return schedule, nil
 }
 
-func (r *MySQLRepository) CompleteInspection(ctx context.Context, inspection Inspection) (Inspection, error) {
+func (r *PostgresRepository) CompleteInspection(ctx context.Context, inspection Inspection) (Inspection, error) {
 	checklist, err := json.Marshal(inspection.Checklist)
 	if err != nil {
 		return Inspection{}, fmt.Errorf("encode checklist GAP: %w", err)
@@ -213,13 +213,9 @@ func (r *MySQLRepository) CompleteInspection(ctx context.Context, inspection Ins
 	if err := tx.QueryRowContext(ctx, `SELECT id FROM horticulture_applications WHERE id=? FOR UPDATE`, appID).Scan(&lockedAppID); err != nil {
 		return Inspection{}, err
 	}
-	result, err := tx.ExecContext(ctx, `INSERT INTO horticulture_inspections (schedule_id,checklist_json,findings,recommendations,inspector_id) VALUES (?,?,?,?,?)`, inspection.ScheduleID, string(checklist), inspection.Findings, inspection.Recommendations, inspection.InspectorID)
+	inspection.ID, err = db.InsertID(ctx, tx, `INSERT INTO horticulture_inspections (schedule_id,checklist_json,findings,recommendations,inspector_id) VALUES (?,?,?,?,?)`, inspection.ScheduleID, string(checklist), inspection.Findings, inspection.Recommendations, inspection.InspectorID)
 	if err != nil {
 		return Inspection{}, fmt.Errorf("simpan hasil inspeksi GAP: %w", err)
-	}
-	inspection.ID, err = result.LastInsertId()
-	if err != nil {
-		return Inspection{}, err
 	}
 	inspection.CreatedAt = time.Now().UTC()
 	if _, err := tx.ExecContext(ctx, `UPDATE horticulture_inspection_schedules SET status='selesai' WHERE id=?`, inspection.ScheduleID); err != nil {
@@ -237,7 +233,7 @@ func (r *MySQLRepository) CompleteInspection(ctx context.Context, inspection Ins
 	return inspection, nil
 }
 
-func (r *MySQLRepository) SaveEvaluation(ctx context.Context, evaluation Evaluation) (Evaluation, error) {
+func (r *PostgresRepository) SaveEvaluation(ctx context.Context, evaluation Evaluation) (Evaluation, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return Evaluation{}, fmt.Errorf("mulai transaksi penilaian: %w", err)
@@ -252,13 +248,9 @@ func (r *MySQLRepository) SaveEvaluation(ctx context.Context, evaluation Evaluat
 	if status != "diinspeksi" && status != "dinilai" {
 		return Evaluation{}, fmt.Errorf("permohonan berstatus %s belum dapat dinilai", status)
 	}
-	result, err := tx.ExecContext(ctx, `INSERT INTO horticulture_evaluations (application_id,assessment_type,plant_name,variety,vigor_score,health_score,variety_score,recommendation,notes,evaluator_id) VALUES (?,?,?,?,?,?,?,?,?,?)`, evaluation.ApplicationID, evaluation.AssessmentType, evaluation.PlantName, evaluation.Variety, evaluation.VigorScore, evaluation.HealthScore, evaluation.VarietyScore, evaluation.Recommendation, evaluation.Notes, evaluation.EvaluatorID)
+	evaluation.ID, err = db.InsertID(ctx, tx, `INSERT INTO horticulture_evaluations (application_id,assessment_type,plant_name,variety,vigor_score,health_score,variety_score,recommendation,notes,evaluator_id) VALUES (?,?,?,?,?,?,?,?,?,?)`, evaluation.ApplicationID, evaluation.AssessmentType, evaluation.PlantName, evaluation.Variety, evaluation.VigorScore, evaluation.HealthScore, evaluation.VarietyScore, evaluation.Recommendation, evaluation.Notes, evaluation.EvaluatorID)
 	if err != nil {
 		return Evaluation{}, fmt.Errorf("simpan penilaian: %w", err)
-	}
-	evaluation.ID, err = result.LastInsertId()
-	if err != nil {
-		return Evaluation{}, err
 	}
 	evaluation.CreatedAt = time.Now().UTC()
 	if _, err := tx.ExecContext(ctx, `UPDATE horticulture_applications SET status='dinilai' WHERE id=?`, evaluation.ApplicationID); err != nil {
@@ -273,7 +265,9 @@ func (r *MySQLRepository) SaveEvaluation(ctx context.Context, evaluation Evaluat
 	return evaluation, nil
 }
 
-func insertAudit(ctx context.Context, tx *sql.Tx, actorID int64, action string, entityID int64, detail string) error {
+func insertAudit(ctx context.Context, tx interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}, actorID int64, action string, entityID int64, detail string) error {
 	_, err := tx.ExecContext(ctx, `INSERT INTO audit_log (actor_id,actor_role,action,entity,entity_id,detail) SELECT id,role,?,'horticulture_application',?,? FROM users WHERE id=?`, action, entityID, detail, actorID)
 	if err != nil {
 		return fmt.Errorf("catat audit %s: %w", action, err)
@@ -281,7 +275,7 @@ func insertAudit(ctx context.Context, tx *sql.Tx, actorID int64, action string, 
 	return nil
 }
 
-func (r *MySQLRepository) Create(ctx context.Context, app Application, documents []Document) (Application, error) {
+func (r *PostgresRepository) Create(ctx context.Context, app Application, documents []Document) (Application, error) {
 	if app.Crops == nil {
 		app.Crops = []Crop{}
 	}
@@ -299,14 +293,13 @@ func (r *MySQLRepository) Create(ctx context.Context, app Application, documents
 		return Application{}, fmt.Errorf("buat nomor permohonan: %w", err)
 	}
 	app.Number = fmt.Sprintf("RH-%d-%08X", time.Now().UTC().Year(), suffix)
-	result, err := tx.ExecContext(ctx, `INSERT INTO horticulture_applications (application_number,applicant_id,organization_name,contact_name,phone,address,village,district,regency,cultivated_area,crop_details,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,'diajukan')`,
+	app.ID, err = db.InsertID(ctx, tx, `INSERT INTO horticulture_applications (application_number,applicant_id,organization_name,contact_name,phone,address,village,district,regency,cultivated_area,crop_details,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,'diajukan')`,
 		app.Number, app.ApplicantID, app.Organization, app.Contact, app.Phone, app.Address, app.Village, app.District, app.Regency, app.CultivatedArea, string(crops))
 	if err != nil {
 		return Application{}, fmt.Errorf("simpan permohonan registrasi lahan: %w", err)
 	}
-	app.ID, err = result.LastInsertId()
 	if err != nil {
-		return Application{}, fmt.Errorf("baca ID permohonan: %w", err)
+		return Application{}, fmt.Errorf("simpan permohonan registrasi lahan: %w", err)
 	}
 	for _, doc := range documents {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO horticulture_application_documents (application_id,document_id,document_type) SELECT ?,id,? FROM dokumen WHERE id=? AND pemilik_id=?`, app.ID, doc.Type, doc.ID, app.ApplicantID); err != nil {
@@ -332,7 +325,7 @@ func (r *MySQLRepository) Create(ctx context.Context, app Application, documents
 	return app, nil
 }
 
-func (r *MySQLRepository) List(ctx context.Context, applicantID int64, all bool) ([]Application, error) {
+func (r *PostgresRepository) List(ctx context.Context, applicantID int64, all bool) ([]Application, error) {
 	query := `SELECT id,application_number,applicant_id,organization_name,contact_name,phone,address,village,district,regency,cultivated_area,crop_details,status,created_at FROM horticulture_applications`
 	args := []any{}
 	if !all {
@@ -367,7 +360,7 @@ func (r *MySQLRepository) List(ctx context.Context, applicantID int64, all bool)
 	return apps, nil
 }
 
-func (r *MySQLRepository) Get(ctx context.Context, id int64) (Application, error) {
+func (r *PostgresRepository) Get(ctx context.Context, id int64) (Application, error) {
 	app, err := scanApplication(r.db.QueryRowContext(ctx, `SELECT id,application_number,applicant_id,organization_name,contact_name,phone,address,village,district,regency,cultivated_area,crop_details,status,created_at FROM horticulture_applications WHERE id=?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Application{}, ErrNotFound
@@ -402,7 +395,7 @@ func redactScheduleInspectorIDs(items []InspectionSchedule) []InspectionSchedule
 	return items
 }
 
-func (r *MySQLRepository) listSchedules(ctx context.Context, applicationID int64) ([]InspectionSchedule, error) {
+func (r *PostgresRepository) listSchedules(ctx context.Context, applicationID int64) ([]InspectionSchedule, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT id,application_id,inspector_id,scheduled_at,location,notes,status FROM horticulture_inspection_schedules WHERE application_id=? ORDER BY scheduled_at`, applicationID)
 	if err != nil {
 		return nil, fmt.Errorf("daftar jadwal inspeksi: %w", err)
@@ -419,7 +412,7 @@ func (r *MySQLRepository) listSchedules(ctx context.Context, applicationID int64
 	return items, rows.Err()
 }
 
-func (r *MySQLRepository) listInspections(ctx context.Context, applicationID int64) ([]Inspection, error) {
+func (r *PostgresRepository) listInspections(ctx context.Context, applicationID int64) ([]Inspection, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT i.id,i.schedule_id,i.checklist_json,i.findings,i.recommendations,i.inspector_id,i.created_at FROM horticulture_inspections i JOIN horticulture_inspection_schedules s ON s.id=i.schedule_id WHERE s.application_id=? ORDER BY i.id`, applicationID)
 	if err != nil {
 		return nil, fmt.Errorf("daftar hasil inspeksi: %w", err)
@@ -440,7 +433,7 @@ func (r *MySQLRepository) listInspections(ctx context.Context, applicationID int
 	return items, rows.Err()
 }
 
-func (r *MySQLRepository) listEvaluations(ctx context.Context, applicationID int64) ([]Evaluation, error) {
+func (r *PostgresRepository) listEvaluations(ctx context.Context, applicationID int64) ([]Evaluation, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT id,application_id,assessment_type,plant_name,variety,vigor_score,health_score,variety_score,recommendation,notes,evaluator_id,created_at FROM horticulture_evaluations WHERE application_id=? ORDER BY id`, applicationID)
 	if err != nil {
 		return nil, fmt.Errorf("daftar penilaian: %w", err)
@@ -457,7 +450,7 @@ func (r *MySQLRepository) listEvaluations(ctx context.Context, applicationID int
 	return items, rows.Err()
 }
 
-func (r *MySQLRepository) listDocuments(ctx context.Context, id int64) ([]Document, error) {
+func (r *PostgresRepository) listDocuments(ctx context.Context, id int64) ([]Document, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT document_id,document_type FROM horticulture_application_documents WHERE application_id=? ORDER BY document_type,document_id`, id)
 	if err != nil {
 		return nil, fmt.Errorf("daftar dokumen permohonan: %w", err)

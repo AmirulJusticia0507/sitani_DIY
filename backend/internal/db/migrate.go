@@ -10,18 +10,27 @@ import (
 	"strings"
 )
 
-// Migrator menerapkan berkas migrasi SQL terversi ke MySQL.
+// Migrator menerapkan migrasi PostgreSQL terversi.
 //
 // Berkas diproses berurutan sesuai nama berkas, setiap berkas lewat satu
 // transaksi, dan catatannya disimpan di tabel schema_migrations supaya
 // migrasi yang sudah diterapkan tidak diproses ulang.
 type Migrator struct {
-	db  *sql.DB
+	db interface {
+		ExecContext(context.Context, string, ...any) (sql.Result, error)
+		QueryRowContext(context.Context, string, ...any) *sql.Row
+		BeginTx(context.Context, *sql.TxOptions) (*Tx, error)
+	}
 	dir string
 }
 
-// NewMigrator membuat Migrator. dir berisi berkas .sql berurutan.
-func NewMigrator(database *sql.DB, dir string) (*Migrator, error) {
+// NewMigrator membuat Migrator. dir berisi berkas .sql berurutan atau direktori
+// migrations yang memiliki subdirektori postgres.
+func NewMigrator(database interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*Tx, error)
+}, dir string) (*Migrator, error) {
 	if database == nil {
 		return nil, fmt.Errorf("database belum tersedia")
 	}
@@ -46,7 +55,11 @@ type migration struct {
 
 // listMigrations mengembalikan migrasi berurut nama berkas.
 func (m *Migrator) listMigrations() ([]migration, error) {
-	entries, err := os.ReadDir(m.dir)
+	dir := filepath.Join(m.dir, "postgres")
+	if _, err := os.Stat(dir); err != nil {
+		dir = m.dir
+	}
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("baca direktori migrasi: %w", err)
 	}
@@ -55,7 +68,7 @@ func (m *Migrator) listMigrations() ([]migration, error) {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
 			continue
 		}
-		path := filepath.Join(m.dir, entry.Name())
+		path := filepath.Join(dir, entry.Name())
 		content, err := os.ReadFile(path)
 		if err != nil {
 			return nil, fmt.Errorf("baca migrasi %s: %w", entry.Name(), err)
@@ -70,10 +83,9 @@ func (m *Migrator) listMigrations() ([]migration, error) {
 func (m *Migrator) ensureTable(ctx context.Context) error {
 	_, err := m.db.ExecContext(ctx, `
 CREATE TABLE IF NOT EXISTS schema_migrations (
-    version VARCHAR(255) NOT NULL,
-    applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (version)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`)
+    version VARCHAR(255) NOT NULL PRIMARY KEY,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);`)
 	if err != nil {
 		return fmt.Errorf("siapkan tabel schema_migrations: %w", err)
 	}
@@ -84,7 +96,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 func (m *Migrator) applied(ctx context.Context, version string) (bool, error) {
 	var exists bool
 	err := m.db.QueryRowContext(ctx,
-		`SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = ?)`, version).Scan(&exists)
+		`SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = $1)`, version).Scan(&exists)
 	if err != nil {
 		return false, fmt.Errorf("periksa status migrasi %s: %w", version, err)
 	}
@@ -173,7 +185,7 @@ func (m *Migrator) apply(ctx context.Context, mig migration) error {
 		}
 	}
 	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO schema_migrations (version) VALUES (?)`, mig.name); err != nil {
+		`INSERT INTO schema_migrations (version) VALUES ($1)`, mig.name); err != nil {
 		return fmt.Errorf("catat versi migrasi: %w", err)
 	}
 	rollback = false

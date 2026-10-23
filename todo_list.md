@@ -9,6 +9,7 @@
 - [ ] Aktivasi client, konfirmasi kontrak resmi, dan UAT login langsung bersama pengelola SSO Jogjaprov (JSP & Satriya) — terblokir menunggu aktivasi/kredensial dan jadwal UAT dari pengelola; implementasi teknis lokal bukan bukti UAT.
 - [ ] Setup Integrasi SPL / Cakra API Gateway (`spl.jogjaprov.go.id`) — fondasi transport JSON generik tersedia; endpoint, autentikasi, dan operasi bisnis menunggu kontrak resmi (lihat `docs/integrasi-spl-cakra.md`).
 - [x] Setup Database MySQL & Skema Dasar (migrasi terversi 001-003: modul sertifikasi, sso_identities, registrasi/persediaan/penjualan benih; runner `backend/cmd/migrate` sudah diuji ke MySQL 8.4 dan idempoten)
+- [x] Backend PostgreSQL baru untuk development: driver pgx, repository/query, migrasi PostgreSQL 001-007, konfigurasi Compose/task dan dokumentasi; diuji pada PostgreSQL 17 kosong dan migrasi kedua idempoten. Volume/data MySQL lama tidak diubah atau dipindahkan.
 - [x] Integrasi MinIO Object Storage untuk dokumen/lampiran (adaptor `internal/storage`, metadata `dokumen` migrasi 004, endpoint `/v1/dokumen` dengan pemeriksaan hak akses + URL presign 5 menit, profil compose `minio` untuk dev; diuji unggah/presign ke MinIO container lokal — instance produksi menunggu pengelola)
 
 ## 📍 Tahap 2: Modul Repository Data Lokal

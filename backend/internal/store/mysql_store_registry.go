@@ -23,7 +23,7 @@ func (s *DBStore) CreateRegistrasiBenih(ctx context.Context, r db.RegistrasiBeni
 	}
 	defer tx.Rollback()
 
-	res, err := tx.ExecContext(ctx, `INSERT INTO registrasi_benih
+	id, err := db.InsertID(ctx, tx, `INSERT INTO registrasi_benih
 		(nomor_registrasi,permohonan_id,sertifikat_id,draft_label_id,nomor_sertifikat,kode_label,komoditas,varietas,produsen,sumber_benih,nomor_lot,kelas_benih,jumlah,satuan,tanggal_produksi,tanggal_kedaluwarsa,status_edar,created_by)
 		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		r.NomorRegistrasi, r.PermohonanID, r.SertifikatID, r.DraftLabelID, r.NomorSertifikat, r.KodeLabel,
@@ -31,10 +31,6 @@ func (s *DBStore) CreateRegistrasiBenih(ctx context.Context, r db.RegistrasiBeni
 		r.TanggalProduksi, r.TanggalKedaluwarsa, r.StatusEdar, r.CreatedBy)
 	if err != nil {
 		return 0, fmt.Errorf("insert registrasi benih: %w", err)
-	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return 0, fmt.Errorf("id registrasi benih: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO stok_benih (registrasi_id,jumlah_tersedia) VALUES (?,?)`, id, r.Jumlah); err != nil {
 		return 0, fmt.Errorf("insert stok awal: %w", err)
@@ -171,16 +167,12 @@ func (s *DBStore) CreatePenjualanBenih(ctx context.Context, p db.PenjualanBenih)
 	if _, err := tx.ExecContext(ctx, `UPDATE stok_benih SET jumlah_tersedia=?, updated_at=CURRENT_TIMESTAMP WHERE registrasi_id=?`, saldoBaru, p.RegistrasiID); err != nil {
 		return nil, fmt.Errorf("kurangi stok: %w", err)
 	}
-	res, err := tx.ExecContext(ctx, `INSERT INTO penjualan_benih
+	id, err := db.InsertID(ctx, tx, `INSERT INTO penjualan_benih
 		(nomor_dokumen,registrasi_id,nomor_lot,pembeli,jumlah,harga_satuan,total_harga,tanggal_transaksi,status,created_by)
 		VALUES (?,?,?,?,?,?,?,?,?,?)`,
 		p.NomorDokumen, p.RegistrasiID, p.NomorLot, p.Pembeli, p.Jumlah, p.HargaSatuan, p.TotalHarga, p.TanggalTransaksi, "selesai", p.CreatedBy)
 	if err != nil {
 		return nil, fmt.Errorf("insert penjualan: %w", err)
-	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return nil, fmt.Errorf("id penjualan: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO mutasi_stok_benih
 		(registrasi_id,jenis,jumlah,saldo_setelah,referensi_tipe,referensi_id,catatan,created_by)

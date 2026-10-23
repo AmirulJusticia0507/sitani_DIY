@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/auth"
-	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/dataset"
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/horticulture"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/notify"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/observability"
@@ -37,9 +37,9 @@ type Handler struct {
 	dokumen      *dokumenHandler
 	dataset      *datasetHandler
 	horticulture *horticultureHandler
-	storageSiap bool
-	notify      *notify.Client
-	obs         *observability.Client
+	storageSiap  bool
+	notify       *notify.Client
+	obs          *observability.Client
 }
 
 // SetNotify mengatur klien notifikasi Discord.
@@ -85,13 +85,13 @@ func NewHandler(database *db.DB) *Handler {
 	h.dokumen.register(h.mux)
 	var datasetRepo dataset.Repository
 	if database != nil {
-		datasetRepo = dataset.NewMySQLRepository(database.DB)
+		datasetRepo = dataset.NewPostgresRepository(database)
 	}
 	h.dataset = &datasetHandler{repo: datasetRepo}
 	h.dataset.register(h.mux)
 	var horticultureRepo horticulture.Repository
 	if database != nil {
-		horticultureRepo = horticulture.NewMySQLRepository(database.DB)
+		horticultureRepo = horticulture.NewPostgresRepository(database)
 	}
 	h.horticulture = &horticultureHandler{repo: horticultureRepo}
 	h.horticulture.register(h.mux)

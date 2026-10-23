@@ -12,7 +12,7 @@ Portal Pertanian dan Ketahanan Pangan DIY adalah platform terpadu yang dikembang
 
 - **Backend:** Golang 1.23
 - **Frontend:** Next.js 16 (baseline kebutuhan Next.js 15 dinaikkan karena dukungan keamanan)
-- **Database:** MySQL
+- **Database development baru:** PostgreSQL 17; volume MySQL lama dipertahankan dan tidak dimigrasikan.
 - **Object Storage:** MinIO
 - **TTE / Central Sign:** Sadewa Integrasi
 - **API Gateway:** SPL / Cakra API (`spl.jogjaprov.go.id`)
@@ -24,7 +24,7 @@ Portal Pertanian dan Ketahanan Pangan DIY adalah platform terpadu yang dikembang
 ## 🏗 Arsitektur Container
 
 Aplikasi dijalankan dalam 3 container utama:
-1. **Container 1:** Database Server (MySQL)
+1. **Container 1:** Database Server (PostgreSQL)
 2. **Container 2:** Backend API Service (Golang 1.23)
 3. **Container 3:** Frontend Web Application (Next.js 15)
 
@@ -115,34 +115,35 @@ Perintah pengembangan tambahan: `task test` untuk unit test backend dan
 di folder `frontend` (`npm run dev`, `npm run lint`, `npm run typecheck`,
 `npm run build`, dan `npm run test:e2e`).
 
-Task `dev` menyusun `DB_DSN` lokal dari `MYSQL_USER`, `MYSQL_PASSWORD`, dan
-`MYSQL_DATABASE` di `.env` (host `127.0.0.1:3307`); nilai `DB_DSN` eksplisit
-di `.env` akan dipakai jika tersedia. Jadi MySQL SiTani harus sudah berjalan.
-Cara mudah menyalakannya: `docker compose --env-file .env -f infra/compose.yml up -d database`,
-yang mem-publish MySQL pada port host `MYSQL_HOST_PORT` (3307 pada `.env.example`)
-agar tidak bentrok dengan layanan lain di 3306. Setelah itu terapkan migrasi
-dengan `task migrate`, lalu jalankan `task dev`. Bila ada container lama yang
-masih memetakan 3306, perintah `up -d database` akan menerapkan pemetaan port
-baru tanpa menghapus volume. Untuk unggah dokumen, MinIO juga harus tersedia
-dan `MINIO_*` di `.env` dikonfigurasi.
+Task `dev` dan `migrate` menyusun DSN PostgreSQL dari `POSTGRES_USER`,
+`POSTGRES_PASSWORD`, `POSTGRES_DB`, dan `POSTGRES_HOST_PORT` di `.env`; nilai
+`DB_DSN` eksplisit tetap dapat dipakai. Jalankan database baru dengan
+`docker compose --env-file .env -f infra/compose.yml up -d database`, terapkan
+migrasi memakai `task migrate`, kemudian jalankan `task dev`. PostgreSQL
+dipublikasikan pada port host 5433 secara default agar tidak bentrok dengan
+instance lokal. Untuk unggah dokumen, MinIO juga harus tersedia dan `MINIO_*`
+di `.env` dikonfigurasi.
 
-Jika backend melaporkan `Access denied`, pastikan username/password MySQL pada
-`.env` sama dengan kredensial yang dipakai saat volume database pertama kali
-dibuat. Mengubah `.env` tidak otomatis mengganti password di volume MySQL yang
-sudah ada. Backend lokal juga tidak akan bisa bind bila `DEV_BACKEND_PORT` sedang
-dipakai; ubah nilai itu pada `.env` atau hentikan proses pemilik port.
+> Perhatian: konfigurasi PostgreSQL ini membuat volume `postgres_data` baru.
+> Volume MySQL lama tidak dihapus, diubah, atau disalin. Migrasi
+> data dari MySQL tidak termasuk dalam perpindahan backend ini dan harus
+> direncanakan/diuji terpisah. Backend lokal juga tidak akan bisa bind bila
+> `DEV_BACKEND_PORT` sedang dipakai; ubah nilainya atau hentikan proses pemilik port.
 
 ### Skema Database & Migrasi
 
-Skema dasar dikelola sebagai berkas SQL terversi di `backend/migrations` (modul sertifikasi, identitas SSO, registrasi/persediaan/penjualan benih). Pemasangan mandiri:
+Skema PostgreSQL dikelola sebagai berkas SQL terversi di
+`backend/migrations/postgres` (modul sertifikasi, identitas SSO,
+registrasi/persediaan/penjualan benih, dokumen, import dataset, dan hortikultura).
+Pemasangan mandiri:
 
 ```powershell
 cd backend
-DB_DSN="user:pass@tcp(127.0.0.1:3306)/sitani?parseTime=true&charset=utf8mb4" go run ./cmd/migrate -dry-run
-DB_DSN="user:pass@tcp(127.0.0.1:3306)/sitani?parseTime=true&charset=utf8mb4" go run ./cmd/migrate
+DB_DSN="postgres://sitani:password@127.0.0.1:5433/sitani?sslmode=disable" go run ./cmd/migrate -dry-run
+DB_DSN="postgres://sitani:password@127.0.0.1:5433/sitani?sslmode=disable" go run ./cmd/migrate
 ```
 
-Runner menerapkan berkas berurut nama dalam satu transaksi per berkas dan mencatat versi di tabel `schema_migrations`; menuntun idempoten. Pada Docker Compose, berkas yang sama direplikasi MySQL lewat `docker-entrypoint-initdb.d`, sehingga volume baru penuh tanpa menjalankan CLI.
+Runner menerapkan berkas berurut nama dalam satu transaksi per berkas dan mencatat versi di tabel `schema_migrations`; penerapan idempoten. Jalankan `task migrate` saat database kosong atau setelah menambah migrasi.
 
 Endpoint pemeriksaan kesehatan tersedia di `GET http://localhost:8080/health`.
 
@@ -202,4 +203,4 @@ docker compose --env-file .env -f infra/compose.yml up --build -d
 docker compose --env-file .env -f infra/compose.yml ps
 ```
 
-Compose menjalankan tiga container utama: MySQL, API backend, dan frontend. Volume `mysql_data` mempertahankan data database. Layanan MinIO untuk pengembangan dapat diaktifkan dengan profil `minio` (lihat bagian Object Storage MinIO di atas).
+Compose menjalankan tiga container utama: PostgreSQL, API backend, dan frontend. Volume baru `postgres_data` menyimpan database development. Volume `mysql_data` lama bukan bagian layanan Compose baru dan tidak disentuh oleh konfigurasi ini. Layanan MinIO untuk pengembangan dapat diaktifkan dengan profil `minio` (lihat bagian Object Storage MinIO di atas).

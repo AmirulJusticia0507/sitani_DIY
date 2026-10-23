@@ -2,21 +2,19 @@ name: sitani-diy
 
 services:
   database:
-    image: mysql:8.4
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:?MYSQL_DATABASE wajib diisi}
-      MYSQL_USER: ${MYSQL_USER:?MYSQL_USER wajib diisi}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD wajib diisi}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD wajib diisi}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB wajib diisi}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER wajib diisi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib diisi}
       TZ: Asia/Jakarta
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ../backend/migrations:/docker-entrypoint-initdb.d:ro
+      - postgres_data:/var/lib/postgresql/data
     ports:
-      - "${MYSQL_HOST_PORT:-3307}:3306"
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -31,7 +29,7 @@ services:
     environment:
       PORT: "8080"
       TZ: Asia/Jakarta
-      DB_DSN: ${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(database:3306)/${MYSQL_DATABASE}?parseTime=true&charset=utf8mb4
+      DB_DSN: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}?sslmode=disable
       SSO_JSP_ISSUER: ${SSO_JSP_ISSUER:-https://sso.jogjaprov.go.id/realms/jsp}
       SSO_JSP_CLIENT_ID: ${SSO_JSP_CLIENT_ID:-portal}
       SSO_SATRIYA_ISSUER: ${SSO_SATRIYA_ISSUER:-https://sso.jogjaprov.go.id/realms/satriya}
@@ -118,7 +116,7 @@ services:
       - internal
 
 volumes:
-  mysql_data:
+  postgres_data:
   minio_data:
 
 networks:

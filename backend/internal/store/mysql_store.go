@@ -11,12 +11,12 @@ import (
 )
 
 func (s *DBStore) CreateUser(ctx context.Context, u db.User) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `INSERT INTO users (username,email,npp,unit_kerja,role,is_active) VALUES (?,?,?,?,?,?)`,
-		u.Username, u.Email, u.NPP, u.UnitKerja, u.Role, boolToInt(u.IsActive))
+	id, err := db.InsertID(ctx, s.db, `INSERT INTO users (username,email,npp,unit_kerja,role,is_active) VALUES (?,?,?,?,?,?)`,
+		u.Username, u.Email, u.NPP, u.UnitKerja, u.Role, u.IsActive)
 	if err != nil {
 		return 0, fmt.Errorf("insert user: %w", err)
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 func (s *DBStore) GetUserByID(ctx context.Context, id int64) (*db.User, error) {
@@ -30,12 +30,12 @@ func (s *DBStore) GetUserByUsername(ctx context.Context, username string) (*db.U
 }
 
 func (s *DBStore) CreatePermohonan(ctx context.Context, p db.PermohonanBenih) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `INSERT INTO permohonan_benih (nomor_permohonan,pelanggan_id,jenis_benih,varietas,luas_lahan,lokasi_kebun,status,pembayaran_awal_status) VALUES (?,?,?,?,?,?,?,?)`,
+	id, err := db.InsertID(ctx, s.db, `INSERT INTO permohonan_benih (nomor_permohonan,pelanggan_id,jenis_benih,varietas,luas_lahan,lokasi_kebun,status,pembayaran_awal_status) VALUES (?,?,?,?,?,?,?,?)`,
 		p.NomorPermohonan, p.PelangganID, p.JenisBenih, p.Varietas, p.LuasLahan, p.LokasiKebun, p.Status, p.PembayaranAwalStatus)
 	if err != nil {
 		return 0, fmt.Errorf("insert permohonan: %w", err)
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 func (s *DBStore) GetPermohonan(ctx context.Context, id int64) (*db.PermohonanBenih, error) {
@@ -52,21 +52,21 @@ func (s *DBStore) UpdatePermohonanStatus(ctx context.Context, id int64, status, 
 }
 
 func (s *DBStore) CreatePembayaran(ctx context.Context, pb db.Pembayaran) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `INSERT INTO pembayaran (permohonan_id,jenis,jumlah,status,bukti_transfer) VALUES (?,?,?,?,?)`,
+	id, err := db.InsertID(ctx, s.db, `INSERT INTO pembayaran (permohonan_id,jenis,jumlah,status,bukti_transfer) VALUES (?,?,?,?,?)`,
 		pb.PermohonanID, pb.Jenis, pb.Jumlah, pb.Status, pb.BuktiTransfer)
 	if err != nil {
 		return 0, fmt.Errorf("insert pembayaran: %w", err)
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 func (s *DBStore) CreateInspeksiFase(ctx context.Context, i db.InspeksiFase) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `INSERT INTO inspeksi_fase (permohonan_id,fase,pengawas_id,hasil,catatan,tanggal_inspeksi) VALUES (?,?,?,?,?,?)`,
+	id, err := db.InsertID(ctx, s.db, `INSERT INTO inspeksi_fase (permohonan_id,fase,pengawas_id,hasil,catatan,tanggal_inspeksi) VALUES (?,?,?,?,?,?)`,
 		i.PermohonanID, i.Fase, i.PengawasID, i.Hasil, i.Catatan, i.TanggalInspeksi)
 	if err != nil {
 		return 0, fmt.Errorf("insert inspeksi: %w", err)
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 func (s *DBStore) ListInspeksiFase(ctx context.Context, permohonanID int64) ([]db.InspeksiFase, error) {
@@ -87,12 +87,12 @@ func (s *DBStore) ListInspeksiFase(ctx context.Context, permohonanID int64) ([]d
 }
 
 func (s *DBStore) CreateBukuInduk(ctx context.Context, b db.BukuInduk) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `INSERT INTO buku_induk (permohonan_id,nomor_buku_induk,catatan,dibuat_oleh) VALUES (?,?,?,?)`,
+	id, err := db.InsertID(ctx, s.db, `INSERT INTO buku_induk (permohonan_id,nomor_buku_induk,catatan,dibuat_oleh) VALUES (?,?,?,?)`,
 		b.PermohonanID, b.NomorBukuInduk, b.Catatan, b.DibuatOleh)
 	if err != nil {
 		return 0, fmt.Errorf("insert buku induk: %w", err)
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 func (s *DBStore) GetBukuInduk(ctx context.Context, permohonanID int64) (*db.BukuInduk, error) {
@@ -101,12 +101,12 @@ func (s *DBStore) GetBukuInduk(ctx context.Context, permohonanID int64) (*db.Buk
 }
 
 func (s *DBStore) CreateSampel(ctx context.Context, s2 db.SampelBenih) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `INSERT INTO sampel_benih (permohonan_id,kode_sampel,pengawas_id,analis_id,jumlah_sampel,tanggal_pengambilan,status) VALUES (?,?,?,?,?,?,?)`,
+	id, err := db.InsertID(ctx, s.db, `INSERT INTO sampel_benih (permohonan_id,kode_sampel,pengawas_id,analis_id,jumlah_sampel,tanggal_pengambilan,status) VALUES (?,?,?,?,?,?,?)`,
 		s2.PermohonanID, s2.KodeSampel, s2.PengawasID, s2.AnalisID, s2.JumlahSampel, s2.TanggalPengambilan, s2.Status)
 	if err != nil {
 		return 0, fmt.Errorf("insert sampel: %w", err)
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 func (s *DBStore) GetSampel(ctx context.Context, id int64) (*db.SampelBenih, error) {
@@ -134,12 +134,12 @@ func (s *DBStore) KodifikasiSampel(ctx context.Context, id int64, kodeSampel str
 }
 
 func (s *DBStore) CreateUjiMutu(ctx context.Context, u db.UjiMutu) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `INSERT INTO uji_mutu (sampel_id,parameter,hasil,status_lulus,catatan,diuji_oleh,tanggal_uji) VALUES (?,?,?,?,?,?,?)`,
-		u.SampelID, u.Parameter, u.Hasil, boolToInt(u.StatusLulus), u.Catatan, u.DiujiOleh, u.TanggalUji)
+	id, err := db.InsertID(ctx, s.db, `INSERT INTO uji_mutu (sampel_id,parameter,hasil,status_lulus,catatan,diuji_oleh,tanggal_uji) VALUES (?,?,?,?,?,?,?)`,
+		u.SampelID, u.Parameter, u.Hasil, u.StatusLulus, u.Catatan, u.DiujiOleh, u.TanggalUji)
 	if err != nil {
 		return 0, fmt.Errorf("insert uji mutu: %w", err)
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 func (s *DBStore) ListUjiMutu(ctx context.Context, sampelID int64) ([]db.UjiMutu, error) {
@@ -160,12 +160,12 @@ func (s *DBStore) ListUjiMutu(ctx context.Context, sampelID int64) ([]db.UjiMutu
 }
 
 func (s *DBStore) CreateLaporanMutu(ctx context.Context, l db.LaporanMutu) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `INSERT INTO laporan_mutu (sampel_id,kesimpulan,isi_laporan,disusun_oleh) VALUES (?,?,?,?)`,
+	id, err := db.InsertID(ctx, s.db, `INSERT INTO laporan_mutu (sampel_id,kesimpulan,isi_laporan,disusun_oleh) VALUES (?,?,?,?)`,
 		l.SampelID, l.Kesimpulan, l.IsiLaporan, l.DisusunOleh)
 	if err != nil {
 		return 0, fmt.Errorf("insert laporan mutu: %w", err)
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 func (s *DBStore) GetLaporanMutu(ctx context.Context, sampelID int64) (*db.LaporanMutu, error) {
@@ -181,12 +181,12 @@ func (s *DBStore) GetLaporanMutu(ctx context.Context, sampelID int64) (*db.Lapor
 }
 
 func (s *DBStore) CreateSertifikat(ctx context.Context, s2 db.SertifikatBenih) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `INSERT INTO sertifikat_benih (permohonan_id,nomor_sertifikat,penandatangan_id,tanggal_ttd,tte_status,tte_dokumen_url) VALUES (?,?,?,?,?,?)`,
+	id, err := db.InsertID(ctx, s.db, `INSERT INTO sertifikat_benih (permohonan_id,nomor_sertifikat,penandatangan_id,tanggal_ttd,tte_status,tte_dokumen_url) VALUES (?,?,?,?,?,?)`,
 		s2.PermohonanID, s2.NomorSertifikat, s2.PenandatanganID, s2.TanggalTTD, s2.TTEStatus, s2.TTEDokumenURL)
 	if err != nil {
 		return 0, fmt.Errorf("insert sertifikat: %w", err)
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 func (s *DBStore) GetSertifikat(ctx context.Context, permohonanID int64) (*db.SertifikatBenih, error) {
@@ -208,12 +208,12 @@ func (s *DBStore) UpdateSertifikatTTE(ctx context.Context, permohonanID int64, t
 }
 
 func (s *DBStore) CreateDraftLabel(ctx context.Context, l db.DraftLabel) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `INSERT INTO draft_label (sertifikat_id,kode_barcode,status,integrasi_sim_status) VALUES (?,?,?,?)`,
+	id, err := db.InsertID(ctx, s.db, `INSERT INTO draft_label (sertifikat_id,kode_barcode,status,integrasi_sim_status) VALUES (?,?,?,?)`,
 		l.SertifikatID, l.KodeBarcode, l.Status, l.IntegrasiSIMStatus)
 	if err != nil {
 		return 0, fmt.Errorf("insert draft label: %w", err)
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 func (s *DBStore) GetDraftLabel(ctx context.Context, sertifikatID int64) (*db.DraftLabel, error) {
@@ -235,12 +235,12 @@ func (s *DBStore) UpdateDraftLabel(ctx context.Context, id int64, status, integr
 }
 
 func (s *DBStore) CreateLegalisasi(ctx context.Context, l db.LabelLegalisasi) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `INSERT INTO label_legalisasi (draft_label_id,legalisasi_id,status,catatan) VALUES (?,?,?,?)`,
+	id, err := db.InsertID(ctx, s.db, `INSERT INTO label_legalisasi (draft_label_id,legalisasi_id,status,catatan) VALUES (?,?,?,?)`,
 		l.DraftLabelID, l.LegalisasiID, l.Status, l.Catatan)
 	if err != nil {
 		return 0, fmt.Errorf("insert legalisasi: %w", err)
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 func (s *DBStore) UpdateLegalisasi(ctx context.Context, id int64, status string) error {
@@ -252,12 +252,12 @@ func (s *DBStore) UpdateLegalisasi(ctx context.Context, id int64, status string)
 }
 
 func (s *DBStore) CreatePenyerahan(ctx context.Context, p db.PenyerahanDokumen) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `INSERT INTO penyerahan_dokumen (permohonan_id,sertifikat_dikirim,label_dikirim,pembayaran_akhir_status,tanggal_penyerahan,diterima_oleh,catatan) VALUES (?,?,?,?,?,?,?)`,
-		p.PermohonanID, boolToInt(p.SertifikatDikirim), boolToInt(p.LabelDikirim), p.PembayaranAkhirStatus, p.TanggalPenyerahan, p.DiterimaOleh, p.Catatan)
+	id, err := db.InsertID(ctx, s.db, `INSERT INTO penyerahan_dokumen (permohonan_id,sertifikat_dikirim,label_dikirim,pembayaran_akhir_status,tanggal_penyerahan,diterima_oleh,catatan) VALUES (?,?,?,?,?,?,?)`,
+		p.PermohonanID, p.SertifikatDikirim, p.LabelDikirim, p.PembayaranAkhirStatus, p.TanggalPenyerahan, p.DiterimaOleh, p.Catatan)
 	if err != nil {
 		return 0, fmt.Errorf("insert penyerahan: %w", err)
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 func (s *DBStore) GetPenyerahan(ctx context.Context, permohonanID int64) (*db.PenyerahanDokumen, error) {
@@ -277,7 +277,7 @@ func (s *DBStore) GetPenyerahan(ctx context.Context, permohonanID int64) (*db.Pe
 }
 
 func (s *DBStore) UpdatePenyerahan(ctx context.Context, permohonanID int64, sertifikatDikirim, labelDikirim bool, pembayaranAkhirStatus string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE penyerahan_dokumen SET sertifikat_dikirim=?, label_dikirim=?, pembayaran_akhir_status=?, updated_at=CURRENT_TIMESTAMP WHERE permohonan_id=?`, boolToInt(sertifikatDikirim), boolToInt(labelDikirim), pembayaranAkhirStatus, permohonanID)
+	_, err := s.db.ExecContext(ctx, `UPDATE penyerahan_dokumen SET sertifikat_dikirim=?, label_dikirim=?, pembayaran_akhir_status=?, updated_at=CURRENT_TIMESTAMP WHERE permohonan_id=?`, sertifikatDikirim, labelDikirim, pembayaranAkhirStatus, permohonanID)
 	if err != nil {
 		return fmt.Errorf("update penyerahan: %w", err)
 	}
@@ -293,21 +293,21 @@ func (s *DBStore) CreateAuditLog(ctx context.Context, a db.AuditLog) (int64, err
 	if a.EntityID != nil {
 		entityID = a.EntityID
 	}
-	res, err := s.db.ExecContext(ctx, `INSERT INTO audit_log (actor_id,actor_role,action,entity,entity_id,detail) VALUES (?,?,?,?,?,?)`,
+	id, err := db.InsertID(ctx, s.db, `INSERT INTO audit_log (actor_id,actor_role,action,entity,entity_id,detail) VALUES (?,?,?,?,?,?)`,
 		actorID, a.ActorRole, a.Action, a.Entity, entityID, a.Detail)
 	if err != nil {
 		return 0, fmt.Errorf("insert audit log: %w", err)
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 func (s *DBStore) CreateDokumen(ctx context.Context, d db.Dokumen) (int64, error) {
-	res, err := s.db.ExecContext(ctx, `INSERT INTO dokumen (pemilik_id,tujuan,object_key,nama_asli,jenis,ukuran) VALUES (?,?,?,?,?,?)`,
+	id, err := db.InsertID(ctx, s.db, `INSERT INTO dokumen (pemilik_id,tujuan,object_key,nama_asli,jenis,ukuran) VALUES (?,?,?,?,?,?)`,
 		d.PemilikID, d.Tujuan, d.ObjectKey, d.NamaAsli, d.Jenis, d.Ukuran)
 	if err != nil {
 		return 0, fmt.Errorf("insert dokumen: %w", err)
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 func (s *DBStore) GetDokumen(ctx context.Context, id int64) (*db.Dokumen, error) {
@@ -352,15 +352,14 @@ func (s *DBStore) ListDokumen(ctx context.Context, userID int64, semua bool) ([]
 
 func scanUser(row *sql.Row) (*db.User, error) {
 	var u db.User
-	var isActive int
-	var createdAt, updatedAt string
-	if err := row.Scan(&u.ID, &u.Username, &u.Email, &u.NPP, &u.UnitKerja, &u.Role, &isActive, &createdAt, &updatedAt); err != nil {
+	var isActive bool
+	if err := row.Scan(&u.ID, &u.Username, &u.Email, &u.NPP, &u.UnitKerja, &u.Role, &isActive, &u.CreatedAt, &u.UpdatedAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("scan user: %w", err)
 	}
-	u.IsActive = isActive == 1
+	u.IsActive = isActive
 	return &u, nil
 }
 
@@ -427,11 +426,4 @@ func scanDraftLabel(row *sql.Row) (*db.DraftLabel, error) {
 		return nil, fmt.Errorf("scan draft label: %w", err)
 	}
 	return &l, nil
-}
-
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }

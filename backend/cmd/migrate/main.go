@@ -12,9 +12,9 @@ import (
 )
 
 // CLI migrasi skema: menerapkan berkas .sql di direktori migrations secara
-// berurutan ke MySQL yang dituju DB_DSN. Contoh:
+// berurutan ke PostgreSQL yang dituju DB_DSN. Contoh:
 //
-//	DB_DSN=user:pass@tcp(127.0.0.1:3306)/sitani?parseTime=true go run ./cmd/migrate
+//	DB_DSN=postgres://sitani:password@127.0.0.1:5433/sitani?sslmode=disable go run ./cmd/migrate
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
@@ -38,7 +38,7 @@ func main() {
 	}
 	defer database.Close()
 
-	migrator, err := db.NewMigrator(database.DB, *dir)
+	migrator, err := db.NewMigrator(database, *dir)
 	if err != nil {
 		logger.Error("gagal membuat migrator", "error", err)
 		os.Exit(1)

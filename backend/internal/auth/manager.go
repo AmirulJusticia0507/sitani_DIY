@@ -249,9 +249,9 @@ func (m *Manager) resolvePrincipal(ctx context.Context, claims *Claims, realm Re
 
 	var userID int64
 	var role string
-	err = tx.QueryRowContext(ctx, `SELECT u.id, u.role FROM sso_identities i JOIN users u ON u.id=i.user_id WHERE i.issuer=? AND i.subject=? AND u.is_active=1`, realm.Issuer, claims.Subject).Scan(&userID, &role)
+	err = tx.QueryRowContext(ctx, `SELECT u.id, u.role FROM sso_identities i JOIN users u ON u.id=i.user_id WHERE i.issuer=? AND i.subject=? AND u.is_active=TRUE`, realm.Issuer, claims.Subject).Scan(&userID, &role)
 	if errors.Is(err, sql.ErrNoRows) {
-		err = tx.QueryRowContext(ctx, `SELECT id, role FROM users WHERE email=? AND is_active=1`, claims.Email).Scan(&userID, &role)
+		err = tx.QueryRowContext(ctx, `SELECT id, role FROM users WHERE email=? AND is_active=TRUE`, claims.Email).Scan(&userID, &role)
 		if errors.Is(err, sql.ErrNoRows) {
 			username := claims.Username
 			if username == "" {
@@ -261,11 +261,10 @@ func (m *Manager) resolvePrincipal(ctx context.Context, claims *Claims, realm Re
 			if randomErr != nil {
 				return Principal{}, randomErr
 			}
-			result, insertErr := tx.ExecContext(ctx, `INSERT INTO users (username,email,password_hash,role,is_active) VALUES (?,?,?,?,1)`, username, claims.Email, "SSO-DISABLED-"+passwordMarker, "pelanggan")
-			if insertErr != nil {
-				return Principal{}, insertErr
+			userID, err = db.InsertID(ctx, tx, `INSERT INTO users (username,email,password_hash,role,is_active) VALUES (?,?,?, ?,TRUE)`, username, claims.Email, "SSO-DISABLED-"+passwordMarker, "pelanggan")
+			if err != nil {
+				return Principal{}, err
 			}
-			userID, err = result.LastInsertId()
 			role = "pelanggan"
 		} else if err != nil {
 			return Principal{}, err
