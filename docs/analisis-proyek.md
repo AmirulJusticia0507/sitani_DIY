@@ -37,6 +37,16 @@ Tiga container pada dokumen awal merujuk pada komponen utama aplikasi. MinIO tet
 
 Entitas kandidat untuk desain skema: pengguna, organisasi, keanggotaan, role/izin, layanan, permohonan, lahan, tanaman, lampiran, riwayat status, inspeksi, penilaian, sertifikat, dataset, batch import, dan audit event. Skema final mengikuti aturan bisnis yang telah divalidasi.
 
+### Kerangka antarmuka dashboard
+
+Area kerja memakai layout segmen di `frontend/app/dashboard/layout.tsx`, sehingga hanya rute `/dashboard*` yang memuat kerangka dashboard. Halaman publik tetap memakai header dan footer portal di `frontend/components/layout.tsx`.
+
+- Header: tema hijau tua, merek bersama `components/brand.tsx`, tautan ke portal publik, identitas sesi, dan tombol keluar.
+- Sidebar: menu per peran dari `components/dashboard/role-access.ts`. Peta ini hanya mengatur navigasi; backend tetap memeriksa kewenangan pada setiap permintaan. Peran yang belum dipetakan hanya mendapat Ringkasan dan Profil disertai peringatan.
+- Footer: ringkas, memuat tautan informasi portal.
+- Sesi: dibaca di klien dari `GET /auth/me` karena cookie SSO bersifat HttpOnly dan hanya dikirim ke backend.
+- Ringkasan belum menampilkan statistik agregat karena endpoint datanya belum ada; angka tidak dikarang.
+
 ## Urutan pengerjaan
 
 1. Dokumentasikan aturan agen dan kondisi awal; inisialisasi Git.

@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SiTani DIY — Portal Pertanian dan Ketahanan Pangan DIY",
+  title: {
+    default: "SiTani DIY — Portal Pertanian dan Ketahanan Pangan DIY",
+    template: "%s — SiTani DIY",
+  },
   description:
     "Platform terpadu repository data lokal dan layanan publik pertanian serta ketahanan pangan Daerah Istimewa Yogyakarta. Mengelola registrasi lahan hortikultura, sertifikasi benih BP3MBTP, dan data pangan.",
   openGraph: {

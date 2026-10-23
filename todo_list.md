@@ -15,7 +15,8 @@
 ## 📍 Tahap 2: Modul Repository Data Lokal
 - [x] Fondasi import repository lokal CSV/XLSX: parser/header validation, batas ukuran/baris, batch tersimpan di MySQL, role admin/analis dan tes; template/mapping kanonis menunggu ketetapan DPKP
 - [ ] Development Rest API data terintegrasi — sinkronisasi/API sumber eksternal menunggu kontrak resmi; batch import lokal tersedia, belum ada model/endpoint baca baris kanonis
-- [ ] Development Dashboard & Visualisasi Data Pertanian
+- [x] Kerangka dashboard area kerja: layout segmen `app/dashboard` dengan header, sidebar sesuai peran (peta `components/dashboard/role-access.ts`), footer ringkas terpisah dari portal publik, halaman Ringkasan dan Profil & Akses; sesi dibaca dari `GET /auth/me`, tanpa angka statistik karena endpoint agregat belum ada
+- [ ] Development Dashboard & Visualisasi Data Pertanian — belum ada endpoint agregat/visualisasi; menunggu model data kanonis dan kontrak sumber eksternal
 
 ## 📍 Tahap 3: Modul Layanan Registrasi Lahan & Pohon Induk (Hortikultura)
 - [x] Form Pengajuan Permohonan Registrasi Lahan (data pemohon/lahan/tanaman dan lampiran privat proposal, struktur organisasi, daftar anggota, form kebun, peta; API simpan, akses pemohon, audit dan migrasi 006)
@@ -29,7 +30,7 @@
 - [x] Integrasi Sentry Error Logging
 - [x] Dokumentasi anticipasi kerentanan Node.js & PHP Oktober 2026 (`docs/keamanan-kerentanan-nodejs-php-oktober-2026.md`)
 - [x] Fondasi PWA (manifest, ikon, service worker terbatas ke aset publik) serta halaman Tentang, Kebijakan Privasi (draf), dan Bantuan
-- [ ] Testing Unit & Integration Test — cakupan unit backend berjalan (paket `auth`, `dataset`, `db`, `httpapi`, `service`, `spl`; `go test ./...` lulus). Modul `horticulture`, `notify`, `observability`, `storage`, `store`, dan `cmd/*` belum memiliki tes; tes integrasi ke PostgreSQL/MinIO serta CI otomatis belum tersedia.
+- [ ] Testing Unit & Integration Test — cakupan unit backend berjalan (paket `auth`, `dataset`, `db`, `httpapi`, `service`, `spl`; `go test ./...` lulus). Tes E2E frontend (Playwright, desktop + mobile) mencakup portal publik dan kerangka dashboard (`tests/dashboard.spec.ts`). Modul `horticulture`, `notify`, `observability`, `storage`, `store`, dan `cmd/*` belum memiliki tes; tes integrasi ke PostgreSQL/MinIO serta CI otomatis belum tersedia.
 - [ ] User Acceptance Testing (UAT) bersama DPKP DIY & Diskominfo DIY
 
 ## 📍 Tahap 5: Modul Sertifikasi Benih BP3MBTP (Alur XML 7 Aktor)

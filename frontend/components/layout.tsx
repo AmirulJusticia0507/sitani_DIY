@@ -82,7 +82,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <span className="brand-mark">🌾</span>
               <span className="brand-name">SiTani DIY</span>
             </Link>
-            <nav className="nav-list">
+            <nav className="nav-list" aria-label="Navigasi utama">
               {NAV_LINKS.map((link) => (
                 <Link key={link.label} href={link.href} className="nav-link">
                   {link.label}
