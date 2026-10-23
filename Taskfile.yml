@@ -1,0 +1,40 @@
+version: '3'
+
+dotenv:
+  - .env
+
+tasks:
+  dev:
+    desc: Jalankan backend Go untuk pengembangan lokal
+    dir: backend
+    env:
+      DB_DSN: '{{.DB_DSN | default (printf "%s:%s@tcp(127.0.0.1:3306)/%s?parseTime=true&charset=utf8mb4" .MYSQL_USER .MYSQL_PASSWORD .MYSQL_DATABASE)}}'
+    cmds:
+      - go run ./cmd/api
+
+  migrate:
+    desc: Terapkan migrasi ke MySQL lokal
+    dir: backend
+    env:
+      DB_DSN: '{{.DB_DSN | default (printf "%s:%s@tcp(127.0.0.1:3306)/%s?parseTime=true&charset=utf8mb4" .MYSQL_USER .MYSQL_PASSWORD .MYSQL_DATABASE)}}'
+    cmds:
+      - go run ./cmd/migrate
+
+  frontend:
+    desc: Jalankan frontend Next.js untuk pengembangan lokal
+    dir: frontend
+    cmds:
+      - npm run dev
+
+  test:
+    desc: Jalankan seluruh unit test backend
+    dir: backend
+    cmds:
+      - go test ./...
+
+  check:
+    desc: Jalankan pemeriksaan statis dan build backend
+    dir: backend
+    cmds:
+      - go vet ./...
+      - go build ./...

@@ -87,15 +87,40 @@ Implementasi backend, migrasi, dan halaman `/benih` didokumentasikan di [docs/re
 - **Standar API Pemda DIY:** [Standard API Documentation](https://wiki.jogjaprov.go.id/en/diskominfo/standard-API)
 - **SPL / Cakra API:** [SPL Wiki Documentation](https://wiki.jogjaprov.go.id/diskominfo/sistem-penghubung-layanan)
 
-## Menjalankan fondasi lokal
+## Menjalankan pengembangan lokal
 
-Backend membutuhkan Go 1.23 atau lebih baru:
+Persyaratan: Go sesuai `backend/go.mod`, Node.js 20.9 atau lebih baru, npm,
+dan Task (`go-task`). Siapkan `.env` di root repository (salin dari
+`.env.example`), lalu buka **dua terminal** dari root repository:
 
 ```powershell
-cd backend
-go test ./...
-go run ./cmd/api
+# Terminal 1 — backend API (task `dev` menjalankan Go API)
+task dev
 ```
+
+```powershell
+# Terminal 2 — frontend Next.js
+task frontend
+```
+
+Frontend tersedia di `http://localhost:3000`, backend di
+`http://localhost:8080`, dan pemeriksaan backend di
+`http://localhost:8080/health`. Task `dev` memuat variabel dari `.env` root
+sebelum menjalankan backend. Task `frontend` juga mewarisi konfigurasi tersebut,
+termasuk `NEXT_PUBLIC_BACKEND_URL` bila ditambahkan ke `.env`.
+
+Perintah pengembangan tambahan: `task test` untuk unit test backend dan
+`task check` untuk `go vet` serta build. Perintah Next.js langsung tetap tersedia
+di folder `frontend` (`npm run dev`, `npm run lint`, `npm run typecheck`,
+`npm run build`, dan `npm run test:e2e`).
+
+Task `dev` menyusun `DB_DSN` lokal dari `MYSQL_USER`, `MYSQL_PASSWORD`, dan
+`MYSQL_DATABASE` di `.env` (host `127.0.0.1:3306`); nilai `DB_DSN` eksplisit
+di `.env` akan dipakai jika tersedia. Jadi MySQL harus sudah berjalan. Cara
+mudah menyalakannya: `docker compose --env-file .env -f infra/compose.yml up -d
+database`. Setelah itu terapkan migrasi dengan `task migrate`, lalu jalankan
+`task dev`. Untuk unggah dokumen, MinIO juga harus tersedia dan `MINIO_*` di
+`.env` dikonfigurasi.
 
 ### Skema Database & Migrasi
 
