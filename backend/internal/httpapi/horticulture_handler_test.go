@@ -7,15 +7,20 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/auth"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/horticulture"
 )
 
 type fakeHorticultureRepository struct {
-	created horticulture.Application
-	docs    []horticulture.Document
-	items   []horticulture.Application
+	created      horticulture.Application
+	docs         []horticulture.Document
+	items        []horticulture.Application
+	verification string
+	schedule     horticulture.InspectionSchedule
+	inspection   horticulture.Inspection
+	evaluation   horticulture.Evaluation
 }
 
 func (f *fakeHorticultureRepository) Create(_ context.Context, app horticulture.Application, docs []horticulture.Document) (horticulture.Application, error) {
@@ -45,6 +50,27 @@ func (f *fakeHorticultureRepository) Get(_ context.Context, id int64) (horticult
 		}
 	}
 	return horticulture.Application{}, horticulture.ErrNotFound
+}
+
+func (f *fakeHorticultureRepository) Verify(_ context.Context, id, actorID int64, decision, note string) (horticulture.Application, error) {
+	f.verification = decision
+	return horticulture.Application{ID: id, ApplicantID: 42, Status: decision}, nil
+}
+func (f *fakeHorticultureRepository) ScheduleInspection(_ context.Context, s horticulture.InspectionSchedule, _ int64) (horticulture.InspectionSchedule, error) {
+	f.schedule = s
+	s.ID = 3
+	s.Status = "terjadwal"
+	return s, nil
+}
+func (f *fakeHorticultureRepository) CompleteInspection(_ context.Context, i horticulture.Inspection) (horticulture.Inspection, error) {
+	f.inspection = i
+	i.ID = 4
+	return i, nil
+}
+func (f *fakeHorticultureRepository) SaveEvaluation(_ context.Context, e horticulture.Evaluation) (horticulture.Evaluation, error) {
+	f.evaluation = e
+	e.ID = 5
+	return e, nil
 }
 
 func makeHorticultureRequest(body string, role string, userID int64) *http.Request {
@@ -123,5 +149,111 @@ func TestHorticultureListOnlyExposesOwnApplicationsToApplicant(t *testing.T) {
 	}
 	if len(got.Applications) != 1 || got.Applications[0].ApplicantID != 0 {
 		t.Fatalf("list response should contain one sanitized owned item: %+v", got.Applications)
+	}
+}
+
+func TestHorticultureVerificationRoleAndDecision(t *testing.T) {
+	repo := &fakeHorticultureRepository{}
+	h := &horticultureHandler{repo: repo}
+	r := httptest.NewRequest(http.MethodPost, "/v1/horticulture/applications/8/verification", strings.NewReader(`{"keputusan":"diverifikasi"}`))
+	r.SetPathValue("id", "8")
+	r = r.WithContext(auth.WithPrincipal(r.Context(), auth.Principal{UserID: 9, Role: "verifikator"}))
+	w := httptest.NewRecorder()
+	h.verify(w, r)
+	if w.Code != http.StatusOK || repo.verification != "diverifikasi" {
+		t.Fatalf("status=%d body=%s decision=%s", w.Code, w.Body.String(), repo.verification)
+	}
+	r = httptest.NewRequest(http.MethodPost, "/v1/horticulture/applications/8/verification", strings.NewReader(`{"keputusan":"diverifikasi"}`))
+	r.SetPathValue("id", "8")
+	r = r.WithContext(auth.WithPrincipal(r.Context(), auth.Principal{UserID: 9, Role: "pelanggan"}))
+	w = httptest.NewRecorder()
+	h.verify(w, r)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestValidateGAPChecklistRequiresEveryIndicator(t *testing.T) {
+	if err := validateGAPChecklist(map[string]bool{"legalitas_lahan": true}); err == nil {
+		t.Fatal("checklist parsial diterima")
+	}
+	checklist := make(map[string]bool, len(requiredGAPChecks))
+	for _, key := range requiredGAPChecks {
+		checklist[key] = false
+	}
+	if err := validateGAPChecklist(checklist); err != nil {
+		t.Fatalf("checklist lengkap ditolak: %v", err)
+	}
+}
+
+func TestHorticultureEvaluationValidatesRoleAndScores(t *testing.T) {
+	repo := &fakeHorticultureRepository{}
+	h := &horticultureHandler{repo: repo}
+	body := `{"jenis_penilaian":"pit","nama_tanaman":"Mangga","varietas":"Arumanis","skor_vigoritas":4,"skor_kesehatan":5,"skor_kebenaran_varietas":4,"rekomendasi":"layak","catatan":"Kondisi baik"}`
+	r := httptest.NewRequest(http.MethodPost, "/v1/horticulture/applications/8/evaluations", strings.NewReader(body))
+	r.SetPathValue("id", "8")
+	r = r.WithContext(auth.WithPrincipal(r.Context(), auth.Principal{UserID: 9, Role: "pbt"}))
+	w := httptest.NewRecorder()
+	h.evaluate(w, r)
+	if w.Code != http.StatusCreated || repo.evaluation.AssessmentType != "pit" {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	invalid := strings.Replace(body, `"skor_vigoritas":4`, `"skor_vigoritas":8`, 1)
+	r = httptest.NewRequest(http.MethodPost, "/v1/horticulture/applications/8/evaluations", strings.NewReader(invalid))
+	r.SetPathValue("id", "8")
+	r = r.WithContext(auth.WithPrincipal(r.Context(), auth.Principal{UserID: 9, Role: "pbt"}))
+	w = httptest.NewRecorder()
+	h.evaluate(w, r)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("invalid score status=%d", w.Code)
+	}
+}
+
+func TestHorticultureScheduleRequiresFutureRFC3339AndOwnInspector(t *testing.T) {
+	repo := &fakeHorticultureRepository{}
+	h := &horticultureHandler{repo: repo}
+	body := `{"waktu":"` + time.Now().Add(time.Hour).UTC().Format(time.RFC3339) + `","lokasi":"Kebun Sumber","catatan":"Inspeksi awal"}`
+	r := httptest.NewRequest(http.MethodPost, "/v1/horticulture/applications/8/inspection-schedules", strings.NewReader(body))
+	r.SetPathValue("id", "8")
+	r = r.WithContext(auth.WithPrincipal(r.Context(), auth.Principal{UserID: 9, Role: "inspektor"}))
+	w := httptest.NewRecorder()
+	h.schedule(w, r)
+	if w.Code != http.StatusCreated || repo.schedule.InspectorID != 9 {
+		t.Fatalf("status=%d body=%s schedule=%+v", w.Code, w.Body.String(), repo.schedule)
+	}
+	body = `{"waktu":"kemarin","lokasi":"Kebun Sumber"}`
+	r = httptest.NewRequest(http.MethodPost, "/v1/horticulture/applications/8/inspection-schedules", strings.NewReader(body))
+	r.SetPathValue("id", "8")
+	r = r.WithContext(auth.WithPrincipal(r.Context(), auth.Principal{UserID: 9, Role: "inspektor"}))
+	w = httptest.NewRecorder()
+	h.schedule(w, r)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("invalid time status=%d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestHorticultureCompleteInspectionRequiresCompleteChecklist(t *testing.T) {
+	repo := &fakeHorticultureRepository{}
+	h := &horticultureHandler{repo: repo}
+	checklist := make(map[string]bool, len(requiredGAPChecks))
+	for _, key := range requiredGAPChecks {
+		checklist[key] = true
+	}
+	valid, _ := json.Marshal(map[string]any{"checklist_gap": checklist, "temuan": "Tidak ada temuan mayor", "rekomendasi": "Lanjut evaluasi"})
+	r := httptest.NewRequest(http.MethodPost, "/v1/horticulture/inspection-schedules/4/complete", strings.NewReader(string(valid)))
+	r.SetPathValue("id", "4")
+	r = r.WithContext(auth.WithPrincipal(r.Context(), auth.Principal{UserID: 9, Role: "inspektor"}))
+	w := httptest.NewRecorder()
+	h.completeInspection(w, r)
+	if w.Code != http.StatusCreated || repo.inspection.InspectorID != 9 {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	r = httptest.NewRequest(http.MethodPost, "/v1/horticulture/inspection-schedules/4/complete", strings.NewReader(`{"checklist_gap":{"legalitas_lahan":true},"temuan":"x","rekomendasi":"y"}`))
+	r.SetPathValue("id", "4")
+	r = r.WithContext(auth.WithPrincipal(r.Context(), auth.Principal{UserID: 9, Role: "inspektor"}))
+	w = httptest.NewRecorder()
+	h.completeInspection(w, r)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("partial checklist status=%d", w.Code)
 	}
 }

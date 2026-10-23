@@ -12,6 +12,8 @@ import (
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/httpapi"
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/notify"
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/observability"
 )
 
 func main() {
@@ -33,6 +35,8 @@ func main() {
 	}
 
 	handler := httpapi.NewHandler(database)
+	handler.SetNotify(notify.New(notify.ConfigFromEnv()))
+	handler.SetObservability(observability.New(observability.ConfigFromEnv()))
 	server := &http.Server{
 		Addr:              ":" + port,
 		Handler:           handler.ServeMux(),

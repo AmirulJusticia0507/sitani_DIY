@@ -140,3 +140,10 @@ article p { margin-bottom: 0; color: var(--muted); line-height: 1.6; }
 .horticulture-crop { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; padding: 0.8rem 0; }
 .horticulture-history { margin-top: 1rem; }
 @media (max-width: 650px) { .horticulture-crop { grid-template-columns: 1fr; } }
+.horticulture-actions, .horticulture-inline { display: flex; flex-wrap: wrap; align-items: end; gap: 0.8rem; margin: 1rem 0; }
+.horticulture-inline > label { display: grid; flex: 1 1 180px; gap: 0.4rem; font-weight: 700; }
+.horticulture-inline input:not([type="checkbox"]), .horticulture-inline select, .horticulture-inline textarea { width: 100%; min-height: 42px; padding: 0.6rem 0.7rem; border: 1px solid #9daaa2; border-radius: 0.45rem; font: inherit; }
+.horticulture-inline fieldset { flex: 1 1 100%; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 0.65rem; }
+.horticulture-inline .horticulture-check { display: flex; gap: 0.5rem; align-items: start; font-weight: 400; }
+.horticulture-inline .horticulture-check input { min-height: auto; margin-top: 0.3rem; }
+@media (max-width: 600px) { .horticulture-inline fieldset { grid-template-columns: 1fr; } }

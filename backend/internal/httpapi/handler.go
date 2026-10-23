@@ -10,9 +10,11 @@ import (
 	"time"
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/auth"
-	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/dataset"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/dataset"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/horticulture"
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/notify"
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/observability"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/service"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/storage"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/store"
@@ -35,8 +37,16 @@ type Handler struct {
 	dokumen      *dokumenHandler
 	dataset      *datasetHandler
 	horticulture *horticultureHandler
-	storageSiap  bool
+	storageSiap bool
+	notify      *notify.Client
+	obs         *observability.Client
 }
+
+// SetNotify mengatur klien notifikasi Discord.
+func (h *Handler) SetNotify(c *notify.Client) { h.notify = c }
+
+// SetObservability mengatur klien pelaporan error.
+func (h *Handler) SetObservability(c *observability.Client) { h.obs = c }
 
 // NewHandler membuat handler HTTP dan mendaftarkan semua rute. db boleh nil
 // saat database belum dikonfigurasi; service akan mengembalikan kesalahan

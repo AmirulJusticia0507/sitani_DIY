@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 
 const apiURL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080";
 type Principal = { name?: string; email: string; role: string };
-type Application = { id: number; nomor_permohonan: string; nama_organisasi: string; status: string; dibuat_pada: string };
+type Application = { id: number; nomor_permohonan: string; nama_organisasi: string; status: string; dibuat_pada: string; jadwal_inspeksi?: { id: number; waktu: string; lokasi: string; status: string }[]; inspeksi?: { id: number; temuan: string; rekomendasi: string }[]; penilaian?: { id: number; jenis_penilaian: string; rekomendasi: string; nama_tanaman: string; varietas: string; skor_vigoritas:number; skor_kesehatan:number; skor_kebenaran_varietas:number; catatan:string }[] };
 type Upload = { id: number; nama: string };
 type Attachment = { id: number; jenis: string; nama: string };
 const attachmentTypes = [
@@ -24,6 +24,7 @@ async function errorMessage(response: Response): Promise<string> {
 export function HorticulturePanel() {
   const [principal, setPrincipal] = useState<Principal | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
+  const [selected, setSelected] = useState<Application | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -46,7 +47,7 @@ export function HorticulturePanel() {
         const user = (await response.json()) as Principal;
         if (!active) return;
         setPrincipal(user);
-        if (["pelanggan", "admin", "pengawas"].includes(user.role)) await loadApplications();
+        if (["pelanggan", "admin", "pengawas", "verifikator", "inspektor", "pbt", "kasi_pmbtp"].includes(user.role)) await loadApplications();
       } catch (cause) { if (active) setError(cause instanceof Error ? cause.message : "Gagal memuat data."); }
       finally { if (active) setLoading(false); }
     }
@@ -107,6 +108,27 @@ export function HorticulturePanel() {
     finally { setBusy(false); }
   }
 
+  async function openApplication(application: Application) {
+    try {
+      const response = await fetch(`${apiURL}/v1/horticulture/applications/${application.id}`, { credentials: "include" });
+      if (!response.ok) throw new Error(await errorMessage(response));
+      setSelected((await response.json()) as Application);
+      setError("");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Gagal membuka permohonan."); }
+  }
+
+  async function action(url: string, method: string, body: unknown, success: string) {
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const response = await fetch(`${apiURL}${url}`, { method, credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!response.ok) throw new Error(await errorMessage(response));
+      setMessage(success);
+      await loadApplications();
+      if (selected) await openApplication(selected);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Aksi gagal."); }
+    finally { setBusy(false); }
+  }
+
   if (loading) return <section className="repository-content"><p role="status">Memeriksa sesi SSO…</p></section>;
   if (!principal) {
     const redirect = encodeURIComponent("/horticulture");
@@ -148,8 +170,23 @@ export function HorticulturePanel() {
         </form>
       </section>
     </> : <section className="repository-card"><h2>Akses pemohon</h2><p>Pengajuan baru tersedia bagi pemohon atau admin.</p></section>}
-    {(principal.role === "pelanggan" || principal.role === "admin" || principal.role === "pengawas") && <section className="repository-card horticulture-history"><h2>Riwayat permohonan</h2>
-      {applications.length === 0 ? <p>Belum ada permohonan.</p> : <div className="repository-table-wrap"><table className="repository-table"><thead><tr><th>Nomor</th><th>Organisasi</th><th>Status</th><th>Tanggal</th></tr></thead><tbody>{applications.map((item) => <tr key={item.id}><td>{item.nomor_permohonan}</td><td>{item.nama_organisasi}</td><td>{item.status}</td><td>{new Date(item.dibuat_pada).toLocaleDateString("id-ID")}</td></tr>)}</tbody></table></div>}
+    {(principal.role === "pelanggan" || principal.role === "admin" || principal.role === "pengawas" || principal.role === "verifikator" || principal.role === "inspektor" || principal.role === "pbt" || principal.role === "kasi_pmbtp") && <section className="repository-card horticulture-history"><h2>Riwayat permohonan</h2>
+      {applications.length === 0 ? <p>Belum ada permohonan.</p> : <div className="repository-table-wrap"><table className="repository-table"><thead><tr><th>Nomor</th><th>Organisasi</th><th>Status</th><th>Tanggal</th><th>Aksi</th></tr></thead><tbody>{applications.map((item) => <tr key={item.id}><td>{item.nomor_permohonan}</td><td>{item.nama_organisasi}</td><td>{item.status}</td><td>{new Date(item.dibuat_pada).toLocaleDateString("id-ID")}</td><td><button className="repository-link-button" type="button" onClick={() => void openApplication(item)}>Buka detail</button></td></tr>)}</tbody></table></div>}
     </section>}
+    {selected && <section className="repository-card horticulture-history"><h2>Alur permohonan {selected.nomor_permohonan}</h2><p>Status: <strong>{selected.status}</strong></p>
+      {principal.role === "verifikator" || principal.role === "admin" ? <div className="horticulture-actions"><button className="repository-button" disabled={busy} onClick={() => void action(`/v1/horticulture/applications/${selected.id}/verification`,"POST",{keputusan:"diverifikasi"},"Proposal dinyatakan lengkap dan terverifikasi.")}>Verifikasi lengkap</button><button className="repository-button secondary" disabled={busy} onClick={() => { const catatan=window.prompt("Catatan dokumen yang harus diperbaiki:"); if(catatan?.trim()) void action(`/v1/horticulture/applications/${selected.id}/verification`,"POST",{keputusan:"perlu_perbaikan",catatan},"Permintaan perbaikan dicatat."); }}>Minta perbaikan</button></div> : null}
+      {principal.role === "inspektor" || principal.role === "admin" ? <>
+        <h3>Jadwalkan inspeksi lapangan</h3><form className="horticulture-inline" onSubmit={(event) => { event.preventDefault(); const v=new FormData(event.currentTarget); void action(`/v1/horticulture/applications/${selected.id}/inspection-schedules`,"POST",{waktu:new Date(String(v.get("waktu"))).toISOString(),lokasi:v.get("lokasi"),catatan:v.get("catatan")},"Jadwal inspeksi tersimpan."); }}><label>Waktu<input required name="waktu" type="datetime-local" /></label><label>Lokasi<input required name="lokasi" maxLength={255} /></label><label>Catatan<input name="catatan" /></label><button className="repository-button" disabled={busy}>Simpan jadwal</button></form>
+        {selected.jadwal_inspeksi?.filter((schedule) => schedule.status === "terjadwal").map((schedule) => <form className="horticulture-inline" key={schedule.id} onSubmit={(event) => { event.preventDefault(); const v=new FormData(event.currentTarget); const checks=Object.fromEntries(gapChecks.map((key)=>[key,v.get(key)==="on"])); void action(`/v1/horticulture/inspection-schedules/${schedule.id}/complete`,"POST",{checklist_gap:checks,temuan:v.get("temuan"),rekomendasi:v.get("rekomendasi")},"Form audit GAP disimpan."); }}><h3>Audit GAP · {new Date(schedule.waktu).toLocaleString("id-ID")} · {schedule.lokasi}</h3><fieldset><legend>Checklist GAP (centang bila memenuhi)</legend>{gapChecks.map((key)=><label className="horticulture-check" key={key}><input type="checkbox" name={key}/>{gapLabels[key]}</label>)}</fieldset><label>Temuan<textarea name="temuan" required rows={3}/></label><label>Rekomendasi<textarea name="rekomendasi" required rows={3}/></label><button className="repository-button" disabled={busy}>Kirim hasil inspeksi</button></form>)}
+      </> : null}
+      {principal.role === "pbt" || principal.role === "kasi_pmbtp" || principal.role === "admin" ? <><h3>Penilaian pohon induk / PIT / RIP / PI / RI</h3><form className="horticulture-inline" onSubmit={(event)=>{event.preventDefault();const v=new FormData(event.currentTarget);void action(`/v1/horticulture/applications/${selected.id}/evaluations`,"POST",{jenis_penilaian:v.get("jenis"),nama_tanaman:v.get("tanaman"),varietas:v.get("varietas"),skor_vigoritas:Number(v.get("vigoritas")),skor_kesehatan:Number(v.get("kesehatan")),skor_kebenaran_varietas:Number(v.get("kebenaran")),rekomendasi:v.get("rekomendasi"),catatan:v.get("catatan")},"Penilaian tersimpan dalam audit trail.");}}><label>Jenis penilaian<select name="jenis">{["pohon_induk","pit","rip","pi","ri"].map((value)=><option key={value} value={value}>{value.toUpperCase()}</option>)}</select></label><label>Nama tanaman<input name="tanaman" required/></label><label>Varietas<input name="varietas" required/></label>{[["vigoritas","Vigoritas"],["kesehatan","Kesehatan"],["kebenaran","Kebenaran varietas"]].map(([name,label])=><label key={name}>{label} (1–5)<input type="number" name={name} min="1" max="5" required/></label>)}<label>Rekomendasi<select name="rekomendasi"><option value="layak">Layak</option><option value="perlu_perbaikan">Perlu perbaikan</option><option value="tidak_layak">Tidak layak</option></select></label><label>Catatan penilaian<textarea name="catatan" required rows={3}/></label><button className="repository-button" disabled={busy}>Simpan penilaian</button></form></> : null}
+      {(selected.inspeksi?.length ?? 0)>0 && <><h3>Riwayat inspeksi GAP</h3><ul>{selected.inspeksi?.map((inspection)=><li key={inspection.id}>{inspection.temuan} — {inspection.rekomendasi}</li>)}</ul></>}
+      {(selected.penilaian?.length ?? 0)>0 && <><h3>Riwayat penilaian</h3><ul>{selected.penilaian?.map((evaluation)=><li key={evaluation.id}>{evaluation.jenis_penilaian.toUpperCase()} · {evaluation.nama_tanaman} / {evaluation.varietas} — {evaluation.rekomendasi} (vigoritas {evaluation.skor_vigoritas}/5, kesehatan {evaluation.skor_kesehatan}/5, varietas {evaluation.skor_kebenaran_varietas}/5). {evaluation.catatan}</li>)}</ul></>}
+      <button className="repository-button secondary" type="button" onClick={()=>setSelected(null)}>Tutup detail</button>
+    </section>}
+    {error && <p className="repository-alert error" role="alert">{error}</p>}{message && <p className="repository-alert success" role="status">{message}</p>}
   </section>;
 }
+
+const gapChecks = ["legalitas_lahan","riwayat_lahan","kondisi_lahan","sumber_air","drainase","konservasi_tanah","benih_bibit","pemupukan","pengendalian_hama","panen_pascapanen","pencatatan_budidaya"];
+const gapLabels: Record<string,string> = { legalitas_lahan:"Legalitas dan batas lahan", riwayat_lahan:"Riwayat penggunaan lahan", kondisi_lahan:"Kondisi dan kesesuaian lahan", sumber_air:"Kualitas dan ketersediaan sumber air", drainase:"Drainase dan pengelolaan air", konservasi_tanah:"Konservasi tanah", benih_bibit:"Mutu benih/bibit", pemupukan:"Pemupukan dan penggunaan input", pengendalian_hama:"Pengendalian hama dan penyakit", panen_pascapanen:"Panen dan pascapanen", pencatatan_budidaya:"Pencatatan praktik budidaya" };

@@ -24,8 +24,8 @@
 - [ ] Integrasi TTE Sadewa untuk pengesahan & penerbitan Surat/Sertifikat Nomor Registrasi
 
 ## 📍 Tahap 4: Notifikasi, Logging & Quality Assurance
-- [ ] Integrasi Discord Webhook Notifikasi
-- [ ] Integrasi Sentry Error Logging
+- [x] Integrasi Discord Webhook Notifikasi
+- [x] Integrasi Sentry Error Logging
 - [x] Dokumentasi anticipasi kerentanan Node.js & PHP Oktober 2026 (`docs/keamanan-kerentanan-nodejs-php-oktober-2026.md`)
 - [ ] Testing Unit & Integration Test
 - [ ] User Acceptance Testing (UAT) bersama DPKP DIY & Diskominfo DIY
