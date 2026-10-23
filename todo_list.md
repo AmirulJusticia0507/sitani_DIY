@@ -38,3 +38,9 @@
 - [ ] Fase 3 Sertifikasi & Penerbitan Label (Jalur Lulus): Pembuatan Sertifikat Benih, Penandatanganan Pejabat (TTE), Draft Label & Integrasi SIM Perbenihan, Cetak di Percetakan, Legalisasi Label, Penyerahan Sertifikat/Label & Pembayaran Akhir
 - [ ] Jalur Tidak Lulus: Pengiriman Laporan Lengkap Pengujian ke Pelanggan (Proses selesai)
 - [ ] Modul Draft Label, Kode Unik/Barcode SIM Perbenihan, Legalisasi Label, dan Penyerahan Dokumen
+- [ ] Registrasi benih: master komoditas/varietas, produsen, sumber benih, lot, kelas, jumlah/satuan, masa berlaku, dan status edar
+- [ ] Persediaan benih per lot dengan mutasi stok yang transaksional dan dapat diaudit
+- [ ] Penjualan benih: pembeli, lot, kuantitas, harga, nomor dokumen, tanggal transaksi, dan pengurangan stok
+- [ ] Validasi penjualan hanya untuk lot dengan registrasi, sertifikat, dan label yang sah
+- [ ] Koreksi/pembatalan penjualan melalui transaksi pembalik dan audit trail tanpa menghapus histori
+- [ ] Laporan registrasi, stok, masa berlaku, dan penjualan benih

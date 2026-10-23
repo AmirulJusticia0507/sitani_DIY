@@ -42,6 +42,16 @@ Membuat **Portal Pertanian dan Ketahanan Pangan DIY** sebagai *single door platf
 *   **Evaluasi & Penilaian:** Penilaian kelayakan lahan/pohon induk (seperti parameter vigoritas, kesehatan, kebenaran varietas).
 *   **Pengesahan & Penerbitan Nomor Registrasi:** TTE dokumen pengesahan oleh Kepala DPKP DIY via Sadewa.
 
+### Modul 3: Pengelolaan Benih Tanaman dan Sertifikasi BP3MBTP
+*   **Registrasi Benih:** Mencatat identitas komoditas/varietas, produsen, sumber benih, lot, kelas benih, jumlah, satuan, tanggal produksi, masa berlaku, dan status registrasi.
+*   **Sertifikasi Tujuh Aktor:** Pelanggan, Admin, Pengawas/PBT, Analis Lab, Penandatangan TTE, Legalisasi, dan Percetakan menjalankan kewenangan yang terpisah dan tercatat dalam audit trail.
+*   **Verifikasi Lapangan:** Permohonan dan pembayaran awal, verifikasi dokumen, empat fase inspeksi oleh Pengawas/PBT, serta pencatatan buku induk dan laporan verifikasi.
+*   **Pengujian Mutu:** Pengambilan sampel, kodifikasi sampel, pencatatan parameter dan hasil pengujian laboratorium, serta laporan mutu.
+*   **Keputusan Sertifikasi:** Hasil tidak lulus mengakhiri proses setelah laporan lengkap dikirim kepada pelanggan; hasil lulus memicu penerbitan sertifikat dan label.
+*   **Penerbitan Label:** Pembuatan sertifikat, TTE pejabat, draft label, integrasi kode unik/barcode SIM Perbenihan, pencetakan, legalisasi, penyerahan, dan pembayaran akhir.
+*   **Penjualan Benih:** Mencatat transaksi penjualan hanya terhadap lot benih yang dapat diedarkan, termasuk pembeli, kuantitas, harga, nomor dokumen, tanggal transaksi, dan jejak pengurangan stok.
+*   **Ketertelusuran:** Setiap penjualan harus dapat ditelusuri ke lot, registrasi, sertifikat, dan label yang sah. Pembatalan atau koreksi transaksi tidak menghapus histori.
+
 ---
 
 ## 5. Arsitektur & Spesifikasi Teknologis

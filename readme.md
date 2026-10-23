@@ -48,7 +48,7 @@ Aplikasi dijalankan dalam 3 container utama:
 
 ## 🌾 Arsitektur Alur Sertifikasi Benih BP3MBTP (berdasarkan Diagram XML)
 
-Alur sertifikasi benih mengikuti 3 fase dan 7 aktor swimlane:
+Fitur **Pengelolaan Benih Tanaman** mencakup registrasi benih, sertifikasi BP3MBTP, pengelolaan lot/stok, dan pencatatan penjualan. Alur sertifikasi mengikuti 3 fase dan 7 aktor swimlane. Bagian ini adalah arsitektur target; status implementasi aktual tetap mengikuti `todo_list.md`.
 
 **Fase 1 — Verifikasi Lapangan (Pengawas/PBT)**
 Permohonan & Pembayaran Awal → Verifikasi Dokumen → Inspeksi 4 Fase → Pencatatan Buku Induk & Laporan Verifikasi
@@ -68,6 +68,14 @@ Pengambilan Sampel Benih → Kodifikasi Sampel → Pengujian Lab → Penyusunan 
 - **TTE Sadewa:** penandatanganan sertifikat oleh pejabat berwenang.
 
 7 Aktor: Pelanggan, Admin, Pengawas/PBT, Analis Lab, Penandatangan TTE, Legalisasi, Percetakan.
+
+### Registrasi dan Penjualan Benih
+
+- Registrasi menyimpan komoditas/varietas, produsen, sumber benih, nomor lot, kelas, jumlah, satuan, tanggal produksi, masa berlaku, dan status edar.
+- Lot yang dijual harus memiliki registrasi, sertifikat, dan label yang masih sah sesuai aturan bisnis yang disetujui BP3MBTP.
+- Penjualan menyimpan pembeli, lot, kuantitas, harga, nomor dokumen, tanggal transaksi, dan perubahan stok secara transaksional.
+- Koreksi atau pembatalan penjualan wajib meninggalkan audit trail; transaksi historis tidak dihapus secara fisik.
+- Format resmi nomor registrasi, aturan kelas benih, masa berlaku, dan kontrak SIM Perbenihan masih memerlukan validasi BP3MBTP/Diskominfo.
 
 ---
 
