@@ -84,7 +84,7 @@ func (s *DBStore) ListRegistrasiBenih(ctx context.Context, filter db.RegistrasiF
 		return nil, fmt.Errorf("query registrasi benih: %w", err)
 	}
 	defer rows.Close()
-	var out []db.RegistrasiBenih
+	out := make([]db.RegistrasiBenih, 0)
 	for rows.Next() {
 		r, err := scanRegistrasi(rows)
 		if err != nil {
@@ -96,12 +96,8 @@ func (s *DBStore) ListRegistrasiBenih(ctx context.Context, filter db.RegistrasiF
 }
 
 func (s *DBStore) UpdateRegistrasiStatus(ctx context.Context, id int64, status string) error {
-	res, err := s.db.ExecContext(ctx, `UPDATE registrasi_benih SET status_edar=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`, status, id)
-	if err != nil {
+	if _, err := s.db.ExecContext(ctx, `UPDATE registrasi_benih SET status_edar=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`, status, id); err != nil {
 		return fmt.Errorf("update status registrasi: %w", err)
-	}
-	if n, err := res.RowsAffected(); err == nil && n == 0 {
-		return ErrNotFound
 	}
 	return nil
 }
@@ -119,7 +115,7 @@ func (s *DBStore) ListStokBenih(ctx context.Context) ([]db.StokBenih, error) {
 		return nil, fmt.Errorf("query stok benih: %w", err)
 	}
 	defer rows.Close()
-	var out []db.StokBenih
+	out := make([]db.StokBenih, 0)
 	for rows.Next() {
 		stok, err := scanStok(rows)
 		if err != nil {
@@ -137,7 +133,7 @@ func (s *DBStore) ListMutasiStok(ctx context.Context, registrasiID int64) ([]db.
 		return nil, fmt.Errorf("query mutasi stok: %w", err)
 	}
 	defer rows.Close()
-	var out []db.MutasiStokBenih
+	out := make([]db.MutasiStokBenih, 0)
 	for rows.Next() {
 		var m db.MutasiStokBenih
 		var refID sql.NullInt64
@@ -232,7 +228,7 @@ func (s *DBStore) ListPenjualanBenih(ctx context.Context, filter db.PenjualanFil
 		return nil, fmt.Errorf("query penjualan: %w", err)
 	}
 	defer rows.Close()
-	var out []db.PenjualanBenih
+	out := make([]db.PenjualanBenih, 0)
 	for rows.Next() {
 		p, err := scanPenjualan(rows)
 		if err != nil {
@@ -252,26 +248,12 @@ func (s *DBStore) BatalkanPenjualanBenih(ctx context.Context, id int64, actorID 
 	}
 	defer tx.Rollback()
 
-	var p db.PenjualanBenih
-	var alasanLama sql.NullString
-	var dibatalkanOleh sql.NullInt64
-	var dibatalkanPada sql.NullTime
-	if err := tx.QueryRowContext(ctx, `SELECT `+penjualanColumns+` FROM penjualan_benih WHERE id=? FOR UPDATE`, id).
-		Scan(&p.ID, &p.NomorDokumen, &p.RegistrasiID, &p.NomorLot, &p.Pembeli, &p.Jumlah, &p.HargaSatuan, &p.TotalHarga,
-			&p.TanggalTransaksi, &p.Status, &alasanLama, &dibatalkanOleh, &dibatalkanPada, &p.CreatedBy, &p.CreatedAt, &p.UpdatedAt); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
-		}
+	p, err := scanPenjualan(tx.QueryRowContext(ctx, `SELECT `+penjualanColumns+` FROM penjualan_benih WHERE id=? FOR UPDATE`, id))
+	if err != nil {
 		return nil, fmt.Errorf("ambil penjualan: %w", err)
 	}
-	if alasanLama.Valid {
-		p.AlasanPembatalan = alasanLama.String
-	}
-	if dibatalkanOleh.Valid {
-		p.DibatalkanOleh = &dibatalkanOleh.Int64
-	}
-	if dibatalkanPada.Valid {
-		p.DibatalkanPada = &dibatalkanPada.Time
+	if p == nil {
+		return nil, ErrNotFound
 	}
 	if p.Status == "dibatalkan" {
 		return nil, ErrSudahDibatalkan
@@ -302,7 +284,7 @@ func (s *DBStore) BatalkanPenjualanBenih(ctx context.Context, id int64, actorID 
 	p.AlasanPembatalan = alasan
 	p.DibatalkanOleh = &actorID
 	p.DibatalkanPada = &waktu
-	return &p, nil
+	return p, nil
 }
 
 type rowScanner interface {

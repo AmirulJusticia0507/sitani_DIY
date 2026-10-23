@@ -374,6 +374,9 @@ func (s *Service) BatalkanPenjualan(ctx context.Context, actorID int64, actorRol
 
 // LaporanRegistrasi mengembalikan laporan registrasi lot benih.
 func (s *Service) LaporanRegistrasi(ctx context.Context, actorRole string, filter db.RegistrasiFilter) ([]db.RegistrasiBenih, error) {
+	if filter.Limit <= 0 {
+		filter.Limit = 1000
+	}
 	return s.ListRegistrasiBenih(ctx, actorRole, filter)
 }
 

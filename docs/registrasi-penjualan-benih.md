@@ -107,5 +107,7 @@ go run ./cmd/migrate -dry-run
 - `go build ./...`, `go vet ./...`, `go test ./... -count=1` (backend)
 - `npm run lint`, `npm run typecheck`, `npm run build` (frontend)
 - `npm run test:e2e` (Playwright desktop dan mobile)
+- Migrasi 001–003 diterapkan ke MySQL 8.4 lokal melalui `go run ./cmd/migrate`.
+- Uji alur nyata terhadap MySQL: registrasi lot stok 100, penjualan 60 menyisakan stok 40 dengan 2 mutasi, pembatalan mengembalikan stok 100 dengan 3 mutasi; laporan penjualan dan stok mengembalikan data.
 
-Migrasi SQL belum dijalankan terhadap instance MySQL pada lingkungan ini; validasi eksekusi migrasi perlu dilakukan saat database tersedia.
+Uji tersebut memakai data sintetis dan bukan UAT. Format resmi serta integrasi SIM Perbenihan tetap menunggu validasi pihak berwenang. Uji browser halaman `/benih` menunjukkan 0 error konsol dan 0 permintaan gagal.
