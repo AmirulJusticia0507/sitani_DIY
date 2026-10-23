@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/httpapi"
 )
 
@@ -20,9 +21,21 @@ func main() {
 		port = "8080"
 	}
 
+	var database *db.DB
+	if dsn := os.Getenv("DB_DSN"); dsn != "" {
+		var err error
+		database, err = db.New(dsn, logger)
+		if err != nil {
+			logger.Error("gagal membuka database, server tetap berjalan tanpa DB", "error", err)
+		}
+	} else {
+		logger.Warn("DB_DSN tidak diatur, server berjalan tanpa database")
+	}
+
+	handler := httpapi.NewHandler(database)
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           httpapi.NewHandler(),
+		Handler:           handler.ServeMux(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,

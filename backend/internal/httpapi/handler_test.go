@@ -11,7 +11,7 @@ func TestHealth(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
 	recorder := httptest.NewRecorder()
 
-	NewHandler().ServeHTTP(recorder, request)
+	NewHandler(nil).ServeMux().ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, ingin %d", recorder.Code, http.StatusOK)
@@ -30,7 +30,7 @@ func TestUnknownRoute(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/tidak-ada", nil)
 	recorder := httptest.NewRecorder()
 
-	NewHandler().ServeHTTP(recorder, request)
+	NewHandler(nil).ServeMux().ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, ingin %d", recorder.Code, http.StatusNotFound)
