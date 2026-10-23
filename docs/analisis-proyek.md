@@ -62,3 +62,19 @@ Task yang membutuhkan layanan eksternal harus ditandai terblokir sampai konfigur
 ## Dependensi eksternal yang belum tersedia
 
 Pada pemeriksaan lanjutan, repository Git telah tersedia dengan commit awal dan remote `https://github.com/AmirulJusticia0507/sitani_DIY.git`. Kredensial dan konfigurasi SSO, SPL, Sadewa, MinIO, serta dataset contoh belum terdapat dalam proyek. Ini membatasi verifikasi integrasi nyata, bukan pekerjaan dokumentasi atau fondasi lokal. Baseline Next.js 15 dinaikkan ke Next.js 16 karena patch terbaru mayor 15 masih membawa advisory dependency; audit fondasi Next.js 16 bersih pada 23 Oktober 2026.
+
+## Rencana Pemisahan Repository (Backend & Frontend)
+
+Secara saat ini proyek masih dalam bentuk monorepo dengan struktur `backend/` dan `frontend/` di dalam satu repository. Rencana pemisahan akan dilakukan setelah seluruh fitur inti selesai dan stabil, dengan tujuan masing-masing direktori menjadi repository terpisah:
+
+- **Repository Backend:** berisi `backend/` (Go 1.23, database, migrasi, integrasi SSO/SPL/Sadewa/MinIO)
+- **Repository Frontend:** berisi `frontend/` (Next.js 16, UI, komponen, tes browser)
+
+Langkah pemisahan:
+1. Pastikan semua fitur inti selesai dan di-commit pada branch `main`.
+2. Ekstrak history Git masing-masing subdirektori agar tidak menyisipkan commit yang tidak terkait (mis. menggunakan `git filter-repo` atau pendekatan setara).
+3. Buat dua repository baru di remote, satu untuk backend dan satu untuk frontend.
+4. Update `.env.example`, `readme.md`, dan `infra/compose.yml` agar referensi path dan build menyesuaikan struktur terpisah.
+5. Dokumentasikan cara menjalankan masing-masing repository secara independen maupun bersama melalui Docker Compose.
+
+Pemisahan belum dilakukan saat ini untuk meminimalkan risiko gangguan durante pengembangan aktif.
