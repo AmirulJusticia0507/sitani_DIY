@@ -79,6 +79,8 @@ func TestBuatRegistrasiBenihMenolakDokumenBelumSah(t *testing.T) {
 		{"sertifikat belum TTE", func(s *registryStore) { s.sertifikat.TTEStatus = "menunggu" }, "belum ditandatangani"},
 		{"label belum legalisasi", func(s *registryStore) { s.label.Status = "dicetak" }, "belum dilegalisasi"},
 		{"label belum SIM", func(s *registryStore) { s.label.IntegrasiSIMStatus = "gagal" }, "SIM Perbenihan"},
+		{"permohonan ditolak", func(s *registryStore) { s.permohonan.Status = db.StatusPermohonanDitolak }, "ditolak atau dibatalkan"},
+		{"permohonan dibatalkan", func(s *registryStore) { s.permohonan.Status = db.StatusPermohonanDibatalkan }, "ditolak atau dibatalkan"},
 	}
 	for _, k := range kasus {
 		t.Run(k.nama, func(t *testing.T) {

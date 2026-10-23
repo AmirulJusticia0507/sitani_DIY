@@ -25,9 +25,13 @@ type Store interface {
 	GetUserByUsername(ctx context.Context, username string) (*db.User, error)
 
 	// Fase 1: Permohonan & pembayaran
-	CreatePermohonan(ctx context.Context, p db.PermohonanBenih) (int64, error)
+	// CreatePermohonan mengisi nomor_permohonan secara atomik dengan format
+	// SPB-YYYYMMDD-XXXX berdasarkan tanggal pengajuan.
+	CreatePermohonan(ctx context.Context, p db.PermohonanBenih, tanggal time.Time) (int64, error)
 	GetPermohonan(ctx context.Context, id int64) (*db.PermohonanBenih, error)
+	SetNomorPermohonan(ctx context.Context, id int64, nomor string) error
 	UpdatePermohonanStatus(ctx context.Context, id int64, status, pembayaranAwalStatus string) error
+	ListPermohonanSiapRegistrasi(ctx context.Context, pemilikID int64, semua bool, limit int) ([]db.SiapRegistrasiPermohonan, error)
 	CreatePembayaran(ctx context.Context, pb db.Pembayaran) (int64, error)
 
 	// Fase 1: Inspeksi 4 fase & buku induk

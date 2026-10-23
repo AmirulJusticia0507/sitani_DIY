@@ -48,4 +48,6 @@
 - [x] Validasi penjualan hanya untuk lot dengan registrasi, sertifikat, dan label yang sah
 - [x] Koreksi/pembatalan penjualan melalui transaksi pembalik dan audit trail tanpa menghapus histori
 - [x] Laporan registrasi, stok, masa berlaku, dan penjualan benih
+- [x] Nomor permohonan dibuat server dengan format `SPB-YYYYMMDD-XXXX` dan tersimpan di database
+- [x] Form registrasi benih memilih permohonan (bukan mengetik ID permohonan)
 - [ ] Validasi format resmi nomor registrasi/dokumen, kelas benih, masa berlaku, dan kontrak SIM Perbenihan bersama BP3MBTP/Diskominfo

@@ -28,7 +28,18 @@ type User struct {
 	UpdatedAt time.Time
 }
 
+// Status permohonan yang menandakan pengajuan sudah selesai atau tidak
+// dilanjutkan. Permohonan dengan status ini tidak ditawarkan untuk registrasi
+// lot benih.
+const (
+	StatusPermohonanDitolak    = "ditolak"
+	StatusPermohonanDibatalkan = "dibatalkan"
+)
+
 // PermohonanBenih merekam pengajuan sertifikasi benih pelanggan (Fase 1).
+//
+// NomorPermohonan tidak diisi oleh client: nomor dibuat server setelah insert
+// dengan format SPB-YYYYMMDD-XXXX lalu disimpan di kolom nomor_permohonan.
 type PermohonanBenih struct {
 	ID                   int64
 	NomorPermohonan      string
@@ -262,6 +273,17 @@ type RegistrasiFilter struct {
 	Komoditas          string
 	KedaluwarsaSebelum *time.Time
 	Limit              int
+}
+
+// SiapRegistrasiPermohonan adalah ringkasan permohonan yang sudah memenuhi
+// syarat registrasi lot: sertifikat bertanda tangan TTE, label sudah
+// dilegalisasi dan terkirim ke SIM Perbenihan, serta belum punya lot terdaftar.
+type SiapRegistrasiPermohonan struct {
+	PermohonanID    int64
+	NomorPermohonan string
+	JenisBenih      string
+	Varietas        string
+	Status          string
 }
 
 // PenjualanFilter membatasi daftar penjualan benih.

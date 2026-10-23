@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
@@ -29,18 +30,119 @@ func (s *DBStore) GetUserByUsername(ctx context.Context, username string) (*db.U
 	return scanUser(row)
 }
 
-func (s *DBStore) CreatePermohonan(ctx context.Context, p db.PermohonanBenih) (int64, error) {
-	id, err := db.InsertID(ctx, s.db, `INSERT INTO permohonan_benih (nomor_permohonan,pelanggan_id,jenis_benih,varietas,luas_lahan,lokasi_kebun,status,pembayaran_awal_status) VALUES (?,?,?,?,?,?,?,?)`,
-		p.NomorPermohonan, p.PelangganID, p.JenisBenih, p.Varietas, p.LuasLahan, p.LokasiKebun, p.Status, p.PembayaranAwalStatus)
+// FormatNomorPermohonan membentuk nomor permohonan resmi dari tanggal pengajuan
+// dan nomor urut harian, contoh: SPB-20261023-0001.
+func FormatNomorPermohonan(tanggal time.Time, urut int64) string {
+	return fmt.Sprintf("SPB-%s-%04d", tanggal.Format("20060102"), urut)
+}
+
+// CreatePermohonan menyimpan pengajuan baru beserta nomor permohonannya dalam
+// satu transaksi. Urutan harian dihitung dari baris terakhir pada tanggal yang
+// sama sehingga tidak bergantung pada jam server maupun ID dari client.
+func (s *DBStore) CreatePermohonan(ctx context.Context, p db.PermohonanBenih, tanggal time.Time) (int64, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
+		return 0, fmt.Errorf("mulai transaksi permohonan: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Nomor sementara wajib unik (kolom NOT NULL UNIQUE) dan tidak pernah
+	// ditampilkan. Isinya langsung diganti nomor resmi dalam transaksi ini.
+	sementara := fmt.Sprintf("TMP-%d", tanggal.UnixNano())
+	if _, err := tx.ExecContext(ctx, `INSERT INTO permohonan_benih (nomor_permohonan,pelanggan_id,jenis_benih,varietas,luas_lahan,lokasi_kebun,status,pembayaran_awal_status) VALUES (?,?,?,?,?,?,?,?)`,
+		sementara, p.PelangganID, p.JenisBenih, p.Varietas, p.LuasLahan, p.LokasiKebun, p.Status, p.PembayaranAwalStatus); err != nil {
 		return 0, fmt.Errorf("insert permohonan: %w", err)
+	}
+
+	// Kunci advisory per tanggal menyerialkan penomoran sehingga dua pengajuan
+	// bersamaan tidak mendapat nomor urut yang sama.
+	kunci := "permohonan:" + tanggal.Format("20060102")
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtext(?))`, kunci); err != nil {
+		return 0, fmt.Errorf("kunci penomoran permohonan: %w", err)
+	}
+
+	prefix := FormatNomorPermohonan(tanggal, 0)[:len("SPB-")+8+1]
+	var nomorTerakhir sql.NullString
+	if err := tx.QueryRowContext(ctx, `SELECT MAX(nomor_permohonan) FROM permohonan_benih WHERE nomor_permohonan LIKE ?`, prefix+"%").Scan(&nomorTerakhir); err != nil {
+		return 0, fmt.Errorf("ambil urutan nomor permohonan: %w", err)
+	}
+	urut := int64(1)
+	if nomorTerakhir.Valid && len(nomorTerakhir.String) > len(prefix) {
+		if n, err := strconv.ParseInt(nomorTerakhir.String[len(prefix):], 10, 64); err == nil {
+			urut = n + 1
+		}
+	}
+	nomor := FormatNomorPermohonan(tanggal, urut)
+
+	var id int64
+	if err := tx.QueryRowContext(ctx, `UPDATE permohonan_benih SET nomor_permohonan=? WHERE nomor_permohonan=? RETURNING id`, nomor, sementara).Scan(&id); err != nil {
+		return 0, fmt.Errorf("tetapkan nomor permohonan: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit permohonan: %w", err)
 	}
 	return id, nil
 }
 
 func (s *DBStore) GetPermohonan(ctx context.Context, id int64) (*db.PermohonanBenih, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id,nomor_permohonan,pelanggan_id,jenis_benih,varietas,luas_lahan,lokasi_kebun,status,pembayaran_awal_status,buku_induk_nomor,laporan_verifikasi,created_at,updated_at FROM permohonan_benih WHERE id=?`, id)
+	row := s.db.QueryRowContext(ctx, `SELECT `+permohonanColumns+` FROM permohonan_benih WHERE id=?`, id)
 	return scanPermohonan(row)
+}
+
+const permohonanColumns = `id,nomor_permohonan,pelanggan_id,jenis_benih,varietas,luas_lahan,lokasi_kebun,status,pembayaran_awal_status,buku_induk_nomor,laporan_verifikasi,created_at,updated_at`
+
+// SetNomorPermohonan mengganti nomor permohonan, misalnya format lama ke
+// format SPB-YYYYMMDD-XXXX saat migrasi data. Nomor tidak berasal dari client.
+func (s *DBStore) SetNomorPermohonan(ctx context.Context, id int64, nomor string) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE permohonan_benih SET nomor_permohonan=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`, nomor, id)
+	if err != nil {
+		return fmt.Errorf("simpan nomor permohonan: %w", err)
+	}
+	if affected, err := result.RowsAffected(); err == nil && affected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// ListPermohonanSiapRegistrasi mengembalikan permohonan yang dokumen
+// sertifikasinya sudah lengkap sehingga boleh diregistrasi menjadi lot benih.
+// semua=false membatasi hasil pada pemilik tertentu.
+func (s *DBStore) ListPermohonanSiapRegistrasi(ctx context.Context, pemilikID int64, semua bool, limit int) ([]db.SiapRegistrasiPermohonan, error) {
+	query := `SELECT p.id, p.nomor_permohonan, p.jenis_benih, COALESCE(p.varietas,''), p.status
+		FROM permohonan_benih p
+		JOIN sertifikat_benih s ON s.permohonan_id = p.id
+		JOIN draft_label d ON d.sertifikat_id = s.id
+		LEFT JOIN registrasi_benih r ON r.permohonan_id = p.id
+		WHERE s.tte_status = 'ditandatangani'
+		  AND d.status = 'legalisasi'
+		  AND d.integrasi_sim_status = 'terkirim'
+		  AND p.status NOT IN (?, ?)
+		  AND r.id IS NULL`
+	args := []any{db.StatusPermohonanDitolak, db.StatusPermohonanDibatalkan}
+	if !semua {
+		query += ` AND p.pelanggan_id = ?`
+		args = append(args, pemilikID)
+	}
+	query += ` ORDER BY p.created_at DESC, p.id DESC LIMIT ?`
+	args = append(args, batasBaris(limit))
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query permohonan siap registrasi: %w", err)
+	}
+	defer rows.Close()
+	hasil := make([]db.SiapRegistrasiPermohonan, 0)
+	for rows.Next() {
+		var item db.SiapRegistrasiPermohonan
+		if err := rows.Scan(&item.PermohonanID, &item.NomorPermohonan, &item.JenisBenih, &item.Varietas, &item.Status); err != nil {
+			return nil, fmt.Errorf("pindai permohonan siap registrasi: %w", err)
+		}
+		hasil = append(hasil, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterasi permohonan siap registrasi: %w", err)
+	}
+	return hasil, nil
 }
 
 func (s *DBStore) UpdatePermohonanStatus(ctx context.Context, id int64, status, pembayaranAwalStatus string) error {

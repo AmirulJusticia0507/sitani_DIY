@@ -19,13 +19,19 @@ func (fakeStore) GetUserByUsername(context.Context, string) (*db.User, error) {
 	panic("tidak diharapkan")
 }
 
-func (fakeStore) CreatePermohonan(context.Context, db.PermohonanBenih) (int64, error) {
+func (fakeStore) CreatePermohonan(context.Context, db.PermohonanBenih, time.Time) (int64, error) {
 	panic("tidak diharapkan")
 }
 func (fakeStore) GetPermohonan(context.Context, int64) (*db.PermohonanBenih, error) {
 	panic("tidak diharapkan")
 }
+func (fakeStore) SetNomorPermohonan(context.Context, int64, string) error {
+	panic("tidak diharapkan")
+}
 func (fakeStore) UpdatePermohonanStatus(context.Context, int64, string, string) error {
+	panic("tidak diharapkan")
+}
+func (fakeStore) ListPermohonanSiapRegistrasi(context.Context, int64, bool, int) ([]db.SiapRegistrasiPermohonan, error) {
 	panic("tidak diharapkan")
 }
 func (fakeStore) CreatePembayaran(context.Context, db.Pembayaran) (int64, error) {

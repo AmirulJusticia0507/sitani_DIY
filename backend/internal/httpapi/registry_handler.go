@@ -24,6 +24,7 @@ func newRegistryHandler(svc *service.Service) *registryHandler {
 }
 
 func (h *registryHandler) register(mux *http.ServeMux) {
+	mux.HandleFunc("GET /v1/permohonan-siap-registrasi", h.permohonanSiapRegistrasi)
 	mux.HandleFunc("POST /v1/registrasi-benih", h.buatRegistrasi)
 	mux.HandleFunc("GET /v1/registrasi-benih", h.listRegistrasi)
 	mux.HandleFunc("GET /v1/registrasi-benih/{id}", h.getRegistrasi)
@@ -106,6 +107,22 @@ func (h *registryHandler) buatRegistrasi(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	respondJSON(w, http.StatusCreated, registrasi)
+}
+
+// permohonanSiapRegistrasi menyediakan pilihan permohonan pada form registrasi
+// lot benih, sehingga pengguna tidak perlu mengetik ID permohonan secara manual.
+func (h *registryHandler) permohonanSiapRegistrasi(w http.ResponseWriter, r *http.Request) {
+	actorID, role, err := identitasAktor(r)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	items, err := h.svc.ListPermohonanSiapRegistrasi(r.Context(), actorID, role)
+	if err != nil {
+		respondRegistryError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, items)
 }
 
 func (h *registryHandler) listRegistrasi(w http.ResponseWriter, r *http.Request) {

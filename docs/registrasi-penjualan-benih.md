@@ -24,7 +24,7 @@ Status edar: `aktif`, `ditangguhkan`, `dicabut`, `kedaluwarsa`. Penjualan hanya 
 ## Aturan bisnis
 
 1. Registrasi lot hanya dapat dibuat jika:
-   - permohonan sertifikasi ada;
+   - permohonan sertifikasi ada dan belum `ditolak`/`dibatalkan`;
    - sertifikat sudah berstatus TTE `ditandatangani`;
    - label sudah `legalisasi` dan integrasi SIM berstatus `terkirim`;
    - nomor lot belum pernah terdaftar.
@@ -39,6 +39,7 @@ Semua endpoint berada di bawah `/v1` dan dilindungi middleware SSO. Peran yang d
 
 | Metode | Path | Peran | Keterangan |
 | --- | --- | --- | --- |
+| GET | `/v1/permohonan-siap-registrasi` | admin, pengawas, pelanggan | Pilihan permohonan untuk form registrasi |
 | POST | `/v1/registrasi-benih` | admin, pengawas | Daftarkan lot |
 | GET | `/v1/registrasi-benih` | admin, pengawas | Filter `status_edar`, `komoditas`, `limit` |
 | GET | `/v1/registrasi-benih/{id}` | admin, pengawas | Detail lot |
@@ -52,7 +53,8 @@ Semua endpoint berada di bawah `/v1` dan dilindungi middleware SSO. Peran yang d
 | GET | `/v1/laporan/kedaluwarsa-benih?hari=90` | admin, pengawas | Lot yang kedaluwarsa ≤ N hari |
 | GET | `/v1/laporan/penjualan-benih` | admin, pengawas | Laporan penjualan |
 
-Contoh registrasi:
+Contoh registrasi. `permohonan_id` dipilih dari respons `/v1/permohonan-siap-registrasi`;
+halaman frontend menampilkan nomor permohonan dan mengirim ID di balik layar:
 
 ```json
 {
@@ -84,6 +86,34 @@ Contoh penjualan:
 }
 ```
 
+## Nomor permohonan
+
+Nomor permohonan **dibuat server** setelah permohonan tersimpan, dengan format
+`SPB-YYYYMMDD-XXXX`:
+
+- `YYYYMMDD` adalah tanggal pengajuan;
+- `XXXX` adalah urutan harian (dimulai `0001`, minimal 4 digit, bertambah bila
+  lebih dari 9999 pengajuan dalam sehari).
+
+Contoh: permohonan pertama pada 23 Oktober 2026 bernomor `SPB-20261023-0001`.
+Nomor tidak diterima dari client dan tidak memakai kolom `id` database. Nomor
+disimpan di kolom `nomor_permohonan` dalam transaksi yang sama dengan insert.
+Penomoran diserialkan per tanggal memakai advisory lock PostgreSQL
+(`pg_advisory_xact_lock`), sehingga dua pengajuan bersamaan tidak memperoleh
+nomor yang sama.
+
+Klien tidak memakai nomor ini sebagai kunci form. Untuk mendaftarkan lot,
+frontend memanggil `/v1/permohonan-siap-registrasi`, yang hanya mengembalikan
+permohonan dengan sertifikat TTE `ditandatangani`, label `legalisasi` +
+integrasi SIM `terkirim`, belum `ditolak`/`dibatalkan`, dan belum punya lot.
+
+Migrasi `008_formalize_nomor_permohonan.sql` menyeragamkan nomor lama
+(`SPB-<id>-<epoch Unix>`, format yang salah) ke format baru.
+
+> Format ini adalah konvensi internal. Bila BP3MBTP/Diskominfo menetapkan format
+> resmi, generator di `store.FormatNomorPermohonan` dan migrasi 008 perlu
+> disesuaikan.
+
 ## Antarmuka
 
 Halaman `/benih` menyediakan formulir registrasi, daftar lot, detail stok dan mutasi, formulir penjualan, pembatalan, serta laporan stok/kedaluwarsa/penjualan. Halaman memakai sesi SSO (`credentials: include`) dan tidak menyimpan token di browser.
@@ -109,5 +139,7 @@ go run ./cmd/migrate -dry-run
 - `npm run test:e2e` (Playwright desktop dan mobile)
 - Migrasi 001–003 diterapkan ke MySQL 8.4 lokal melalui `go run ./cmd/migrate`.
 - Uji alur nyata terhadap MySQL: registrasi lot stok 100, penjualan 60 menyisakan stok 40 dengan 2 mutasi, pembatalan mengembalikan stok 100 dengan 3 mutasi; laporan penjualan dan stok mengembalikan data.
+- Penomoran permohonan diuji terhadap PostgreSQL 18 sungguhan (`SITANI_TEST_DATABASE_URL`): `CreatePermohonan` menghasilkan `SPB-20261023-0001`, `SPB-20261023-0002`, lalu `SPB-20261024-0001` pada hari berikutnya, dan tidak menyisakan nomor sementara.
+- Migrasi `008_formalize_nomor_permohonan.sql` diuji pada data lama `SPB-<id>-<epoch>`: nama lama dinomori ulang per tanggal (mis. `SPB-20261020-0001`), sedangkan nomor yang sudah berformat baru tidak diubah.
 
 Uji tersebut memakai data sintetis dan bukan UAT. Format resmi serta integrasi SIM Perbenihan tetap menunggu validasi pihak berwenang. Uji browser halaman `/benih` menunjukkan 0 error konsol dan 0 permintaan gagal.

@@ -100,6 +100,9 @@ func (s *Service) BuatRegistrasiBenih(ctx context.Context, actorID int64, actorR
 	if permohonan == nil {
 		return nil, ErrNotFound
 	}
+	if permohonan.Status == db.StatusPermohonanDitolak || permohonan.Status == db.StatusPermohonanDibatalkan {
+		return nil, errors.New("permohonan sudah ditolak atau dibatalkan dan tidak dapat diregistrasi")
+	}
 	sertifikat, label, err := s.validasiDokumenSertifikasi(ctx, req.PermohonanID)
 	if err != nil {
 		return nil, err
@@ -148,6 +151,22 @@ func (s *Service) BuatRegistrasiBenih(ctx context.Context, actorID int64, actorR
 		return nil, fmt.Errorf("catat audit registrasi: %w", err)
 	}
 	return &registrasi, nil
+}
+
+// ListPermohonanSiapRegistrasi mengembalikan pilihan permohonan untuk form
+// registrasi lot. Hanya permohonan yang sertifikatnya sudah ditandatangani TTE,
+// labelnya sudah dilegalisasi dan terkirim ke SIM Perbenihan, serta belum
+// memiliki lot terdaftar. Pelanggan hanya melihat permohonannya sendiri.
+func (s *Service) ListPermohonanSiapRegistrasi(ctx context.Context, actorID int64, actorRole string) ([]db.SiapRegistrasiPermohonan, error) {
+	if !boleh(actorRole, "registrasi:lihat") && !boleh(actorRole, "permohonan:lihat") {
+		return nil, errors.New("role tidak diizinkan melihat permohonan")
+	}
+	semua := actorRole == db.RoleAdmin
+	items, err := s.st.ListPermohonanSiapRegistrasi(ctx, actorID, semua, batasLimit(0))
+	if err != nil {
+		return nil, fmt.Errorf("daftar permohonan siap registrasi: %w", err)
+	}
+	return items, nil
 }
 
 // GetRegistrasiBenih mengambil detail satu lot benih.

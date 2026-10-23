@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
@@ -81,12 +82,20 @@ func NewService(st store.Store) *Service {
 }
 
 // BuatPermohonan mencatat permohonan sertifikasi benih baru oleh Pelanggan.
+// Nomor permohonan dibuat server (SPB-YYYYMMDD-XXXX) dan tidak diterima dari
+// client; nomor itu baru ada setelah permohonan tersimpan.
 func (s *Service) BuatPermohonan(ctx context.Context, pelangganID int64, pelangganRole string, req BuatPermohonanRequest) (*db.PermohonanBenih, error) {
 	if !boleh(pelangganRole, "permohonan:buat") {
 		return nil, errors.New("role tidak diizinkan membuat permohonan")
 	}
+	req.JenisBenih = strings.TrimSpace(req.JenisBenih)
+	req.Varietas = strings.TrimSpace(req.Varietas)
+	req.LokasiKebun = strings.TrimSpace(req.LokasiKebun)
 	if req.JenisBenih == "" {
 		return nil, errors.New("jenis benih wajib diisi")
+	}
+	if req.LuasLahan < 0 {
+		return nil, errors.New("luas lahan tidak boleh negatif")
 	}
 
 	now := s.now()
@@ -99,15 +108,11 @@ func (s *Service) BuatPermohonan(ctx context.Context, pelangganID int64, pelangg
 		Status:               "diajukan",
 		PembayaranAwalStatus: "belum",
 	}
-	id, err := s.st.CreatePermohonan(ctx, p)
+	id, err := s.st.CreatePermohonan(ctx, p, now)
 	if err != nil {
 		return nil, fmt.Errorf("buat permohonan: %w", err)
 	}
 	p.ID = id
-	p.NomorPermohonan = fmt.Sprintf("SPB-%d-%d", id, now.Unix())
-	if err := s.st.UpdatePermohonanStatus(ctx, id, "diajukan", "belum"); err != nil {
-		return nil, fmt.Errorf("set nomor permohonan: %w", err)
-	}
 	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
 		ActorID:   &pelangganID,
 		ActorRole: pelangganRole,
@@ -118,8 +123,16 @@ func (s *Service) BuatPermohonan(ctx context.Context, pelangganID int64, pelangg
 	}); err != nil {
 		return nil, fmt.Errorf("catat audit: %w", err)
 	}
-	p.NomorPermohonan = fmt.Sprintf("SPB-%d-%d", id, now.Unix())
-	return &p, nil
+	// Baca ulang agar nomor yang dikembalikan adalah nomor yang benar-benar
+	// tersimpan, bukan hasil perhitungan terpisah di service.
+	tersimpan, err := s.st.GetPermohonan(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("ambil permohonan tersimpan: %w", err)
+	}
+	if tersimpan == nil {
+		return nil, ErrNotFound
+	}
+	return tersimpan, nil
 }
 
 // GetPermohonan mengembalikan detail permohonan berdasarkan ID.

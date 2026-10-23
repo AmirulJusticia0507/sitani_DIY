@@ -5,7 +5,7 @@ test("menampilkan identitas dan modul utama", async ({ page }, testInfo) => {
 
   await expect(page).toHaveTitle("SiTani DIY — Portal Pertanian dan Ketahanan Pangan DIY");
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "Data tumbuh.Layanan bergerak.",
+    "Portal Pertanian dan Ketahanan Pangan DIY",
   );
   await expect(page.getByRole("heading", { name: "Repository Data Lokal" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Registrasi Hortikultura" })).toBeVisible();
@@ -22,9 +22,15 @@ test("menampilkan identitas dan modul utama", async ({ page }, testInfo) => {
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/favicon.svg");
   // Hanya navigasi utama portal yang dihitung; navigasi footer memakai peran
   // "navigation" dengan nama aksesibel sendiri.
+  if (testInfo.project.name === "mobile") {
+    await page.getByRole("button", { name: "Menu" }).click();
+  }
   await expect(
     page.getByRole("navigation", { name: "Navigasi utama" }).getByRole("link"),
   ).toHaveCount(5);
+  await expect(
+    page.getByRole("navigation", { name: "Navigasi utama" }).getByRole("link", { name: "Sertifikasi Benih BP3MBTP" }),
+  ).toBeVisible();
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "Tentang" })).toHaveAttribute("href", "/tentang");
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "Kebijakan Privasi" })).toHaveAttribute("href", "/kebijakan-privasi");
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "Bantuan" })).toHaveAttribute("href", "/bantuan");
@@ -67,4 +73,7 @@ test("menampilkan modul registrasi dan penjualan benih", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Laporan", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Daftarkan Lot" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Catat Penjualan" })).toBeVisible();
+  // Form registrasi memilih permohonan, tidak meminta ID permohonan internal.
+  await expect(page.getByLabel("Permohonan")).toBeVisible();
+  await expect(page.getByLabel("ID permohonan")).toHaveCount(0);
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Layout } from "../../components/layout";
 import { Card } from "../../components/card";
 import { Badge } from "../../components/badge";
@@ -54,6 +54,16 @@ interface StokDetail {
   mutasi: Mutasi[] | null;
 }
 
+// Pilihan permohonan dari GET /v1/permohonan-siap-registrasi: hanya permohonan
+// yang sertifikatnya sudah TTE, labelnya sudah legalisasi dan terkirim ke SIM.
+interface PermohonanSiap {
+  PermohonanID: number;
+  NomorPermohonan: string;
+  JenisBenih: string;
+  Varietas: string;
+  Status: string;
+}
+
 interface Penjualan {
   ID: number;
   NomorDokumen: string;
@@ -75,14 +85,20 @@ const rupiah = new Intl.NumberFormat("id-ID", {
 
 const tanggalHariIni = () => new Date().toISOString().slice(0, 10);
 
+const labelPermohonan = (item: PermohonanSiap) =>
+  `${item.NomorPermohonan} — ${item.JenisBenih}${item.Varietas ? ` (${item.Varietas})` : ""}`;
+
 export default function BenihPage() {
   const [registrasi, setRegistrasi] = useState<Registrasi[]>([]);
   const [penjualan, setPenjualan] = useState<Penjualan[]>([]);
   const [stokDetail, setStokDetail] = useState<StokDetail | null>(null);
   const [laporanStok, setLaporanStok] = useState<Stok[] | null>(null);
   const [laporanKedaluwarsa, setLaporanKedaluwarsa] = useState<Registrasi[] | null>(null);
+  const [permohonanSiap, setPermohonanSiap] = useState<PermohonanSiap[] | null>(null);
+  const [permohonanID, setPermohonanID] = useState("");
   const [pesan, setPesan] = useState("");
   const [galat, setGalat] = useState("");
+  const [memuatPermohonan, setMemuatPermohonan] = useState(false);
 
   const api = useCallback((path: string, opts: RequestInit = {}) => {
     const headers: Record<string, string> = {
@@ -101,14 +117,43 @@ export default function BenihPage() {
     setGalat(err);
   }, []);
 
-  const bacaError = async (res: Response) => {
+  const bacaError = useCallback(async (res: Response) => {
     try {
       const data = (await res.json()) as { error?: string };
       return data.error || `HTTP ${res.status}`;
     } catch {
       return `HTTP ${res.status}`;
     }
-  };
+  }, []);
+
+  // Form registrasi lot memilih permohonan, bukan mengetik ID: ID internal
+  // tidak bermakna bagi pengguna dan rawan salah input.
+  const muatPermohonanSiap = useCallback(async () => {
+    setMemuatPermohonan(true);
+    try {
+      const res = await api("/v1/permohonan-siap-registrasi");
+      if (!res.ok) throw new Error(await bacaError(res));
+      const items = (await res.json()) as PermohonanSiap[];
+      setPermohonanSiap(items);
+      // Pertahankan pilihan sebelumnya selama masih tersedia.
+      setPermohonanID((sebelumnya) =>
+        items.some((item) => String(item.PermohonanID) === sebelumnya)
+          ? sebelumnya
+          : items.length === 1
+            ? String(items[0].PermohonanID)
+            : "",
+      );
+    } catch (err) {
+      setPermohonanSiap([]);
+      setInfo("", err instanceof Error ? err.message : String(err));
+    } finally {
+      setMemuatPermohonan(false);
+    }
+  }, [api, bacaError, setInfo]);
+
+  useEffect(() => {
+    void muatPermohonanSiap();
+  }, [muatPermohonanSiap]);
 
   const muatRegistrasi = useCallback(async () => {
     try {
@@ -134,9 +179,15 @@ export default function BenihPage() {
 
   const buatRegistrasi = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const form = new FormData(e.currentTarget);
+    const formEl = e.currentTarget;
+    if (!permohonanID) {
+      setInfo("", "Pilih permohonan yang akan diregistrasi terlebih dahulu");
+      return;
+    }
+    const permohonanTerpilih = permohonanSiap?.find((item) => String(item.PermohonanID) === permohonanID);
+    const form = new FormData(formEl);
     const body = JSON.stringify({
-      permohonan_id: Number(form.get("permohonan_id")),
+      permohonan_id: Number(permohonanID),
       komoditas: form.get("komoditas"),
       varietas: form.get("varietas"),
       produsen: form.get("produsen"),
@@ -153,8 +204,13 @@ export default function BenihPage() {
       const res = await api("/v1/registrasi-benih", { method: "POST", body });
       if (!res.ok) throw new Error(await bacaError(res));
       const data = (await res.json()) as Registrasi;
-      setInfo(`Lot ${data.NomorLot} terdaftar sebagai ${data.NomorRegistrasi}`);
-      await muatRegistrasi();
+      setInfo(
+        `Lot ${data.NomorLot} terdaftar sebagai ${data.NomorRegistrasi}` +
+          (permohonanTerpilih ? ` untuk permohonan ${permohonanTerpilih.NomorPermohonan}` : ""),
+      );
+      formEl.reset();
+      setPermohonanID("");
+      await Promise.all([muatRegistrasi(), muatPermohonanSiap()]);
     } catch (err) {
       setInfo("", err instanceof Error ? err.message : String(err));
     }
@@ -288,21 +344,38 @@ export default function BenihPage() {
           <section>
             <h2 className="text-xl font-bold text-sitani-green-800 mb-3">Registrasi Benih</h2>
             <p className="text-sitani-muted text-sm mb-4">
-              Lot hanya dapat didaftarkan jika sertifikat sudah ditandatangani TTE dan label sudah
-              dilegalisasi serta terkirim ke SIM Perbenihan.
+              Pilih permohonan yang sertifikatnya sudah ditandatangani TTE serta labelnya sudah
+              dilegalisasi dan terkirim ke SIM Perbenihan. Nomor permohonan dibuat sistem saat
+              permohonan diajukan, bukan diketik di sini.
             </p>
             <Card>
               <form onSubmit={buatRegistrasi} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                <div className="form-group">
-                  <label className="form-label">ID permohonan</label>
-                  <input
-                    name="permohonan_id"
-                    type="number"
-                    min="1"
+                <div className="form-group sm:col-span-2 lg:col-span-1">
+                  <label className="form-label" htmlFor="permohonan-select">
+                    Permohonan
+                  </label>
+                  <select
+                    id="permohonan-select"
+                    name="permohonan"
                     className="form-input"
-                    placeholder="ID permohonan"
+                    value={permohonanID}
+                    onChange={(e) => setPermohonanID(e.target.value)}
+                    disabled={memuatPermohonan || (permohonanSiap?.length ?? 0) === 0}
                     required
-                  />
+                  >
+                    <option value="">
+                      {memuatPermohonan
+                        ? "Memuat permohonan…"
+                        : (permohonanSiap?.length ?? 0) === 0
+                          ? "Belum ada permohonan siap registrasi"
+                          : "Pilih permohonan"}
+                    </option>
+                    {(permohonanSiap ?? []).map((item) => (
+                      <option key={item.PermohonanID} value={String(item.PermohonanID)}>
+                        {labelPermohonan(item)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Komoditas</label>
@@ -374,9 +447,19 @@ export default function BenihPage() {
             </Card>
 
             <div className="mt-4 flex justify-between items-center">
-              <Button variant="outline" size="sm" onClick={muatRegistrasi}>
-                Muat Registrasi
-              </Button>
+              <div className="flex gap-3">
+                <Button variant="outline" size="sm" onClick={muatRegistrasi}>
+                  Muat Registrasi
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={muatPermohonanSiap}
+                  disabled={memuatPermohonan}
+                >
+                  Muat Permohonan
+                </Button>
+              </div>
             </div>
 
             {registrasi.length > 0 && (
@@ -656,9 +739,10 @@ export default function BenihPage() {
                 )}
               </div>
             )}
+
           </section>
         </div>
-      </div>
+      </main>
     </Layout>
   );
 }

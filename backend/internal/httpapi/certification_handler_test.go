@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -89,12 +90,40 @@ func (p *palsuStore) GetUserByID(ctx context.Context, id int64) (*db.User, error
 func (p *palsuStore) GetUserByUsername(ctx context.Context, username string) (*db.User, error) {
 	return nil, nil
 }
-func (p *palsuStore) CreatePermohonan(ctx context.Context, perm db.PermohonanBenih) (int64, error) {
+func (p *palsuStore) CreatePermohonan(ctx context.Context, perm db.PermohonanBenih, tanggal time.Time) (int64, error) {
 	id := p.nextID
 	p.nextID++
 	perm.ID = id
+	perm.NomorPermohonan = store.FormatNomorPermohonan(tanggal, id)
 	p.permohonan[id] = &perm
 	return id, nil
+}
+
+func (p *palsuStore) SetNomorPermohonan(ctx context.Context, id int64, nomor string) error {
+	if x, ok := p.permohonan[id]; ok {
+		x.NomorPermohonan = nomor
+	}
+	return nil
+}
+
+func (p *palsuStore) ListPermohonanSiapRegistrasi(ctx context.Context, pemilikID int64, semua bool, limit int) ([]db.SiapRegistrasiPermohonan, error) {
+	var hasil []db.SiapRegistrasiPermohonan
+	for _, x := range p.permohonan {
+		if !semua && x.PelangganID != pemilikID {
+			continue
+		}
+		if x.Status == db.StatusPermohonanDitolak || x.Status == db.StatusPermohonanDibatalkan {
+			continue
+		}
+		hasil = append(hasil, db.SiapRegistrasiPermohonan{
+			PermohonanID:    x.ID,
+			NomorPermohonan: x.NomorPermohonan,
+			JenisBenih:      x.JenisBenih,
+			Varietas:        x.Varietas,
+			Status:          x.Status,
+		})
+	}
+	return hasil, nil
 }
 func (p *palsuStore) GetPermohonan(ctx context.Context, id int64) (*db.PermohonanBenih, error) {
 	if x, ok := p.permohonan[id]; ok {
@@ -407,8 +436,9 @@ func (p *palsuStore) ListPenjualanBenih(ctx context.Context, filter db.Penjualan
 var _ serviceStore = (*palsuStore)(nil)
 
 type serviceStore interface {
-	CreatePermohonan(context.Context, db.PermohonanBenih) (int64, error)
+	CreatePermohonan(context.Context, db.PermohonanBenih, time.Time) (int64, error)
 	GetPermohonan(context.Context, int64) (*db.PermohonanBenih, error)
+	SetNomorPermohonan(context.Context, int64, string) error
 	UpdatePermohonanStatus(context.Context, int64, string, string) error
 }
 
@@ -435,11 +465,43 @@ func TestBuatPermohonanSukses(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if got["NomorPermohonan"] == nil {
-		t.Fatalf("NomorPermohonan tidak ada dalam respons: %s", w.Body.String())
+	nomor, _ := got["NomorPermohonan"].(string)
+	if !regexp.MustCompile(`^SPB-\d{8}-\d{4,}$`).MatchString(nomor) {
+		t.Fatalf("NomorPermohonan = %q, ingin format SPB-YYYYMMDD-XXXX: %s", nomor, w.Body.String())
 	}
 	io.Copy(io.Discard, r.Body)
 	r.Body.Close()
+}
+
+// Nomor permohonan tidak boleh dipakai sebagai identitas form: endpoint pilihan
+// hanya mengembalikan permohonan yang memang boleh diregistrasi.
+func TestPermohonanSiapRegistrasiMengembalikanPilihan(t *testing.T) {
+	h := newHandlerWithPalsu()
+	r := httptest.NewRequest(http.MethodGet, "/v1/permohonan-siap-registrasi", nil)
+	r.Header.Set("X-User-ID", "10")
+	r.Header.Set("X-User-Role", "admin")
+	w := httptest.NewRecorder()
+	h.mux.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, ingin 200; body=%s", w.Code, w.Body.String())
+	}
+	var items []map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &items); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(items) != 1 || items[0]["NomorPermohonan"] != "SPB-1-1" || items[0]["PermohonanID"] == nil {
+		t.Fatalf("pilihan permohonan = %+v", items)
+	}
+}
+
+func TestPermohonanSiapRegistrasiMenolakTampaIdentitas(t *testing.T) {
+	h := newHandlerWithPalsu()
+	r := httptest.NewRequest(http.MethodGet, "/v1/permohonan-siap-registrasi", nil)
+	w := httptest.NewRecorder()
+	h.mux.ServeHTTP(w, r)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, ingin 401", w.Code)
+	}
 }
 
 func TestBuatPermohonanRoleBukanPelangganDitolak(t *testing.T) {
