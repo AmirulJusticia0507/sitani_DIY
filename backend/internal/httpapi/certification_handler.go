@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/service"
 )
@@ -32,6 +33,14 @@ func (h *certificationHandler) register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/sampel/{id}/kodifikasi", h.kodifikasiSampel)
 	mux.HandleFunc("POST /v1/uji-mutu", h.inputHasilUji)
 	mux.HandleFunc("POST /v1/laporan-mutu", h.susunLaporanMutu)
+	mux.HandleFunc("POST /v1/sertifikat", h.buatSertifikat)
+	mux.HandleFunc("POST /v1/sertifikat/{permohonan_id}/tte", h.tandaTanganiTTE)
+	mux.HandleFunc("POST /v1/draft-label", h.buatDraftLabel)
+	mux.HandleFunc("POST /v1/draft-label/{id}/sim", h.integrasiSIM)
+	mux.HandleFunc("POST /v1/draft-label/{id}/cetak", h.cetakLabel)
+	mux.HandleFunc("POST /v1/draft-label/{id}/legalisasi", h.legalisasiLabel)
+	mux.HandleFunc("POST /v1/penyerahan", h.terimaDokumenPembayaranAkhir)
+	mux.HandleFunc("POST /v1/proses-mutu", h.prosesHasilMutu)
 }
 
 type permohonanRequest struct {
@@ -80,6 +89,37 @@ type susunLaporanMutuRequest struct {
 	SampelID   int64  `json:"sampel_id"`
 	Kesimpulan string `json:"kesimpulan"`
 	IsiLaporan string `json:"isi_laporan"`
+}
+
+type buatSertifikatRequest struct {
+	PermohonanID    int64  `json:"permohonan_id"`
+	NomorSertifikat string `json:"nomor_sertifikat"`
+}
+
+type tandaTanganiTTERequest struct {
+	TTD       string `json:"ttd"`
+	DokumenURL string `json:"dokumen_url"`
+}
+
+type buatDraftLabelRequest struct {
+	SertifikatID int64  `json:"sertifikat_id"`
+	KodeBarcode  string `json:"kode_barcode"`
+}
+
+type legalisasiLabelRequest struct {
+	Status  string `json:"status"`
+	Catatan string `json:"catatan"`
+}
+
+type terimaDokumenRequest struct {
+	SertifikatDikirim     bool   `json:"sertifikat_dikirim"`
+	LabelDikirim          bool   `json:"label_dikirim"`
+	PembayaranAkhirStatus string `json:"pembayaran_akhir_status"`
+	DiterimaOleh          string `json:"diterima_oleh"`
+}
+
+type prosesMutuRequest struct {
+	SampelID int64 `json:"sampel_id"`
 }
 
 func (h *certificationHandler) buatPermohonan(w http.ResponseWriter, r *http.Request) {
@@ -297,6 +337,172 @@ func (h *certificationHandler) susunLaporanMutu(w http.ResponseWriter, r *http.R
 		return
 	}
 	respondJSON(w, http.StatusCreated, laporan)
+}
+
+func (h *certificationHandler) buatSertifikat(w http.ResponseWriter, r *http.Request) {
+	userID, role, err := identitasDariHeader(r)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	var req buatSertifikatRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
+		return
+	}
+	srt, err := h.svc.BuatSertifikat(r.Context(), req.PermohonanID, userID, role, req.NomorSertifikat)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusCreated, srt)
+}
+
+func (h *certificationHandler) tandaTanganiTTE(w http.ResponseWriter, r *http.Request) {
+	userID, role, err := identitasDariHeader(r)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	permohonanIDStr := r.PathValue("permohonan_id")
+	permohonanID, err := strconv.ParseInt(permohonanIDStr, 10, 64)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "id permohonan tidak valid")
+		return
+	}
+	var req tandaTanganiTTERequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
+		return
+	}
+	ttd, err := time.Parse(time.RFC3339, req.TTD)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "ttd harus format RFC3339")
+		return
+	}
+	if err := h.svc.TandaTanganiTTE(r.Context(), permohonanID, userID, role, ttd, req.DokumenURL); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]string{"status": "sertifikat ditandatangani TTE"})
+}
+
+func (h *certificationHandler) buatDraftLabel(w http.ResponseWriter, r *http.Request) {
+	userID, role, err := identitasDariHeader(r)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	var req buatDraftLabelRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
+		return
+	}
+	lbl, err := h.svc.BuatDraftLabel(r.Context(), req.SertifikatID, req.KodeBarcode, userID, role)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusCreated, lbl)
+}
+
+func (h *certificationHandler) integrasiSIM(w http.ResponseWriter, r *http.Request) {
+	userID, role, err := identitasDariHeader(r)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "id draft label tidak valid")
+		return
+	}
+	if err := h.svc.IntegrasiSIM(r.Context(), id, userID, role); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]string{"status": "label terintegrasi SIM Perbenihan"})
+}
+
+func (h *certificationHandler) cetakLabel(w http.ResponseWriter, r *http.Request) {
+	userID, role, err := identitasDariHeader(r)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "id draft label tidak valid")
+		return
+	}
+	if err := h.svc.CetakLabel(r.Context(), id, userID, role); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]string{"status": "label dicetak"})
+}
+
+func (h *certificationHandler) legalisasiLabel(w http.ResponseWriter, r *http.Request) {
+	userID, role, err := identitasDariHeader(r)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "id draft label tidak valid")
+		return
+	}
+	var req legalisasiLabelRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
+		return
+	}
+	if err := h.svc.LegalisasiLabel(r.Context(), id, userID, role, req.Status, req.Catatan); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]string{"status": "label " + req.Status})
+}
+
+func (h *certificationHandler) terimaDokumenPembayaranAkhir(w http.ResponseWriter, r *http.Request) {
+	_, role, err := identitasDariHeader(r)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	var req terimaDokumenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
+		return
+	}
+	if err := h.svc.TerimaDokumenPembayaranAkhir(r.Context(), 0, req.DiterimaOleh, role, req.SertifikatDikirim, req.LabelDikirim, req.PembayaranAkhirStatus); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]string{"status": "dokumen diserahkan dan pembayaran akhir dicatat"})
+}
+
+func (h *certificationHandler) prosesHasilMutu(w http.ResponseWriter, r *http.Request) {
+	userID, role, err := identitasDariHeader(r)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	var req prosesMutuRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
+		return
+	}
+	hasil, err := h.svc.ProsesHasilMutu(r.Context(), req.SampelID, userID, role)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]string{"hasil": hasil})
 }
 
 // identitasDariHeader membaca identitas pengembang dari header permintaan.

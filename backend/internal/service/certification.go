@@ -19,20 +19,20 @@ const FaseInspeksi = 4
 // Izin per role untuk Fase 1 verifikasi lapangan.
 var izinRole = map[string]map[string]bool{
 	db.RolePelanggan: {
-		"permohonan:buat": true,
+		"permohonan:buat":  true,
 		"permohonan:lihat": true,
-		"pembayaran:awal": true,
+		"pembayaran:awal":  true,
 	},
 	db.RolePengawas: {
 		"permohonan:lihat": true,
-		"inspeksi:catat": true,
+		"inspeksi:catat":   true,
 		"buku_induk:catat": true,
 	},
 	db.RoleAdmin: {
-		"permohonan:buat": true,
+		"permohonan:buat":  true,
 		"permohonan:lihat": true,
-		"pembayaran:awal": true,
-		"inspeksi:catat": true,
+		"pembayaran:awal":  true,
+		"inspeksi:catat":   true,
 		"buku_induk:catat": true,
 	},
 	db.RolePenandatangan: {
@@ -189,12 +189,12 @@ func (s *Service) CatatInspeksi(ctx context.Context, permohonanID int64, fase in
 	}
 
 	i := db.InspeksiFase{
-		PermohonanID:     permohonanID,
-		Fase:             fase,
-		PengawasID:       pengawasID,
-		Hasil:            hasil,
-		Catatan:          catatan,
-		TanggalInspeksi:  tanggalInspeksi,
+		PermohonanID:    permohonanID,
+		Fase:            fase,
+		PengawasID:      pengawasID,
+		Hasil:           hasil,
+		Catatan:         catatan,
+		TanggalInspeksi: tanggalInspeksi,
 	}
 	if _, err := s.st.CreateInspeksiFase(ctx, i); err != nil {
 		return fmt.Errorf("catat inspeksi: %w", err)
@@ -272,10 +272,295 @@ func (s *Service) CatatBukuInduk(ctx context.Context, permohonanID int64, nomorB
 
 // BuatPermohonanRequest adalah input pembuatan permohonan.
 type BuatPermohonanRequest struct {
-	JenisBenih   string
-	Varietas     string
-	LuasLahan    float64
-	LokasiKebun  string
+	JenisBenih  string
+	Varietas    string
+	LuasLahan   float64
+	LokasiKebun string
+}
+
+// BuatSertifikat membuat sertifikat benih untuk permohonan yang lulus (Fase 3, jalur lulus).
+func (s *Service) BuatSertifikat(ctx context.Context, permohonanID int64, penandatanganID int64, penandatanganRole string, nomorSertifikat string) (*db.SertifikatBenih, error) {
+	if !boleh(penandatanganRole, "permohonan:lihat") {
+		return nil, errors.New("role tidak diizinkan membuat sertifikat")
+	}
+	p, err := s.st.GetPermohonan(ctx, permohonanID)
+	if err != nil {
+		return nil, fmt.Errorf("ambil permohonan: %w", err)
+	}
+	if p == nil {
+		return nil, ErrNotFound
+	}
+	srt := db.SertifikatBenih{
+		PermohonanID:    permohonanID,
+		NomorSertifikat: nomorSertifikat,
+		PenandatanganID: penandatanganID,
+		TTEStatus:       "belum",
+	}
+	id, err := s.st.CreateSertifikat(ctx, srt)
+	if err != nil {
+		return nil, fmt.Errorf("buat sertifikat: %w", err)
+	}
+	srt.ID = id
+	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
+		ActorID:   &penandatanganID,
+		ActorRole: penandatanganRole,
+		Action:    "sertifikat:buat",
+		Entity:    "sertifikat_benih",
+		EntityID:  &id,
+		Detail:    fmt.Sprintf("nomor_sertifikat=%s", nomorSertifikat),
+	}); err != nil {
+		return nil, fmt.Errorf("catat audit: %w", err)
+	}
+	return &srt, nil
+}
+
+// TandaTanganiTTE menandatangani sertifikat oleh Pejabat melalui TTE Sadewa.
+func (s *Service) TandaTanganiTTE(ctx context.Context, permohonanID int64, penandatanganID int64, penandatanganRole string, ttd time.Time, dokumenURL string) error {
+	if !boleh(penandatanganRole, "permohonan:lihat") {
+		return errors.New("role tidak diizinkan menandatangani TTE")
+	}
+	srt, err := s.st.GetSertifikat(ctx, permohonanID)
+	if err != nil {
+		return fmt.Errorf("ambil sertifikat: %w", err)
+	}
+	if srt == nil {
+		return ErrNotFound
+	}
+	if err := s.st.UpdateSertifikatTTE(ctx, permohonanID, "ditandatangani", dokumenURL, &ttd); err != nil {
+		return fmt.Errorf("update TTE: %w", err)
+	}
+	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
+		ActorID:   &penandatanganID,
+		ActorRole: penandatanganRole,
+		Action:    "sertifikat:ttd_tte",
+		Entity:    "sertifikat_benih",
+		EntityID:  &permohonanID,
+		Detail:    fmt.Sprintf("tte_status=ditandatangani dokumen=%s", dokumenURL),
+	}); err != nil {
+		return fmt.Errorf("catat audit: %w", err)
+	}
+	return nil
+}
+
+// BuatDraftLabel membuat draft label dengan kode unik/barcode terintegrasi SIM Perbenihan.
+func (s *Service) BuatDraftLabel(ctx context.Context, sertifikatID int64, kodeBarcode string, pembuatID int64, pembuatRole string) (*db.DraftLabel, error) {
+	if !boleh(pembuatRole, "permohonan:lihat") {
+		return nil, errors.New("role tidak diizinkan membuat draft label")
+	}
+	if kodeBarcode == "" {
+		return nil, errors.New("kode barcode wajib diisi")
+	}
+	srt, err := s.st.GetSertifikat(ctx, sertifikatID)
+	if err != nil {
+		return nil, fmt.Errorf("ambil sertifikat: %w", err)
+	}
+	if srt == nil {
+		return nil, ErrNotFound
+	}
+	lbl := db.DraftLabel{
+		SertifikatID:       sertifikatID,
+		KodeBarcode:        kodeBarcode,
+		Status:             "draft",
+		IntegrasiSIMStatus: "belum",
+	}
+	id, err := s.st.CreateDraftLabel(ctx, lbl)
+	if err != nil {
+		return nil, fmt.Errorf("buat draft label: %w", err)
+	}
+	lbl.ID = id
+	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
+		ActorID:   &pembuatID,
+		ActorRole: pembuatRole,
+		Action:    "label:draft",
+		Entity:    "draft_label",
+		EntityID:  &id,
+		Detail:    fmt.Sprintf("kode_barcode=%s", kodeBarcode),
+	}); err != nil {
+		return nil, fmt.Errorf("catat audit: %w", err)
+	}
+	return &lbl, nil
+}
+
+// IntegrasiSIM mengintegrasikan kode barcode label ke SIM Perbenihan.
+func (s *Service) IntegrasiSIM(ctx context.Context, draftLabelID int64, pembuatID int64, pembuatRole string) error {
+	if !boleh(pembuatRole, "permohonan:lihat") {
+		return errors.New("role tidak diizinkan integrasi SIM Perbenihan")
+	}
+	lbl, err := s.st.GetDraftLabel(ctx, draftLabelID)
+	if err != nil {
+		return fmt.Errorf("ambil draft label: %w", err)
+	}
+	if lbl == nil {
+		return ErrNotFound
+	}
+	if err := s.st.UpdateDraftLabel(ctx, draftLabelID, lbl.Status, "terkirim", lbl.KodeBarcode); err != nil {
+		return fmt.Errorf("update integrasi SIM: %w", err)
+	}
+	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
+		ActorID:   &pembuatID,
+		ActorRole: pembuatRole,
+		Action:    "label:integrasi_sim",
+		Entity:    "draft_label",
+		EntityID:  &draftLabelID,
+		Detail:    fmt.Sprintf("kode_barcode=%s", lbl.KodeBarcode),
+	}); err != nil {
+		return fmt.Errorf("catat audit: %w", err)
+	}
+	return nil
+}
+
+// CetakLabel menandai label dicetak oleh Percetakan.
+func (s *Service) CetakLabel(ctx context.Context, draftLabelID int64, cetakID int64, cetakRole string) error {
+	if !boleh(cetakRole, "permohonan:lihat") {
+		return errors.New("role tidak diizinkan mencetak label")
+	}
+	if err := s.st.UpdateDraftLabel(ctx, draftLabelID, "dicetak", "", ""); err != nil {
+		return fmt.Errorf("cetak label: %w", err)
+	}
+	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
+		ActorID:   &cetakID,
+		ActorRole: cetakRole,
+		Action:    "label:cetak",
+		Entity:    "draft_label",
+		EntityID:  &draftLabelID,
+		Detail:    "label dicetak",
+	}); err != nil {
+		return fmt.Errorf("catat audit: %w", err)
+	}
+	return nil
+}
+
+// LegalisasiLabel memverifikasi dan me-legalisasi label oleh petugas Legal.
+func (s *Service) LegalisasiLabel(ctx context.Context, draftLabelID int64, legalisasiID int64, legalisasiRole string, status string, catatan string) error {
+	if !boleh(legalisasiRole, "permohonan:lihat") {
+		return errors.New("role tidak diizinkan legalisasi label")
+	}
+	if status != "diverifikasi" && status != "ditolak" {
+		return errors.New("status legalisasi harus diverifikasi atau ditolak")
+	}
+	lbl, err := s.st.GetDraftLabel(ctx, draftLabelID)
+	if err != nil {
+		return fmt.Errorf("ambil draft label: %w", err)
+	}
+	if lbl == nil {
+		return ErrNotFound
+	}
+	id, err := s.st.CreateLegalisasi(ctx, db.LabelLegalisasi{
+		DraftLabelID: draftLabelID,
+		LegalisasiID: legalisasiID,
+		Status:       status,
+		Catatan:      catatan,
+	})
+	if err != nil {
+		return fmt.Errorf("buat legalisasi: %w", err)
+	}
+	if err := s.st.UpdateLegalisasi(ctx, id, status); err != nil {
+		return fmt.Errorf("update legalisasi: %w", err)
+	}
+	if status == "diverifikasi" {
+		if err := s.st.UpdateDraftLabel(ctx, draftLabelID, "legalisasi", "", ""); err != nil {
+			return fmt.Errorf("update status label legalisasi: %w", err)
+		}
+	}
+	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
+		ActorID:   &legalisasiID,
+		ActorRole: legalisasiRole,
+		Action:    "label:legalisasi",
+		Entity:    "draft_label",
+		EntityID:  &draftLabelID,
+		Detail:    fmt.Sprintf("status=%s", status),
+	}); err != nil {
+		return fmt.Errorf("catat audit: %w", err)
+	}
+	return nil
+}
+
+// TerimaDokumenPembayaranAkhir mencatat penyerahan sertifikat & label ke pelanggan dan pembayaran akhir.
+func (s *Service) TerimaDokumenPembayaranAkhir(ctx context.Context, permohonanID int64, diterimaOleh string, diterimaOlehRole string, sertifikatDikirim, labelDikirim bool, pembayaranAkhirStatus string) error {
+	if !boleh(diterimaOlehRole, "permohonan:lihat") {
+		return errors.New("role tidak diizinkan terima dokumen")
+	}
+	if pembayaranAkhirStatus != "lunas" && pembayaranAkhirStatus != "gagal" {
+		return errors.New("status pembayaran akhir harus lunas atau gagal")
+	}
+	now := time.Now()
+	if _, err := s.st.CreatePenyerahan(ctx, db.PenyerahanDokumen{
+		PermohonanID:          permohonanID,
+		SertifikatDikirim:     sertifikatDikirim,
+		LabelDikirim:          labelDikirim,
+		PembayaranAkhirStatus: pembayaranAkhirStatus,
+		TanggalPenyerahan:     &now,
+		DiterimaOleh:          diterimaOleh,
+	}); err != nil {
+		return fmt.Errorf("buat penyerahan: %w", err)
+	}
+	if err := s.st.UpdatePenyerahan(ctx, permohonanID, sertifikatDikirim, labelDikirim, pembayaranAkhirStatus); err != nil {
+		return fmt.Errorf("update penyerahan: %w", err)
+	}
+	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
+		ActorID:   nil,
+		ActorRole: diterimaOlehRole,
+		Action:    "dokumen:penyerahan",
+		Entity:    "permohonan_benih",
+		EntityID:  &permohonanID,
+		Detail:    fmt.Sprintf("sertifikat=%v label=%v pembayaran=%s", sertifikatDikirim, labelDikirim, pembayaranAkhirStatus),
+	}); err != nil {
+		return fmt.Errorf("catat audit: %w", err)
+	}
+	return nil
+}
+
+// JalurTidakLulus mengirimkan laporan lengkap pengujian ke pelanggan dan menyelesaikan proses (Fase 3, jalur tidak lulus).
+func (s *Service) JalurTidakLulus(ctx context.Context, sampelID int64, adminID int64, adminRole string) error {
+	if !boleh(adminRole, "permohonan:lihat") {
+		return errors.New("role tidak diizinkan jalur tidak lulus")
+	}
+	lapor, err := s.st.GetLaporanMutu(ctx, sampelID)
+	if err != nil {
+		return fmt.Errorf("ambil laporan mutu: %w", err)
+	}
+	if lapor == nil {
+		return ErrNotFound
+	}
+	if lapor.Kesimpulan != "tidak_lulus" {
+		return errors.New("jalur tidak lulus hanya untuk hasil uji tidak lulus")
+	}
+	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
+		ActorID:   &adminID,
+		ActorRole: adminRole,
+		Action:    "laporan:kirim_tidak_lulus",
+		Entity:    "laporan_mutu",
+		EntityID:  &lapor.ID,
+		Detail:    fmt.Sprintf("sampel_id=%d kesimpulan=%s", sampelID, lapor.Kesimpulan),
+	}); err != nil {
+		return fmt.Errorf("catat audit: %w", err)
+	}
+	return nil
+}
+
+// ProsesHasilMutu adalah auto-trigger percabangan setelah laporan mutu disusun:
+// lulus → alur sertifikat & label; tidak_lulus → notifikasi gagal ke pelanggan (proses selesai).
+func (s *Service) ProsesHasilMutu(ctx context.Context, sampelID int64, adminID int64, adminRole string) (string, error) {
+	if !boleh(adminRole, "permohonan:lihat") {
+		return "", errors.New("role tidak diizinkan memproses hasil mutu")
+	}
+	lapor, err := s.st.GetLaporanMutu(ctx, sampelID)
+	if err != nil {
+		return "", fmt.Errorf("ambil laporan mutu: %w", err)
+	}
+	if lapor == nil {
+		return "", ErrNotFound
+	}
+	if lapor.Kesimpulan == "lulus" {
+		return "lulus", nil
+	}
+	if lapor.Kesimpulan == "tidak_lulus" {
+		if err := s.JalurTidakLulus(ctx, sampelID, adminID, adminRole); err != nil {
+			return "", fmt.Errorf("jalur tidak lulus: %w", err)
+		}
+		return "tidak_lulus", nil
+	}
+	return "", errors.New("kesimpulan laporan mutu tidak valid")
 }
 
 // AmbilSampel mencatat pengambilan sampel benih oleh Pengawas (Fase 2).

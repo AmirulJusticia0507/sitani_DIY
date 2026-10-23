@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 )
@@ -35,6 +36,19 @@ type Store interface {
 	ListUjiMutu(ctx context.Context, sampelID int64) ([]db.UjiMutu, error)
 	CreateLaporanMutu(ctx context.Context, l db.LaporanMutu) (int64, error)
 	GetLaporanMutu(ctx context.Context, sampelID int64) (*db.LaporanMutu, error)
+
+	// Fase 3: Sertifikasi & Penerbitan Label
+	CreateSertifikat(ctx context.Context, s db.SertifikatBenih) (int64, error)
+	GetSertifikat(ctx context.Context, permohonanID int64) (*db.SertifikatBenih, error)
+	UpdateSertifikatTTE(ctx context.Context, permohonanID int64, tteStatus, tteDokumenURL string, ttd *time.Time) error
+	CreateDraftLabel(ctx context.Context, l db.DraftLabel) (int64, error)
+	GetDraftLabel(ctx context.Context, sertifikatID int64) (*db.DraftLabel, error)
+	UpdateDraftLabel(ctx context.Context, id int64, status, integrasiSIM, kodeBarcode string) error
+	CreateLegalisasi(ctx context.Context, l db.LabelLegalisasi) (int64, error)
+	UpdateLegalisasi(ctx context.Context, id int64, status string) error
+	CreatePenyerahan(ctx context.Context, p db.PenyerahanDokumen) (int64, error)
+	GetPenyerahan(ctx context.Context, permohonanID int64) (*db.PenyerahanDokumen, error)
+	UpdatePenyerahan(ctx context.Context, permohonanID int64, sertifikatDikirim, labelDikirim bool, pembayaranAkhirStatus string) error
 
 	// Audit
 	CreateAuditLog(ctx context.Context, a db.AuditLog) (int64, error)

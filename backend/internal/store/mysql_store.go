@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 )
@@ -176,6 +177,118 @@ func (s *DBStore) GetLaporanMutu(ctx context.Context, sampelID int64) (*db.Lapor
 		return nil, fmt.Errorf("scan laporan mutu: %w", err)
 	}
 	return &l, nil
+}
+
+func (s *DBStore) CreateSertifikat(ctx context.Context, s2 db.SertifikatBenih) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `INSERT INTO sertifikat_benih (permohonan_id,nomor_sertifikat,penandatangan_id,tanggal_ttd,tte_status,tte_dokumen_url) VALUES (?,?,?,?,?,?)`,
+		s2.PermohonanID, s2.NomorSertifikat, s2.PenandatanganID, s2.TanggalTTD, s2.TTEStatus, s2.TTEDokumenURL)
+	if err != nil {
+		return 0, fmt.Errorf("insert sertifikat: %w", err)
+	}
+	return res.LastInsertId()
+}
+
+func (s *DBStore) GetSertifikat(ctx context.Context, permohonanID int64) (*db.SertifikatBenih, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT id,permohonan_id,nomor_sertifikat,penandatangan_id,tanggal_ttd,tte_status,tte_dokumen_url,created_at,updated_at FROM sertifikat_benih WHERE permohonan_id=?`, permohonanID)
+	var srt db.SertifikatBenih
+	var ttd sql.NullTime
+	if err := row.Scan(&srt.ID, &srt.PermohonanID, &srt.NomorSertifikat, &srt.PenandatanganID, &ttd, &srt.TTEStatus, &srt.TTEDokumenURL, &srt.CreatedAt, &srt.UpdatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("scan sertifikat: %w", err)
+	}
+	if ttd.Valid {
+		srt.TanggalTTD = &ttd.Time
+	}
+	return &srt, nil
+}
+
+func (s *DBStore) UpdateSertifikatTTE(ctx context.Context, permohonanID int64, tteStatus, tteDokumenURL string, ttd *time.Time) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE sertifikat_benih SET tte_status=?, tte_dokumen_url=?, tanggal_ttd=?, updated_at=CURRENT_TIMESTAMP WHERE permohonan_id=?`, tteStatus, tteDokumenURL, ttd, permohonanID)
+	if err != nil {
+		return fmt.Errorf("update sertifikat TTE: %w", err)
+	}
+	return nil
+}
+
+func (s *DBStore) CreateDraftLabel(ctx context.Context, l db.DraftLabel) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `INSERT INTO draft_label (sertifikat_id,kode_barcode,status,integrasi_sim_status) VALUES (?,?,?,?)`,
+		l.SertifikatID, l.KodeBarcode, l.Status, l.IntegrasiSIMStatus)
+	if err != nil {
+		return 0, fmt.Errorf("insert draft label: %w", err)
+	}
+	return res.LastInsertId()
+}
+
+func (s *DBStore) GetDraftLabel(ctx context.Context, sertifikatID int64) (*db.DraftLabel, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT id,sertifikat_id,kode_barcode,status,integrasi_sim_status,created_at,updated_at FROM draft_label WHERE sertifikat_id=?`, sertifikatID)
+	var l db.DraftLabel
+	if err := row.Scan(&l.ID, &l.SertifikatID, &l.KodeBarcode, &l.Status, &l.IntegrasiSIMStatus, &l.CreatedAt, &l.UpdatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("scan draft label: %w", err)
+	}
+	return &l, nil
+}
+
+func (s *DBStore) UpdateDraftLabel(ctx context.Context, id int64, status, integrasiSIM, kodeBarcode string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE draft_label SET status=?, integrasi_sim_status=?, kode_barcode=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`, status, integrasiSIM, kodeBarcode, id)
+	if err != nil {
+		return fmt.Errorf("update draft label: %w", err)
+	}
+	return nil
+}
+
+func (s *DBStore) CreateLegalisasi(ctx context.Context, l db.LabelLegalisasi) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `INSERT INTO label_legalisasi (draft_label_id,legalisasi_id,status,catatan) VALUES (?,?,?,?)`,
+		l.DraftLabelID, l.LegalisasiID, l.Status, l.Catatan)
+	if err != nil {
+		return 0, fmt.Errorf("insert legalisasi: %w", err)
+	}
+	return res.LastInsertId()
+}
+
+func (s *DBStore) UpdateLegalisasi(ctx context.Context, id int64, status string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE label_legalisasi SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`, status, id)
+	if err != nil {
+		return fmt.Errorf("update legalisasi: %w", err)
+	}
+	return nil
+}
+
+func (s *DBStore) CreatePenyerahan(ctx context.Context, p db.PenyerahanDokumen) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `INSERT INTO penyerahan_dokumen (permohonan_id,sertifikat_dikirim,label_dikirim,pembayaran_akhir_status,tanggal_penyerahan,diterima_oleh,catatan) VALUES (?,?,?,?,?,?,?)`,
+		p.PermohonanID, boolToInt(p.SertifikatDikirim), boolToInt(p.LabelDikirim), p.PembayaranAkhirStatus, p.TanggalPenyerahan, p.DiterimaOleh, p.Catatan)
+	if err != nil {
+		return 0, fmt.Errorf("insert penyerahan: %w", err)
+	}
+	return res.LastInsertId()
+}
+
+func (s *DBStore) GetPenyerahan(ctx context.Context, permohonanID int64) (*db.PenyerahanDokumen, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT id,permohonan_id,sertifikat_dikirim,label_dikirim,pembayaran_akhir_status,tanggal_penyerahan,diterima_oleh,catatan,created_at,updated_at FROM penyerahan_dokumen WHERE permohonan_id=?`, permohonanID)
+	var p db.PenyerahanDokumen
+	var tgl sql.NullTime
+	if err := row.Scan(&p.ID, &p.PermohonanID, &p.SertifikatDikirim, &p.LabelDikirim, &p.PembayaranAkhirStatus, &tgl, &p.DiterimaOleh, &p.Catatan, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("scan penyerahan: %w", err)
+	}
+	if tgl.Valid {
+		p.TanggalPenyerahan = &tgl.Time
+	}
+	return &p, nil
+}
+
+func (s *DBStore) UpdatePenyerahan(ctx context.Context, permohonanID int64, sertifikatDikirim, labelDikirim bool, pembayaranAkhirStatus string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE penyerahan_dokumen SET sertifikat_dikirim=?, label_dikirim=?, pembayaran_akhir_status=?, updated_at=CURRENT_TIMESTAMP WHERE permohonan_id=?`, boolToInt(sertifikatDikirim), boolToInt(labelDikirim), pembayaranAkhirStatus, permohonanID)
+	if err != nil {
+		return fmt.Errorf("update penyerahan: %w", err)
+	}
+	return nil
 }
 
 func (s *DBStore) CreateAuditLog(ctx context.Context, a db.AuditLog) (int64, error) {

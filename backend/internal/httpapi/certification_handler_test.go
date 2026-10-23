@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/service"
@@ -92,7 +93,46 @@ func (p *palsuStore) ListUjiMutu(ctx context.Context, sampelID int64) ([]db.UjiM
 }
 func (p *palsuStore) CreateLaporanMutu(ctx context.Context, l db.LaporanMutu) (int64, error) { return 1, nil }
 func (p *palsuStore) GetLaporanMutu(ctx context.Context, sampelID int64) (*db.LaporanMutu, error) {
+	kesimpulan := "lulus"
+	if sampelID == 2 {
+		kesimpulan = "tidak_lulus"
+	}
+	return &db.LaporanMutu{ID: 1, SampelID: sampelID, Kesimpulan: kesimpulan}, nil
+}
+func (p *palsuStore) CreateSertifikat(ctx context.Context, s db.SertifikatBenih) (int64, error) {
+	id := p.nextID
+	p.nextID++
+	s.ID = id
+	return id, nil
+}
+func (p *palsuStore) GetSertifikat(ctx context.Context, permohonanID int64) (*db.SertifikatBenih, error) {
+	return &db.SertifikatBenih{ID: 1, PermohonanID: permohonanID}, nil
+}
+func (p *palsuStore) UpdateSertifikatTTE(ctx context.Context, permohonanID int64, tteStatus, tteDokumenURL string, ttd *time.Time) error {
+	return nil
+}
+func (p *palsuStore) CreateDraftLabel(ctx context.Context, l db.DraftLabel) (int64, error) {
+	id := p.nextID
+	p.nextID++
+	l.ID = id
+	return id, nil
+}
+func (p *palsuStore) GetDraftLabel(ctx context.Context, sertifikatID int64) (*db.DraftLabel, error) {
+	return &db.DraftLabel{ID: 1, SertifikatID: sertifikatID}, nil
+}
+func (p *palsuStore) UpdateDraftLabel(ctx context.Context, id int64, status, integrasiSIM, kodeBarcode string) error {
+	return nil
+}
+func (p *palsuStore) CreateLegalisasi(ctx context.Context, l db.LabelLegalisasi) (int64, error) { return 1, nil }
+func (p *palsuStore) UpdateLegalisasi(ctx context.Context, id int64, status string) error           { return nil }
+func (p *palsuStore) CreatePenyerahan(ctx context.Context, p2 db.PenyerahanDokumen) (int64, error) {
+	return 1, nil
+}
+func (p *palsuStore) GetPenyerahan(ctx context.Context, permohonanID int64) (*db.PenyerahanDokumen, error) {
 	return nil, nil
+}
+func (p *palsuStore) UpdatePenyerahan(ctx context.Context, permohonanID int64, sertifikatDikirim, labelDikirim bool, pembayaranAkhirStatus string) error {
+	return nil
 }
 
 var _ serviceStore = (*palsuStore)(nil)
@@ -238,6 +278,128 @@ func TestSusunLaporanMutuSukses(t *testing.T) {
 	h.mux.ServeHTTP(w3, r3)
 	if w3.Code != http.StatusCreated {
 		t.Fatalf("status = %d, ingin %d; body=%s", w3.Code, http.StatusCreated, w3.Body.String())
+	}
+}
+
+func TestBuatSertifikatSukses(t *testing.T) {
+	h := newHandlerWithPalsu()
+	body := `{"permohonan_id":1,"nomor_sertifikat":"SRT-001"}`
+	r := httptest.NewRequest(http.MethodPost, "/v1/sertifikat", strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("X-User-ID", "40")
+	r.Header.Set("X-User-Role", "penandatangan")
+	w := httptest.NewRecorder()
+	h.mux.ServeHTTP(w, r)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("status = %d, ingin %d; body=%s", w.Code, http.StatusCreated, w.Body.String())
+	}
+}
+
+func TestTandaTanganiTTESukses(t *testing.T) {
+	h := newHandlerWithPalsu()
+	body := `{"ttd":"2026-10-23T10:00:00Z","dokumen_url":"https://minio/sertifikat.pdf"}`
+	r := httptest.NewRequest(http.MethodPost, "/v1/sertifikat/1/tte", strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("X-User-ID", "40")
+	r.Header.Set("X-User-Role", "penandatangan")
+	w := httptest.NewRecorder()
+	h.mux.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, ingin %d; body=%s", w.Code, http.StatusOK, w.Body.String())
+	}
+}
+
+func TestBuatDraftLabelSukses(t *testing.T) {
+	h := newHandlerWithPalsu()
+	body := `{"sertifikat_id":1,"kode_barcode":"SB-2026-0001"}`
+	r := httptest.NewRequest(http.MethodPost, "/v1/draft-label", strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("X-User-ID", "50")
+	r.Header.Set("X-User-Role", "admin")
+	w := httptest.NewRecorder()
+	h.mux.ServeHTTP(w, r)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("status = %d, ingin %d; body=%s", w.Code, http.StatusCreated, w.Body.String())
+	}
+}
+
+func TestIntegrasiSIMSukses(t *testing.T) {
+	h := newHandlerWithPalsu()
+	r := httptest.NewRequest(http.MethodPost, "/v1/draft-label/1/sim", nil)
+	r.Header.Set("X-User-ID", "50")
+	r.Header.Set("X-User-Role", "admin")
+	w := httptest.NewRecorder()
+	h.mux.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, ingin %d; body=%s", w.Code, http.StatusOK, w.Body.String())
+	}
+}
+
+func TestCetakLabelSukses(t *testing.T) {
+	h := newHandlerWithPalsu()
+	r := httptest.NewRequest(http.MethodPost, "/v1/draft-label/1/cetak", nil)
+	r.Header.Set("X-User-ID", "60")
+	r.Header.Set("X-User-Role", "percetakan")
+	w := httptest.NewRecorder()
+	h.mux.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, ingin %d; body=%s", w.Code, http.StatusOK, w.Body.String())
+	}
+}
+
+func TestLegalisasiLabelSukses(t *testing.T) {
+	h := newHandlerWithPalsu()
+	body := `{"status":"diverifikasi","catatan":"label sudah sesuai standar"}`
+	r := httptest.NewRequest(http.MethodPost, "/v1/draft-label/1/legalisasi", strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("X-User-ID", "70")
+	r.Header.Set("X-User-Role", "legalisasi")
+	w := httptest.NewRecorder()
+	h.mux.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, ingin %d; body=%s", w.Code, http.StatusOK, w.Body.String())
+	}
+}
+
+func TestProsesMutuLulus(t *testing.T) {
+	h := newHandlerWithPalsu()
+	body := `{"sampel_id":1}`
+	r := httptest.NewRequest(http.MethodPost, "/v1/proses-mutu", strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("X-User-ID", "80")
+	r.Header.Set("X-User-Role", "admin")
+	w := httptest.NewRecorder()
+	h.mux.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, ingin %d; body=%s", w.Code, http.StatusOK, w.Body.String())
+	}
+	var got map[string]string
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got["hasil"] != "lulus" {
+		t.Fatalf("hasil = %q, ingin lulus", got["hasil"])
+	}
+}
+
+func TestProsesMutuTidakLulus(t *testing.T) {
+	h := newHandlerWithPalsu()
+	body := `{"sampel_id":2}`
+	r := httptest.NewRequest(http.MethodPost, "/v1/proses-mutu", strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("X-User-ID", "80")
+	r.Header.Set("X-User-Role", "admin")
+	w := httptest.NewRecorder()
+	h.mux.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, ingin %d; body=%s", w.Code, http.StatusOK, w.Body.String())
+	}
+	var got map[string]string
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got["hasil"] != "tidak_lulus" {
+		t.Fatalf("hasil = %q, ingin tidak_lulus", got["hasil"])
 	}
 }
 
