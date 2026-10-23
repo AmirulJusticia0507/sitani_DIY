@@ -128,7 +128,7 @@ func (r *MySQLRepository) Verify(ctx context.Context, id, actorID int64, decisio
 	if _, err := tx.ExecContext(ctx, `UPDATE horticulture_applications SET status=? WHERE id=?`, decision, id); err != nil {
 		return Application{}, fmt.Errorf("simpan keputusan verifikasi: %w", err)
 	}
-	if err := insertAudit(ctx, tx, actorID, "horticulture:verifikasi", id, note); err != nil {
+	if err := insertAudit(ctx, tx, actorID, "horticulture:verifikasi:"+decision, id, "status="+decision); err != nil {
 		return Application{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -155,22 +155,30 @@ func (r *MySQLRepository) ScheduleInspection(ctx context.Context, schedule Inspe
 	var existingID int64
 	var existingStatus string
 	err = tx.QueryRowContext(ctx, `SELECT id,status FROM horticulture_inspection_schedules WHERE application_id=? FOR UPDATE`, schedule.ApplicationID).Scan(&existingID, &existingStatus)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) { return InspectionSchedule{}, err }
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return InspectionSchedule{}, err
+	}
 	if err == nil {
-		if existingStatus != "terjadwal" { return InspectionSchedule{}, errors.New("inspeksi sudah selesai; jadwal tidak dapat diubah") }
+		if existingStatus != "terjadwal" {
+			return InspectionSchedule{}, errors.New("inspeksi sudah selesai; jadwal tidak dapat diubah")
+		}
 		_, err = tx.ExecContext(ctx, `UPDATE horticulture_inspection_schedules SET inspector_id=?,scheduled_at=?,location=?,notes=? WHERE id=?`, schedule.InspectorID, schedule.ScheduledAt, schedule.Location, schedule.Notes, existingID)
 		schedule.ID = existingID
 	} else {
 		var result sql.Result
 		result, err = tx.ExecContext(ctx, `INSERT INTO horticulture_inspection_schedules (application_id,inspector_id,scheduled_at,location,notes,status) VALUES (?,?,?,?,?,'terjadwal')`, schedule.ApplicationID, schedule.InspectorID, schedule.ScheduledAt, schedule.Location, schedule.Notes)
-		if err == nil { schedule.ID, err = result.LastInsertId() }
+		if err == nil {
+			schedule.ID, err = result.LastInsertId()
+		}
 	}
-	if err != nil { return InspectionSchedule{}, fmt.Errorf("simpan jadwal inspeksi: %w", err) }
+	if err != nil {
+		return InspectionSchedule{}, fmt.Errorf("simpan jadwal inspeksi: %w", err)
+	}
 	schedule.Status = "terjadwal"
 	if _, err := tx.ExecContext(ctx, `UPDATE horticulture_applications SET status='dijadwalkan' WHERE id=?`, schedule.ApplicationID); err != nil {
 		return InspectionSchedule{}, err
 	}
-	if err := insertAudit(ctx, tx, actorID, "horticulture:jadwalkan_inspeksi", schedule.ApplicationID, schedule.Location); err != nil {
+	if err := insertAudit(ctx, tx, actorID, "horticulture:jadwalkan_inspeksi", schedule.ApplicationID, "status=dijadwalkan"); err != nil {
 		return InspectionSchedule{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -202,7 +210,9 @@ func (r *MySQLRepository) CompleteInspection(ctx context.Context, inspection Ins
 		return Inspection{}, fmt.Errorf("jadwal inspeksi berstatus %s tidak dapat diselesaikan", status)
 	}
 	var lockedAppID int64
-	if err := tx.QueryRowContext(ctx, `SELECT id FROM horticulture_applications WHERE id=? FOR UPDATE`, appID).Scan(&lockedAppID); err != nil { return Inspection{}, err }
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM horticulture_applications WHERE id=? FOR UPDATE`, appID).Scan(&lockedAppID); err != nil {
+		return Inspection{}, err
+	}
 	result, err := tx.ExecContext(ctx, `INSERT INTO horticulture_inspections (schedule_id,checklist_json,findings,recommendations,inspector_id) VALUES (?,?,?,?,?)`, inspection.ScheduleID, string(checklist), inspection.Findings, inspection.Recommendations, inspection.InspectorID)
 	if err != nil {
 		return Inspection{}, fmt.Errorf("simpan hasil inspeksi GAP: %w", err)
@@ -218,7 +228,7 @@ func (r *MySQLRepository) CompleteInspection(ctx context.Context, inspection Ins
 	if _, err := tx.ExecContext(ctx, `UPDATE horticulture_applications SET status='diinspeksi' WHERE id=?`, appID); err != nil {
 		return Inspection{}, err
 	}
-	if err := insertAudit(ctx, tx, inspection.InspectorID, "horticulture:inspeksi_gap", appID, inspection.Findings); err != nil {
+	if err := insertAudit(ctx, tx, inspection.InspectorID, "horticulture:inspeksi_gap", appID, "status=diinspeksi"); err != nil {
 		return Inspection{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -343,7 +353,9 @@ func (r *MySQLRepository) List(ctx context.Context, applicantID int64, all bool)
 		}
 		apps = append(apps, app)
 	}
-	if err := rows.Err(); err != nil { return nil, err }
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	for i := range apps {
 		apps[i].ApplicantID = 0
 		apps[i].Documents = nil
@@ -384,7 +396,9 @@ func (r *MySQLRepository) Get(ctx context.Context, id int64) (Application, error
 }
 
 func redactScheduleInspectorIDs(items []InspectionSchedule) []InspectionSchedule {
-	for i := range items { items[i].InspectorID = 0 }
+	for i := range items {
+		items[i].InspectorID = 0
+	}
 	return items
 }
 

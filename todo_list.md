@@ -18,9 +18,9 @@
 
 ## 📍 Tahap 3: Modul Layanan Registrasi Lahan & Pohon Induk (Hortikultura)
 - [x] Form Pengajuan Permohonan Registrasi Lahan (data pemohon/lahan/tanaman dan lampiran privat proposal, struktur organisasi, daftar anggota, form kebun, peta; API simpan, akses pemohon, audit dan migrasi 006)
-- [ ] Modul Verifikasi Proposal (Petugas Verifikator)
-- [ ] Modul Jadwal & Form Inspeksi Lapangan / Audit GAP (Petugas Inspektor)
-- [ ] Modul Form Penilaian Pohon Induk / PIT / RIP / PI / RI (PBT & Kasi PMBTP)
+- [x] Modul Verifikasi Proposal (Petugas Verifikator; kelengkapan lampiran wajib, keputusan/perbaikan/penolakan, audit; role diaktifkan via migrasi 007)
+- [x] Modul Jadwal & Form Inspeksi Lapangan / Audit GAP (Petugas Inspektor; jadwal, 11 indikator, temuan/rekomendasi dan audit)
+- [x] Modul Form Penilaian Pohon Induk / PIT / RIP / PI / RI (PBT & Kasi PMBTP; parameter skor 1–5, rekomendasi, riwayat dan audit)
 - [ ] Integrasi TTE Sadewa untuk pengesahan & penerbitan Surat/Sertifikat Nomor Registrasi
 
 ## 📍 Tahap 4: Notifikasi, Logging & Quality Assurance

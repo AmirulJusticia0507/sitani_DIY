@@ -163,7 +163,7 @@ func (h *horticultureHandler) list(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusServiceUnavailable, "database belum tersedia")
 		return
 	}
-	items, err := h.repo.List(r.Context(), principal.UserID, principal.Role == "admin" || principal.Role == "pengawas")
+	items, err := h.repo.List(r.Context(), principal.UserID, principal.Role != "pelanggan")
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "gagal membaca permohonan")
 		return
@@ -226,7 +226,10 @@ func (h *horticultureHandler) verify(w http.ResponseWriter, r *http.Request) {
 		respondError(w, 403, "hanya verifikator yang dapat memverifikasi proposal")
 		return
 	}
-	if h.repo == nil { respondError(w, http.StatusServiceUnavailable, "database belum tersedia"); return }
+	if h.repo == nil {
+		respondError(w, http.StatusServiceUnavailable, "database belum tersedia")
+		return
+	}
 	id, valid := parsePathID(w, r, "id", "ID permohonan tidak valid")
 	if !valid {
 		return
@@ -265,7 +268,10 @@ func (h *horticultureHandler) schedule(w http.ResponseWriter, r *http.Request) {
 		respondError(w, 403, "hanya inspektor yang dapat menjadwalkan inspeksi")
 		return
 	}
-	if h.repo == nil { respondError(w, http.StatusServiceUnavailable, "database belum tersedia"); return }
+	if h.repo == nil {
+		respondError(w, http.StatusServiceUnavailable, "database belum tersedia")
+		return
+	}
 	id, valid := parsePathID(w, r, "id", "ID permohonan tidak valid")
 	if !valid {
 		return
@@ -309,8 +315,10 @@ func (h *horticultureHandler) completeInspection(w http.ResponseWriter, r *http.
 		respondError(w, 403, "hanya inspektor yang dapat mengisi audit GAP")
 		return
 	}
-	if h.repo == nil { respondError(w, http.StatusServiceUnavailable, "database belum tersedia"); return }
-	if h.repo == nil { respondError(w, http.StatusServiceUnavailable, "database belum tersedia"); return }
+	if h.repo == nil {
+		respondError(w, http.StatusServiceUnavailable, "database belum tersedia")
+		return
+	}
 	id, valid := parsePathID(w, r, "id", "ID jadwal tidak valid")
 	if !valid {
 		return
@@ -363,7 +371,10 @@ func (h *horticultureHandler) evaluate(w http.ResponseWriter, r *http.Request) {
 		respondError(w, 403, "hanya PBT atau Kasi PMBTP yang dapat menilai")
 		return
 	}
-	if h.repo == nil { respondError(w, http.StatusServiceUnavailable, "database belum tersedia"); return }
+	if h.repo == nil {
+		respondError(w, http.StatusServiceUnavailable, "database belum tersedia")
+		return
+	}
 	id, valid := parsePathID(w, r, "id", "ID permohonan tidak valid")
 	if !valid {
 		return
@@ -392,12 +403,34 @@ func (h *horticultureHandler) evaluate(w http.ResponseWriter, r *http.Request) {
 
 func (h *horticultureHandler) listEvaluations(w http.ResponseWriter, r *http.Request) {
 	p, ok := auth.PrincipalFromContext(r.Context())
-	if !ok || p.UserID < 1 { respondError(w,401,"identitas SSO tidak tersedia"); return }
-	if p.Role!="pelanggan" && p.Role!="admin" && p.Role!="pengawas" && p.Role!="pbt" && p.Role!="kasi_pmbtp" { respondError(w,403,"peran tidak diizinkan melihat hasil penilaian"); return }
-	if h.repo == nil { respondError(w,http.StatusServiceUnavailable,"database belum tersedia"); return }
-	id, valid := parsePathID(w,r,"id","ID permohonan tidak valid"); if !valid { return }
-	app, err := h.repo.Get(r.Context(),id)
-	if errors.Is(err,horticulture.ErrNotFound) { respondError(w,404,"permohonan tidak ditemukan"); return }; if err!=nil { respondError(w,500,"gagal membaca hasil penilaian"); return }
-	if p.Role=="pelanggan" && app.ApplicantID!=p.UserID { respondError(w,404,"permohonan tidak ditemukan"); return }
-	respondJSON(w,200,map[string]any{"penilaian":app.Evaluations})
+	if !ok || p.UserID < 1 {
+		respondError(w, 401, "identitas SSO tidak tersedia")
+		return
+	}
+	if p.Role != "pelanggan" && p.Role != "admin" && p.Role != "pengawas" && p.Role != "pbt" && p.Role != "kasi_pmbtp" {
+		respondError(w, 403, "peran tidak diizinkan melihat hasil penilaian")
+		return
+	}
+	if h.repo == nil {
+		respondError(w, http.StatusServiceUnavailable, "database belum tersedia")
+		return
+	}
+	id, valid := parsePathID(w, r, "id", "ID permohonan tidak valid")
+	if !valid {
+		return
+	}
+	app, err := h.repo.Get(r.Context(), id)
+	if errors.Is(err, horticulture.ErrNotFound) {
+		respondError(w, 404, "permohonan tidak ditemukan")
+		return
+	}
+	if err != nil {
+		respondError(w, 500, "gagal membaca hasil penilaian")
+		return
+	}
+	if p.Role == "pelanggan" && app.ApplicantID != p.UserID {
+		respondError(w, 404, "permohonan tidak ditemukan")
+		return
+	}
+	respondJSON(w, 200, map[string]any{"penilaian": app.Evaluations})
 }
