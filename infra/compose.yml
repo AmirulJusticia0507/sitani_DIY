@@ -12,6 +12,7 @@ services:
       TZ: Asia/Jakarta
     volumes:
       - mysql_data:/var/lib/mysql
+      - ../backend/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 10s
@@ -28,6 +29,14 @@ services:
     environment:
       PORT: "8080"
       TZ: Asia/Jakarta
+      DB_DSN: ${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(database:3306)/${MYSQL_DATABASE}?parseTime=true&charset=utf8mb4
+      SSO_JSP_ISSUER: ${SSO_JSP_ISSUER:-https://sso.jogjaprov.go.id/realms/jsp}
+      SSO_JSP_CLIENT_ID: ${SSO_JSP_CLIENT_ID:-portal}
+      SSO_SATRIYA_ISSUER: ${SSO_SATRIYA_ISSUER:-https://sso.jogjaprov.go.id/realms/satriya}
+      SSO_SATRIYA_CLIENT_ID: ${SSO_SATRIYA_CLIENT_ID:-portal}
+      BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://localhost:8080}
+      FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://localhost:3000}
+      SSO_COOKIE_SECURE: ${SSO_COOKIE_SECURE:-false}
     depends_on:
       database:
         condition: service_healthy
@@ -45,9 +54,12 @@ services:
   frontend:
     build:
       context: ../frontend
+      args:
+        NEXT_PUBLIC_BACKEND_URL: ${BACKEND_PUBLIC_URL:-http://localhost:8080}
     restart: unless-stopped
     environment:
       BACKEND_URL: http://backend:8080
+      NEXT_PUBLIC_BACKEND_URL: ${BACKEND_PUBLIC_URL:-http://localhost:8080}
       TZ: Asia/Jakarta
     depends_on:
       backend:

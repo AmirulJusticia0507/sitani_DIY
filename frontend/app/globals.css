@@ -57,6 +57,33 @@ h1 {
   font-size: 0.9rem;
 }
 
+.auth-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 760px;
+  margin-top: 2rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 10%);
+}
+
+.auth-panel div:first-child { display: grid; gap: 0.35rem; }
+.auth-panel span, .auth-note { font-size: 0.88rem; opacity: 0.85; }
+.auth-actions { display: flex; gap: 0.65rem; }
+.auth-actions a, .auth-panel button {
+  border: 1px solid #a6d2bd;
+  border-radius: 999px;
+  padding: 0.65rem 0.9rem;
+  color: var(--white);
+  background: transparent;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 .modules h2 { margin: 0 0 2rem; font-size: clamp(2rem, 4vw, 3rem); }
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 article { padding: 2rem; border: 1px solid #d6d8cf; border-radius: 1rem; background: var(--white); }
@@ -65,4 +92,6 @@ article p { margin-bottom: 0; color: var(--muted); line-height: 1.6; }
 
 @media (max-width: 700px) {
   .grid { grid-template-columns: 1fr; }
+  .auth-panel { align-items: stretch; flex-direction: column; }
+  .auth-actions { flex-wrap: wrap; }
 }

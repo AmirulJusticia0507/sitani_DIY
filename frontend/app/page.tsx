@@ -1,3 +1,5 @@
+import { AuthPanel } from "./auth-panel";
+
 const modules = [
   {
     title: "Repository Data Lokal",
@@ -19,6 +21,7 @@ export default function Home() {
           Satu pintu layanan dan data pertanian untuk masyarakat, pelaku usaha, serta perangkat daerah.
         </p>
         <span className="status">Fondasi aplikasi sedang dikembangkan</span>
+        <AuthPanel />
       </section>
 
       <section className="modules" aria-labelledby="modules-heading">

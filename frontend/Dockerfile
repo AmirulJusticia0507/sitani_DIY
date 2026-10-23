@@ -7,6 +7,8 @@ RUN npm ci
 FROM node:22.23.4-alpine AS builder
 
 WORKDIR /app
+ARG NEXT_PUBLIC_BACKEND_URL=http://localhost:8080
+ENV NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .

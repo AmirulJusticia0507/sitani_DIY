@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/auth"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/service"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/store"
@@ -20,9 +23,10 @@ type healthResponse struct {
 // Handler menampung dependensi adaptor (database, service, integrasi eksternal)
 // yang akan digunakan oleh semua handler HTTP.
 type Handler struct {
-	mux *http.ServeMux
-	db  *db.DB
-	svc *service.Service
+	mux  *http.ServeMux
+	db   *db.DB
+	svc  *service.Service
+	auth *auth.Manager
 }
 
 // NewHandler membuat handler HTTP dan mendaftarkan semua rute. db boleh nil
@@ -38,14 +42,35 @@ func NewHandler(database *db.DB) *Handler {
 		st = store.NewDBStore(database)
 	}
 	h.svc = service.NewService(st)
+	h.auth = auth.NewManager(auth.ConfigFromEnv(), database)
 	h.mux.HandleFunc("GET /health", h.health)
+	h.auth.RegisterRoutes(h.mux)
 	newCertificationHandler(h.svc).register(h.mux)
 	return h
 }
 
 // ServeMux mengembalikan http.Handler untuk kompatibilitas dengan http.Server.
 func (h *Handler) ServeMux() http.Handler {
-	return h.mux
+	return cors(h.auth.ProtectAPI(h.mux))
+}
+
+func cors(next http.Handler) http.Handler {
+	allowedOrigin := strings.TrimRight(os.Getenv("FRONTEND_PUBLIC_URL"), "/")
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := strings.TrimRight(r.Header.Get("Origin"), "/")
+		if allowedOrigin != "" && origin == allowedOrigin {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			w.Header().Set("Vary", "Origin")
+		}
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func respondJSON(w http.ResponseWriter, status int, v any) {

@@ -97,6 +97,19 @@ go run ./cmd/api
 
 Endpoint pemeriksaan kesehatan tersedia di `GET http://localhost:8080/health`.
 
+### SSO Jogjaprov
+
+Backend menerapkan OpenID Connect Authorization Code dengan PKCE untuk realm JSP dan Satriya. Token diverifikasi terhadap issuer, audience, masa berlaku, algoritma RS256, JWKS, dan email terverifikasi. Token sesi disimpan dalam cookie `HttpOnly`; API `/v1/*` menolak identitas dari header client dan hanya memakai identitas hasil verifikasi SSO. Role aplikasi tetap dikelola pada database SiTani agar role dari token eksternal tidak otomatis memperoleh kewenangan lokal.
+
+Konfigurasikan `SSO_JSP_ISSUER`, `SSO_JSP_CLIENT_ID`, `SSO_SATRIYA_ISSUER`, `SSO_SATRIYA_CLIENT_ID`, `BACKEND_PUBLIC_URL`, dan `FRONTEND_PUBLIC_URL` melalui environment. Untuk produksi HTTPS, wajib gunakan `SSO_COOKIE_SECURE=true`. Client publik di masing-masing realm harus mengaktifkan Authorization Code dan PKCE serta mendaftarkan redirect URI berikut:
+
+```text
+${BACKEND_PUBLIC_URL}/auth/callback/jsp
+${BACKEND_PUBLIC_URL}/auth/callback/satriya
+```
+
+Endpoint aplikasi: `GET /auth/login/{jsp|satriya}`, `GET /auth/callback/{realm}`, `GET /auth/me`, dan `POST /auth/logout`. Nilai issuer/client ID di `.env.example` berasal dari pola integrasi proyek referensi dan tetap harus dikonfirmasi serta diuji bersama pengelola SSO Jogjaprov sebelum produksi.
+
 Frontend membutuhkan Node.js 20.9 atau lebih baru:
 
 ```powershell

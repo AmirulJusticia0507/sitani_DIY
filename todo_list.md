@@ -5,7 +5,8 @@
 - [x] Setup Repository & Struktur Proyek (Backend Go 1.23 & Frontend Next.js 16; aktual Next.js 16 karena dukungan keamanan)
 - [x] Verifikasi fondasi: backend `go build`/`go vet`/`go test` lulus; endpoint `GET /health` tersedia; frontend `typecheck`/`lint`/`build` lulus
 - [x] Konfigurasi Docker / Containerization (3 Container: DB, BE, FE)
-- [ ] Integrasi SSO Jogjaprov (Realm JSP untuk Umum & Realm Satriya untuk ASN)
+- [x] Implementasi teknis SSO Jogjaprov: OIDC Authorization Code + PKCE, verifikasi JWT/JWKS, cookie HttpOnly, pemetaan user lokal, dan proteksi API (Realm JSP & Satriya)
+- [ ] Aktivasi client, konfirmasi kontrak resmi, dan UAT login langsung bersama pengelola SSO Jogjaprov (JSP & Satriya)
 - [ ] Setup Integrasi SPL / Cakra API Gateway (`spl.jogjaprov.go.id`)
 - [ ] Setup Database MySQL & Skema Dasar
 - [ ] Integrasi MinIO Object Storage untuk dokumen/lampiran
