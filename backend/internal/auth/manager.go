@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/auth/devlogin"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 )
 
@@ -44,11 +45,18 @@ func WithPrincipal(ctx context.Context, principal Principal) context.Context {
 	return context.WithValue(ctx, principalKey{}, principal)
 }
 
+type devLocalResolver interface {
+	Aktif() bool
+	Resolve(ctx context.Context, r *http.Request) (devlogin.Principal, bool)
+	RegisterRoutes(mux *http.ServeMux)
+}
+
 type Manager struct {
 	config   Config
 	verifier *Verifier
 	database *db.DB
 	client   *http.Client
+	devLocal devLocalResolver
 }
 
 func NewManager(config Config, database *db.DB) *Manager {
@@ -60,18 +68,39 @@ func NewManager(config Config, database *db.DB) *Manager {
 	}
 }
 
+// SetDevLocal memasang login lokal (development/UAT). Bila tidak dipasang,
+// autentikasi hanya memakai SSO.
+func (m *Manager) SetDevLocal(manager devLocalResolver) { m.devLocal = manager }
+
 func (m *Manager) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /auth/login/{realm}", m.login)
 	mux.HandleFunc("GET /auth/callback/{realm}", m.callback)
 	mux.HandleFunc("POST /auth/logout", m.logout)
 	mux.Handle("GET /auth/me", m.Require(http.HandlerFunc(m.me)))
+	if m.devLocal != nil {
+		m.devLocal.RegisterRoutes(mux)
+	}
 }
 
+// Require memverifikasi identitas dari token SSO. Bila SSO belum dikonfigurasi
+// (mis. development sebelum aktivasi client), sesi login lokal
+// (auth/devlogin) masih dapat diterima; bila tidak ada sesi lokal, permintaan
+// tetap ditolak 503 agar sistem gagal tertutup.
 func (m *Manager) Require(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.Header.Del("X-User-ID")
 		r.Header.Del("X-User-Role")
 		if err := m.config.Validate(); err != nil {
+			if m.devLocal != nil && m.devLocal.Aktif() {
+				if lokal, ok := m.devLocal.Resolve(r.Context(), r); ok {
+					principal := Principal{
+						UserID: lokal.UserID, Subject: lokal.Subject, Email: lokal.Email,
+						Name: lokal.Name, Username: lokal.Username, Role: lokal.Role, Realm: lokal.Realm,
+					}
+					next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), principalKey{}, principal)))
+					return
+				}
+			}
 			writeAuthError(w, http.StatusServiceUnavailable, err.Error())
 			return
 		}

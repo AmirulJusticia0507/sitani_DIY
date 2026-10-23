@@ -1100,3 +1100,40 @@ a:hover {
   .landing-shell { width: min(100% - 1.5rem,1180px); }.hero-copy h1 { font-size: clamp(3.5rem,18vw,5.5rem); }.landing-hero-grid { padding-top: 4rem; }.hero-visual { min-height: 400px; }.orbit-one { width: 340px;height:340px;right:-50px }.orbit-two { width:250px;height:250px;right:-5px }.hero-sun { right:85px;top:140px;width:95px;height:95px }.data-card-main { width:245px;left:0;top:70px }.data-card-float { top:285px }
   .service-grid, .impact-grid { grid-template-columns: 1fr; }.service-card { min-height: 285px; }.services-showcase,.impact-section { padding-block:6rem }.landing-cta { min-height:570px;padding-top:6rem }.intro-detail { margin-left:0 }
 }
+
+/* ===== Login lokal development (/dashboard/masuk) ===== */
+.masuk-lokal { max-width: 520px; }
+.masuk-lokal > .badge { margin-bottom: 0.6rem; }
+.masuk-lokal code {
+  font-size: 0.85em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.3rem;
+  background: var(--color-sitani-green-50);
+}
+
+.masuk-lokal-form { display: grid; gap: 0.4rem; margin-top: 1rem; }
+.masuk-lokal-form label { font-weight: 700; font-size: 0.88rem; color: var(--color-sitani-green-800); }
+.masuk-lokal-form input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #cbd5d1;
+  border-radius: 0.5rem;
+  font: inherit;
+  font-size: 0.95rem;
+}
+.masuk-lokal-form input:focus {
+  outline: none;
+  border-color: var(--color-sitani-green-500);
+  box-shadow: 0 0 0 3px rgba(45, 138, 95, 0.15);
+}
+.masuk-lokal-form .btn { margin-top: 0.6rem; justify-self: start; min-width: 160px; }
+.masuk-lokal-pesan {
+  margin: 0.2rem 0 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.5rem;
+  background: #fbeaea;
+  border: 1px solid #e0b7b7;
+  color: #762424;
+  font-size: 0.88rem;
+}

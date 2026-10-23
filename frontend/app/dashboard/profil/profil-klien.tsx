@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import {
   apiURL,
+  devLoginTersedia,
   getRealmLabel,
   getRoleLabel,
   type DashboardPrincipal,
@@ -13,11 +14,16 @@ import { getDashboardNav, isRole } from "../../../components/dashboard/role-acce
 export function ProfilKlien() {
   const [principal, setPrincipal] = useState<DashboardPrincipal | null>(null);
   const [status, setStatus] = useState<"memuat" | "masuk" | "tamu">("memuat");
+  const [devLogin, setDevLogin] = useState(false);
 
   useEffect(() => {
     let active = true;
-    fetch(`${apiURL}/auth/me`, { credentials: "include", cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
+    devLoginTersedia()
+      .then((tersedia) => {
+        if (active) setDevLogin(tersedia);
+        return fetch(`${apiURL}/auth/me`, { credentials: "include", cache: "no-store" });
+      })
+      .then((res) => (res && res.ok ? res.json() : null))
       .then((data: DashboardPrincipal | null) => {
         if (!active) return;
         if (data && typeof data.role === "string") {
@@ -43,6 +49,9 @@ export function ProfilKlien() {
         <h2>Sesi belum aktif</h2>
         <p>Halaman profil menampilkan identitas dari sesi SSO. Masuk terlebih dahulu melalui JSP atau Satriya.</p>
         <div className="dashboard-actions">
+          {devLogin && (
+            <a href="/dashboard/masuk" className="btn btn-primary">Masuk lokal (dev)</a>
+          )}
           <a href={`${apiURL}/auth/login/jsp?redirect=/dashboard/profil`} className="btn btn-primary">Masuk JSP</a>
           <a href={`${apiURL}/auth/login/satriya?redirect=/dashboard/profil`} className="btn btn-outline">Masuk Satriya</a>
         </div>

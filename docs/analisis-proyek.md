@@ -44,7 +44,7 @@ Area kerja memakai layout segmen di `frontend/app/dashboard/layout.tsx`, sehingg
 - Header: tema hijau tua, merek bersama `components/brand.tsx`, tautan ke portal publik, identitas sesi, dan tombol keluar.
 - Sidebar: menu per peran dari `components/dashboard/role-access.ts`. Peta ini hanya mengatur navigasi; backend tetap memeriksa kewenangan pada setiap permintaan. Peran yang belum dipetakan hanya mendapat Ringkasan dan Profil disertai peringatan.
 - Footer: ringkas, memuat tautan informasi portal.
-- Sesi: dibaca di klien dari `GET /auth/me` karena cookie SSO bersifat HttpOnly dan hanya dikirim ke backend.
+- Sesi: dibaca di klien dari `GET /auth/me` karena cookie SSO bersifat HttpOnly dan hanya dikirim ke backend. Untuk development/UAT tersedia login lokal terpisah (`/dashboard/masuk`) yang hanya aktif lewat flag backend; lihat `docs/login-lokal-development.md`.
 - Ringkasan belum menampilkan statistik agregat karena endpoint datanya belum ada; angka tidak dikarang.
 
 ## Urutan pengerjaan

@@ -47,3 +47,18 @@ export function getRoleLabel(principal: DashboardPrincipal) {
 export function getRealmLabel(principal: DashboardPrincipal) {
   return getRealmLabelFromRealm(principal.realm);
 }
+
+// Login lokal (backend `internal/auth/devlogin`) hanya tersedia bila backend
+// mengaktifkannya lewat SITANI_DEV_LOGIN=true di luar produksi. Respons berupa
+// 200 saat aktif dan 404 saat tidak, sehingga antarmuka tidak pernah
+// menawarkan formulir yang akan ditolak.
+export async function devLoginTersedia(): Promise<boolean> {
+  try {
+    const res = await fetch(`${apiURL}/auth/dev/status`, { cache: "no-store" });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { aktif?: boolean };
+    return data.aktif === true;
+  } catch {
+    return false;
+  }
+}

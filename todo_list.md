@@ -7,6 +7,7 @@
 - [x] Konfigurasi Docker / Containerization (3 Container: DB, BE, FE)
 - [x] Implementasi teknis SSO Jogjaprov: OIDC Authorization Code + PKCE, verifikasi JWT/JWKS, cookie HttpOnly, pemetaan user lokal, dan proteksi API (Realm JSP & Satriya)
 - [ ] Aktivasi client, konfirmasi kontrak resmi, dan UAT login langsung bersama pengelola SSO Jogjaprov (JSP & Satriya) — terblokir menunggu aktivasi/kredensial dan jadwal UAT dari pengelola; implementasi teknis lokal bukan bukti UAT.
+- [x] Login lokal development/UAT (di luar produksi, flag `SITANI_DEV_LOGIN`): argon2id/bcrypt, cookie sesi ber-hash, seed akun per peran, halaman `/dashboard/masuk`, dan pematian otomatis di produksi (lihat `docs/login-lokal-development.md`). Belum ada reset password dan rate limit sehingga bukan jalur masuk produksi.
 - [ ] Setup Integrasi SPL / Cakra API Gateway (`spl.jogjaprov.go.id`) — fondasi transport JSON generik tersedia; endpoint, autentikasi, dan operasi bisnis menunggu kontrak resmi (lihat `docs/integrasi-spl-cakra.md`).
 - [x] Setup Database MySQL & Skema Dasar (migrasi terversi 001-003: modul sertifikasi, sso_identities, registrasi/persediaan/penjualan benih; runner `backend/cmd/migrate` sudah diuji ke MySQL 8.4 dan idempoten)
 - [x] Backend PostgreSQL baru untuk development: driver pgx, repository/query, migrasi PostgreSQL 001-007, konfigurasi Compose/task dan dokumentasi; diuji pada PostgreSQL 17 kosong dan migrasi kedua idempoten. Volume/data MySQL lama tidak diubah atau dipindahkan.

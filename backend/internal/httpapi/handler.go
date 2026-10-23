@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/auth"
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/auth/devlogin"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/dataset"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/horticulture"
@@ -62,6 +63,13 @@ func NewHandler(database *db.DB) *Handler {
 	}
 	h.svc = service.NewService(st)
 	h.auth = auth.NewManager(auth.ConfigFromEnv(), database)
+	devConfig := devlogin.ConfigFromEnv()
+	if devConfig.Aktif {
+		os.Stderr.WriteString("PERINGATAN: login lokal development AKTIF (/auth/dev/login). " +
+			"Jangan aktifkan di lingkungan produksi.\n")
+	}
+	devManager := devlogin.NewManager(devConfig, database)
+	h.auth.SetDevLocal(devManager)
 	h.mux.HandleFunc("GET /health", h.health)
 	h.auth.RegisterRoutes(h.mux)
 	newCertificationHandler(h.svc).register(h.mux)

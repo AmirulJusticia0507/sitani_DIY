@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import {
   apiURL,
+  devLoginTersedia,
   getRealmLabel,
   getRoleLabel,
   type DashboardPrincipal,
@@ -17,11 +18,16 @@ import { getDashboardNav, getRoleAccess, isRole } from "../../components/dashboa
 export function RingkasanKlien() {
   const [principal, setPrincipal] = useState<DashboardPrincipal | null>(null);
   const [status, setStatus] = useState<"memuat" | "masuk" | "tamu">("memuat");
+  const [devLogin, setDevLogin] = useState(false);
 
   useEffect(() => {
     let active = true;
-    fetch(`${apiURL}/auth/me`, { credentials: "include", cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
+    devLoginTersedia()
+      .then((tersedia) => {
+        if (active) setDevLogin(tersedia);
+        return fetch(`${apiURL}/auth/me`, { credentials: "include", cache: "no-store" });
+      })
+      .then((res) => (res && res.ok ? res.json() : null))
       .then((data: DashboardPrincipal | null) => {
         if (!active) return;
         if (data && typeof data.role === "string") {
@@ -50,12 +56,16 @@ export function RingkasanKlien() {
           sedangkan ASN memakai akun Satriya.
         </p>
         <div className="dashboard-actions">
+          {devLogin && (
+            <Link href="/dashboard/masuk" className="btn btn-primary">Masuk lokal (dev)</Link>
+          )}
           <a href={`${apiURL}/auth/login/jsp?redirect=/dashboard`} className="btn btn-primary">Masuk JSP</a>
           <a href={`${apiURL}/auth/login/satriya?redirect=/dashboard`} className="btn btn-outline">Masuk Satriya</a>
         </div>
         <p className="dashboard-note">
-          Login terintegrasi bergantung pada aktivasi client SSO oleh pengelola Jogjaprov. Selama
-          aktivasi belum selesai, tautan masuk dapat berakhir dengan pesan kesalahan dari backend.
+          {devLogin
+            ? "Login lokal aktif di backend ini untuk development/UAT. Akun dibuat lewat perintah seed-dev; jangan dipakai di produksi."
+            : "Login terintegrasi bergantung pada aktivasi client SSO oleh pengelola Jogjaprov. Selama aktivasi belum selesai, tautan masuk dapat berakhir dengan pesan kesalahan dari backend."}
         </p>
       </section>
     );

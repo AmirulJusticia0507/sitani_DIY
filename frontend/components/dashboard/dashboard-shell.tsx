@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Brand } from "../brand";
-import { apiURL, getRealmLabel, getRoleLabel, type DashboardPrincipal } from "./principal";
+import { apiURL, devLoginTersedia, getRealmLabel, getRoleLabel, type DashboardPrincipal } from "./principal";
 import { getDashboardNav, getRoleAccess, isRole } from "./role-access";
 type Status = "memuat" | "masuk" | "tamu";
 
@@ -17,11 +17,19 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [principal, setPrincipal] = useState<DashboardPrincipal | null>(null);
   const [status, setStatus] = useState<Status>("memuat");
   const [sidebarTerbuka, setSidebarTerbuka] = useState(false);
+  const [devLogin, setDevLogin] = useState(false);
 
   useEffect(() => {
     let active = true;
-    fetch(`${apiURL}/auth/me`, { credentials: "include", cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
+    // Login lokal diperiksa lebih dulu dan dipakai sebagai fallback saat SSO
+    // belum tersedia: /auth/me menjawab 503 tanpa sesi, sehingga tanpa status
+    // ini pengguna dev akan diberi tautan SSO yang pasti gagal.
+    devLoginTersedia()
+      .then((tersedia) => {
+        if (active) setDevLogin(tersedia);
+        return fetch(`${apiURL}/auth/me`, { credentials: "include", cache: "no-store" });
+      })
+      .then((res) => (res && res.ok ? res.json() : null))
       .then((data: DashboardPrincipal | null) => {
         if (!active) return;
         if (data && typeof data.role === "string") {
@@ -47,7 +55,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   async function handleKeluar() {
-    await fetch(`${apiURL}/auth/logout`, { method: "POST", credentials: "include" });
+    // Sesi lokal dan SSO memakai cookie berbeda; keduanya diakhiri agar tombol
+    // Keluar berperilaku sama pada kedua alur.
+    await Promise.all([
+      fetch(`${apiURL}/auth/dev/logout`, { method: "POST", credentials: "include" }).catch(() => null),
+      fetch(`${apiURL}/auth/logout`, { method: "POST", credentials: "include" }).catch(() => null),
+    ]);
     window.location.assign("/dashboard");
   }
 
@@ -91,6 +104,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             )}
             {status === "tamu" && (
               <div className="auth-actions">
+                {devLogin && (
+                  <Link href="/dashboard/masuk" className="btn btn-outline btn-sm">
+                    Masuk lokal
+                  </Link>
+                )}
                 <a href={`${apiURL}/auth/login/jsp?redirect=/dashboard`} className="btn btn-outline btn-sm">
                   Masuk JSP
                 </a>
