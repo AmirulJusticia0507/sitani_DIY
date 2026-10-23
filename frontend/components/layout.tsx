@@ -20,12 +20,23 @@ const NAV_LINKS = [
   { label: "Registrasi & Penjualan Benih", href: "/benih" },
 ] as const;
 
+const FOOTER_LINKS = [
+  { label: "Tentang", href: "/tentang" },
+  { label: "Kebijakan Privasi", href: "/kebijakan-privasi" },
+  { label: "Bantuan", href: "/bantuan" },
+] as const;
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const [principal, setPrincipal] = useState<Principal | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
+    if ("serviceWorker" in navigator && window.isSecureContext) {
+      void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {
+        // PWA enhancement is optional; core portal remains usable if registration fails.
+      });
+    }
     fetch(`${apiURL}/auth/me`, { credentials: "include" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -102,6 +113,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="container">
           <p>Portal Pertanian dan Ketahanan Pangan DIY &mdash; Dinas Pertanian dan Ketahanan Pangan Pemda DIY.</p>
           <p className="footer-note">Sistem pengembangan &bull; SSO JSP/Satriya &bull; SPL / Cakra API</p>
+          <nav className="footer-links" aria-label="Informasi portal">
+            {FOOTER_LINKS.map((link) => (
+              <Link key={link.href} href={link.href}>{link.label}</Link>
+            ))}
+          </nav>
         </div>
       </footer>
     </div>

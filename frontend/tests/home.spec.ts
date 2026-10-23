@@ -19,11 +19,32 @@ test("menampilkan identitas dan modul utama", async ({ page }, testInfo) => {
   );
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/favicon.svg");
   await expect(page.getByRole("navigation").getByRole("link")).toHaveCount(5);
+  await expect(page.getByRole("contentinfo").getByRole("link", { name: "Tentang" })).toHaveAttribute("href", "/tentang");
+  await expect(page.getByRole("contentinfo").getByRole("link", { name: "Kebijakan Privasi" })).toHaveAttribute("href", "/kebijakan-privasi");
+  await expect(page.getByRole("contentinfo").getByRole("link", { name: "Bantuan" })).toHaveAttribute("href", "/bantuan");
+
+  const manifest = await page.request.get("/manifest.webmanifest");
+  expect(manifest.ok()).toBeTruthy();
+  const manifestBody = await manifest.json();
+  expect(manifestBody.name).toContain("SiTani DIY");
+  expect(manifestBody.display).toBe("standalone");
+  expect(manifestBody.icons).toHaveLength(3);
 
   await page.screenshot({
     path: `../.ui-check/${testInfo.project.name}.png`,
     fullPage: true,
   });
+});
+
+test("halaman informasi portal tersedia", async ({ page }) => {
+  for (const [path, heading] of [
+    ["/tentang", "Tentang SiTani DIY"],
+    ["/kebijakan-privasi", "Kebijakan Privasi"],
+    ["/bantuan", "Bantuan SiTani DIY"],
+  ]) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+  }
 });
 
 test("menampilkan modul registrasi dan penjualan benih", async ({ page }) => {

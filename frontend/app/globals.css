@@ -479,6 +479,74 @@ a:hover {
   font-size: 0.9rem;
 }
 
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.footer-links a {
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.footer-links a:hover { text-decoration: underline; }
+
+.info-page {
+  width: min(100% - 2rem, 850px);
+  margin: 0 auto;
+  padding: 1rem 0 3rem;
+}
+
+.info-back {
+  display: inline-block;
+  margin: 0.25rem 0 1.5rem;
+  text-decoration: none;
+  font-weight: 650;
+}
+
+.info-page > h1 {
+  margin: 0 0 1rem;
+  font-size: clamp(2.15rem, 5vw, 3.25rem);
+  letter-spacing: -0.035em;
+}
+
+.info-lead {
+  color: var(--color-sitani-muted);
+  font-size: 1.12rem;
+  line-height: 1.75;
+  margin: 0 0 2rem;
+}
+
+.info-card {
+  margin: 1rem 0;
+  padding: clamp(1.2rem, 3vw, 1.75rem);
+  border: 1px solid var(--color-sitani-border);
+  border-radius: 1rem;
+  background: white;
+  box-shadow: 0 2px 8px rgba(10, 55, 37, 0.035);
+}
+
+.info-card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+}
+
+.info-card p, .info-card li {
+  color: var(--color-gray-800);
+  line-height: 1.75;
+}
+
+.info-card p:last-child { margin-bottom: 0; }
+.info-card ul { padding-left: 1.35rem; margin-bottom: 0; }
+.help-list { display: grid; gap: 0.5rem; }
+.help-item summary { color: var(--color-sitani-green-800); font-weight: 700; cursor: pointer; }
+.help-item p { margin-bottom: 0; }
+.info-updated { color: var(--color-sitani-muted); font-size: 0.85rem; margin-top: 1.5rem; }
+
 .footer-note {
   color: var(--color-sitani-green-200);
   font-size: 0.8rem;

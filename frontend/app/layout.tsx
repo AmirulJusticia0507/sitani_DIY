@@ -14,6 +14,12 @@ export const metadata: Metadata = {
     { rel: "icon", type: "image/svg+xml", url: "/favicon.svg" },
     { rel: "apple-touch-icon", url: "/favicon.svg" },
   ],
+  applicationName: "SiTani DIY",
+  appleWebApp: {
+    capable: true,
+    title: "SiTani DIY",
+    statusBarStyle: "default",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
