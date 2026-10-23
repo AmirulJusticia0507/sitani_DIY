@@ -4,7 +4,7 @@ Tanggal pemeriksaan: 23 Oktober 2026.
 
 ## Ringkasan
 
-Proyek berada pada tahap perencanaan. Saat pemeriksaan awal, direktori hanya berisi `readme.md`, `analisis_kebutuhan.md`, dan `todo_list.md`. Belum ada source code, manifest dependency, skema database, konfigurasi container, pengujian, ataupun repository Git. Karena itu, fungsi aplikasi dan integrasi belum dapat diuji.
+Proyek bermula pada tahap perencanaan. Saat pemeriksaan awal, direktori hanya berisi `readme.md`, `analisis_kebutuhan.md`, dan `todo_list.md`. Fondasi backend dan frontend kini telah tersedia: API Go dengan health endpoint teruji serta halaman awal Next.js dengan lint, typecheck, build, dan smoke test browser. Skema database, container, serta integrasi eksternal belum tersedia.
 
 ## Kebutuhan yang sudah tersedia
 
@@ -61,4 +61,4 @@ Task yang membutuhkan layanan eksternal harus ditandai terblokir sampai konfigur
 
 ## Dependensi eksternal yang belum tersedia
 
-Pada pemeriksaan lanjutan, repository Git telah tersedia dengan commit awal dan remote `https://github.com/AmirulJusticia0507/sitani_DIY.git`. Kredensial dan konfigurasi SSO, SPL, Sadewa, MinIO, serta dataset contoh belum terdapat dalam proyek. Ini membatasi verifikasi integrasi nyata, bukan pekerjaan dokumentasi atau fondasi lokal.
+Pada pemeriksaan lanjutan, repository Git telah tersedia dengan commit awal dan remote `https://github.com/AmirulJusticia0507/sitani_DIY.git`. Kredensial dan konfigurasi SSO, SPL, Sadewa, MinIO, serta dataset contoh belum terdapat dalam proyek. Ini membatasi verifikasi integrasi nyata, bukan pekerjaan dokumentasi atau fondasi lokal. Baseline Next.js 15 dinaikkan ke Next.js 16 karena patch terbaru mayor 15 masih membawa advisory dependency; audit fondasi Next.js 16 bersih pada 23 Oktober 2026.

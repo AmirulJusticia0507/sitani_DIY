@@ -2,7 +2,7 @@
 
 ## 📍 Tahap 1: Setup Lingkungan & Arsitektur dasar
 - [x] Analisis kondisi awal dan pedoman kerja agen (`docs/analisis-proyek.md`, `AGENTS.md`)
-- [ ] Setup Repository & Struktur Proyek (Backend Golang 1.23 & Frontend Next.js 15)
+- [x] Setup Repository & Struktur Proyek (Backend Go 1.23 & Frontend Next.js; aktual Next.js 16 karena dukungan keamanan)
 - [ ] Konfigurasi Docker / Containerization (3 Container: DB, BE, FE)
 - [ ] Integrasi SSO Jogjaprov (Realm JSP untuk Umum & Realm Satriya untuk ASN)
 - [ ] Setup Integrasi SPL / Cakra API Gateway (`spl.jogjaprov.go.id`)

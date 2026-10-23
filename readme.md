@@ -11,7 +11,7 @@ Portal Pertanian dan Ketahanan Pangan DIY adalah platform terpadu yang dikembang
 > Pedoman pengerjaan agen: [AGENTS.md](AGENTS.md).
 
 - **Backend:** Golang 1.23
-- **Frontend:** Next.js 15 (React)
+- **Frontend:** Next.js 16 (baseline kebutuhan Next.js 15 dinaikkan karena dukungan keamanan)
 - **Database:** MySQL
 - **Object Storage:** MinIO
 - **TTE / Central Sign:** Sadewa Integrasi
@@ -51,3 +51,27 @@ Aplikasi dijalankan dalam 3 container utama:
 - **Panduan Sadewa TTE:** [Integration Guide Sadewa](https://wiki.jogjaprov.go.id/en/diskominfo/panduan/panduan-integrasi-sadewa-central-sign)
 - **Standar API Pemda DIY:** [Standard API Documentation](https://wiki.jogjaprov.go.id/en/diskominfo/standard-API)
 - **SPL / Cakra API:** [SPL Wiki Documentation](https://wiki.jogjaprov.go.id/diskominfo/sistem-penghubung-layanan)
+
+## Menjalankan fondasi lokal
+
+Backend membutuhkan Go 1.23 atau lebih baru:
+
+```powershell
+cd backend
+go test ./...
+go run ./cmd/api
+```
+
+Endpoint pemeriksaan kesehatan tersedia di `GET http://localhost:8080/health`.
+
+Frontend membutuhkan Node.js 20.9 atau lebih baru:
+
+```powershell
+cd frontend
+npm ci
+npm run dev
+```
+
+Pemeriksaan frontend dapat dijalankan dengan `npm run lint`, `npm run typecheck`, `npm run build`, dan `npm run test:e2e`. Pengujian browser memakai Chrome yang terpasang melalui channel Playwright `chrome`.
+
+Salin `.env.example` menjadi `.env` sesuai lingkungan. Jangan menyimpan kredensial atau token di repository.
