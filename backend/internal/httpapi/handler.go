@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/auth"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/service"
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/storage"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/store"
 )
 
@@ -18,15 +20,18 @@ type healthResponse struct {
 	Status  string `json:"status"`
 	Service string `json:"service"`
 	DB      string `json:"db,omitempty"`
+	Storage string `json:"storage,omitempty"`
 }
 
 // Handler menampung dependensi adaptor (database, service, integrasi eksternal)
 // yang akan digunakan oleh semua handler HTTP.
 type Handler struct {
-	mux  *http.ServeMux
-	db   *db.DB
-	svc  *service.Service
-	auth *auth.Manager
+	mux         *http.ServeMux
+	db          *db.DB
+	svc         *service.Service
+	auth        *auth.Manager
+	dokumen     *dokumenHandler
+	storageSiap bool
 }
 
 // NewHandler membuat handler HTTP dan mendaftarkan semua rute. db boleh nil
@@ -47,6 +52,23 @@ func NewHandler(database *db.DB) *Handler {
 	h.auth.RegisterRoutes(h.mux)
 	newCertificationHandler(h.svc).register(h.mux)
 	newRegistryHandler(h.svc).register(h.mux)
+
+	// Object storage dokumen aktif saat MINIO_* terkonfigurasi; jika koneksi
+	// gagal, endpoint dokumen tetap terdaftar tetapi menjawab 503.
+	conf := storage.ConfigFromEnv()
+	if conf.Siap() {
+		klien, err := storage.NewMinioClient(context.Background(), conf)
+		if err != nil {
+			os.Stderr.WriteString("object storage tidak tersedia: " + err.Error() + "\n")
+			h.dokumen = newDokumenHandler(st, nil, conf)
+		} else {
+			h.dokumen = newDokumenHandler(st, klien, conf)
+			h.storageSiap = true
+		}
+	} else {
+		h.dokumen = newDokumenHandler(st, nil, conf)
+	}
+	h.dokumen.register(h.mux)
 	return h
 }
 
@@ -94,6 +116,17 @@ func (h *Handler) health(w http.ResponseWriter, _ *http.Request) {
 			resp.DB = err.Error()
 		} else {
 			resp.DB = "ok"
+		}
+	}
+	if h.dokumen != nil {
+		switch penyErr := h.dokumen.periksaPenyimpanan(context.Background()); {
+		case penyErr == nil:
+			resp.Storage = "ok"
+		case errors.Is(penyErr, storage.ErrStorageTidakSiap):
+			resp.Storage = "belum-dikonfigurasi"
+		default:
+			resp.Status = "degraded"
+			resp.Storage = "error"
 		}
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

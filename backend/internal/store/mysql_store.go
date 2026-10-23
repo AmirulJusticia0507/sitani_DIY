@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -306,6 +307,55 @@ func (s *DBStore) CreateAuditLog(ctx context.Context, a db.AuditLog) (int64, err
 		return 0, fmt.Errorf("insert audit log: %w", err)
 	}
 	return res.LastInsertId()
+}
+
+func (s *DBStore) CreateDokumen(ctx context.Context, d db.Dokumen) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `INSERT INTO dokumen (pemilik_id,tujuan,object_key,nama_asli,jenis,ukuran) VALUES (?,?,?,?,?,?)`,
+		d.PemilikID, d.Tujuan, d.ObjectKey, d.NamaAsli, d.Jenis, d.Ukuran)
+	if err != nil {
+		return 0, fmt.Errorf("insert dokumen: %w", err)
+	}
+	return res.LastInsertId()
+}
+
+func (s *DBStore) GetDokumen(ctx context.Context, id int64) (*db.Dokumen, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT id,pemilik_id,COALESCE(tujuan,''),object_key,nama_asli,jenis,ukuran,created_at FROM dokumen WHERE id=?`, id)
+	var dok db.Dokumen
+	var createdAt time.Time
+	if err := row.Scan(&dok.ID, &dok.PemilikID, &dok.Tujuan, &dok.ObjectKey, &dok.NamaAsli, &dok.Jenis, &dok.Ukuran, &createdAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("ambil dokumen: %w", err)
+	}
+	dok.CreatedAt = createdAt
+	return &dok, nil
+}
+
+func (s *DBStore) ListDokumen(ctx context.Context, userID int64, semua bool) ([]db.Dokumen, error) {
+	query := `SELECT id,pemilik_id,COALESCE(tujuan,''),object_key,nama_asli,jenis,ukuran,created_at FROM dokumen`
+	args := []any{}
+	if !semua {
+		query += ` WHERE pemilik_id=?`
+		args = append(args, userID)
+	}
+	query += ` ORDER BY id DESC LIMIT 200`
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query daftar dokumen: %w", err)
+	}
+	defer rows.Close()
+	var daftar []db.Dokumen
+	for rows.Next() {
+		var dok db.Dokumen
+		var createdAt time.Time
+		if err := rows.Scan(&dok.ID, &dok.PemilikID, &dok.Tujuan, &dok.ObjectKey, &dok.NamaAsli, &dok.Jenis, &dok.Ukuran, &createdAt); err != nil {
+			return nil, fmt.Errorf("scan dokumen: %w", err)
+		}
+		dok.CreatedAt = createdAt
+		daftar = append(daftar, dok)
+	}
+	return daftar, rows.Err()
 }
 
 func scanUser(row *sql.Row) (*db.User, error) {

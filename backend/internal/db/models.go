@@ -284,3 +284,17 @@ type AuditLog struct {
 	Detail    string
 	CreatedAt time.Time
 }
+
+// Dokumen mencatat metadata lampiran yang fisiknya tersimpan privat di
+// object storage. Unduhan dilayani lewat URL presign setelah pemeriksaan
+// hak akses; objek tidak dapat diakses langsung.
+type Dokumen struct {
+	ID        int64
+	PemilikID int64
+	Tujuan    string
+	ObjectKey string
+	NamaAsli  string
+	Jenis     string
+	Ukuran    int64
+	CreatedAt time.Time
+}

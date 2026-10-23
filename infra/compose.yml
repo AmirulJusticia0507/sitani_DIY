@@ -37,6 +37,12 @@ services:
       BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://localhost:8080}
       FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://localhost:3000}
       SSO_COOKIE_SECURE: ${SSO_COOKIE_SECURE:-false}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-}
+      MINIO_BUCKET: ${MINIO_BUCKET:-sitani-dokumen}
+      MINIO_SECURE: ${MINIO_SECURE:-false}
+      MINIO_MAX_UPLOAD_MB: ${MINIO_MAX_UPLOAD_MB:-20}
     depends_on:
       database:
         condition: service_healthy
@@ -81,8 +87,37 @@ services:
     networks:
       - internal
 
+  # Layanan pengembangan tambahan (profil minio). Bucket dibuat otomatis
+  # saat backend pertama kali terhubung. Gunakan:
+  #   docker compose --env-file .env --profile minio -f infra/compose.yml up -d
+  # Dengan MINIO_ENDPOINT=storage:9000 pada .env agar backend menemukannya.
+  storage:
+    image: minio/minio:latest # versi produksi disetel saat deployment bersama pengelola
+    command: server /data --console-address ":9001"
+    profiles: ["minio"]
+    restart: unless-stopped
+    environment:
+      # Layanan ini hanya untuk pengembangan (profil minio). Produksi memakai
+      # instance MinIO resmi pengelola, bukan container ini.
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minio-dev-sitani}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    networks:
+      - internal
+
 volumes:
   mysql_data:
+  minio_data:
 
 networks:
   internal:

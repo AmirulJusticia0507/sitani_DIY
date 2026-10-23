@@ -136,6 +136,26 @@ Pemeriksaan frontend dapat dijalankan dengan `npm run lint`, `npm run typecheck`
 
 Salin `.env.example` menjadi `.env` sesuai lingkungan. Jangan menyimpan kredensial atau token di repository.
 
+### Object Storage MinIO (Dokumen/Lampiran)
+
+Dokumen dan lampiran disimpan privat di bucket MinIO/S3; objek tidak dapat diakses langsung dari luar. Unduhan hanya melalui `GET /v1/dokumen/{id}/unduh` yang memeriksa hak akses (pemilik atau petugas internal: admin, pengawas, analis, penandatangan, legalisasi, percetakan) dan menerbitkan URL presign berumur 5 menit.
+
+Endpoint:
+- `POST /v1/dokumen` — unggah multipart (`file`; `tujuan` opsional maks. 255 karakter). Batas ukuran default 20 MB (`MINIO_MAX_UPLOAD_MB`), jenis yang diizinkan: PDF, PNG/JPEG, ZIP, CSV, XLS/XLSX, DOC/DOCX; isi berkas diverifikasi terhadap tanda baca jenis untuk menolak header palsu.
+- `GET /v1/dokumen` — daftar metadata (pelanggan: miliknya; petugas: seluruhnya).
+- `GET /v1/dokumen/{id}/unduh` — URL presign setelah pemeriksaan hak akses.
+
+Konfigurasi: `MINIO_ENDPOINT` (host:port), `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`, `MINIO_SECURE`, `MINIO_MAX_UPLOAD_MB`. Tanpa konfigurasi, endpoint dokumen menjawab 503 dan `/health` melaporkan `storage: "belum-dikonfigurasi"`.
+
+Untuk pengembangan lokal, layanan MinIO tersedia lewat profil compose:
+
+```powershell
+# .env: tambahkan MINIO_ENDPOINT=storage:9000, MINIO_ACCESS_KEY, MINIO_SECRET_KEY
+docker compose --env-file .env --profile minio -f infra/compose.yml up --build -d
+```
+
+Bucket dibuat otomatis saat backend pertama kali terhubung. Instance MinIO resmi untuk produksi diatur bersama pengelola; kredensial produksi tidak disimpan di repository.
+
 ## Menjalankan dengan Docker Compose
 
 Salin `.env.example` menjadi `.env`, ganti seluruh password contoh, lalu jalankan dari root repository:
@@ -145,4 +165,4 @@ docker compose --env-file .env -f infra/compose.yml up --build -d
 docker compose --env-file .env -f infra/compose.yml ps
 ```
 
-Compose menjalankan tiga container utama: MySQL, API backend, dan frontend. Volume `mysql_data` mempertahankan data database. MinIO tetap merupakan dependensi eksternal dan belum dimasukkan sebelum task integrasinya dikerjakan.
+Compose menjalankan tiga container utama: MySQL, API backend, dan frontend. Volume `mysql_data` mempertahankan data database. Layanan MinIO untuk pengembangan dapat diaktifkan dengan profil `minio` (lihat bagian Object Storage MinIO di atas).

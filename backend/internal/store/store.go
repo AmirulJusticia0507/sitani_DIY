@@ -75,6 +75,11 @@ type Store interface {
 	// Audit
 	CreateAuditLog(ctx context.Context, a db.AuditLog) (int64, error)
 
+	// Dokumen (lampiran privat di object storage)
+	CreateDokumen(ctx context.Context, d db.Dokumen) (int64, error)
+	GetDokumen(ctx context.Context, id int64) (*db.Dokumen, error)
+	ListDokumen(ctx context.Context, userID int64, semua bool) ([]db.Dokumen, error)
+
 	// Health
 	Ping(ctx context.Context) error
 }

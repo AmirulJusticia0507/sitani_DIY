@@ -23,6 +23,7 @@ type palsuStore struct {
 	stok         map[int64]*db.StokBenih
 	mutasi       map[int64][]db.MutasiStokBenih
 	penjualan    map[int64]*db.PenjualanBenih
+	dokumen      map[int64]*db.Dokumen
 	nextID       int64
 	nextRegID    int64
 	nextSaleID   int64
@@ -40,11 +41,47 @@ func newPalsuStore() *palsuStore {
 		stok:         map[int64]*db.StokBenih{},
 		mutasi:       map[int64][]db.MutasiStokBenih{},
 		penjualan:    map[int64]*db.PenjualanBenih{},
+		dokumen:      map[int64]*db.Dokumen{},
 		nextID:       1,
 		nextRegID:    1,
 		nextSaleID:   1,
 		dokumenValid: true,
 	}
+}
+
+// CreateDokumen menyimpan metadata dokumen di memori.
+func (p *palsuStore) CreateDokumen(ctx context.Context, d db.Dokumen) (int64, error) {
+	id := p.nextID
+	p.nextID++
+	d.ID = id
+	p.dokumen[id] = &d
+	return id, nil
+}
+
+// GetDokumen mengembalikan metadata dokumen atau ErrNotFound.
+func (p *palsuStore) GetDokumen(ctx context.Context, id int64) (*db.Dokumen, error) {
+	if d, ok := p.dokumen[id]; ok {
+		return d, nil
+	}
+	return nil, store.ErrNotFound
+}
+
+// ListDokumen mengembalikan dokumen milik satu pengguna atau seluruhnya.
+func (p *palsuStore) ListDokumen(ctx context.Context, userID int64, semua bool) ([]db.Dokumen, error) {
+	var daftar []db.Dokumen
+	for _, d := range p.dokumen {
+		if semua || d.PemilikID == userID {
+			daftar = append(daftar, *d)
+		}
+	}
+	for i := 0; i < len(daftar)-1; i++ {
+		for j := i + 1; j < len(daftar); j++ {
+			if daftar[i].ID < daftar[j].ID {
+				daftar[i], daftar[j] = daftar[j], daftar[i]
+			}
+		}
+	}
+	return daftar, nil
 }
 
 func (p *palsuStore) CreateUser(ctx context.Context, u db.User) (int64, error)    { return 0, nil }
