@@ -11,6 +11,7 @@ import (
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/auth"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/dataset"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/service"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/storage"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/store"
@@ -31,6 +32,7 @@ type Handler struct {
 	svc         *service.Service
 	auth        *auth.Manager
 	dokumen     *dokumenHandler
+	dataset     *datasetHandler
 	storageSiap bool
 }
 
@@ -69,6 +71,12 @@ func NewHandler(database *db.DB) *Handler {
 		h.dokumen = newDokumenHandler(st, nil, conf)
 	}
 	h.dokumen.register(h.mux)
+	var datasetRepo dataset.Repository
+	if database != nil {
+		datasetRepo = dataset.NewMySQLRepository(database.DB)
+	}
+	h.dataset = &datasetHandler{repo: datasetRepo}
+	h.dataset.register(h.mux)
 	return h
 }
 

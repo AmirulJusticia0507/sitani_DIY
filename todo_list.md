@@ -12,8 +12,8 @@
 - [x] Integrasi MinIO Object Storage untuk dokumen/lampiran (adaptor `internal/storage`, metadata `dokumen` migrasi 004, endpoint `/v1/dokumen` dengan pemeriksaan hak akses + URL presign 5 menit, profil compose `minio` untuk dev; diuji unggah/presign ke MinIO container lokal — instance produksi menunggu pengelola)
 
 ## 📍 Tahap 2: Modul Repository Data Lokal
-- [ ] Implementasi Service Import Data (Excel/CSV Parser & Mapper)
-- [ ] Development Rest API data terintegrasi
+- [x] Fondasi import repository lokal CSV/XLSX: parser/header validation, batas ukuran/baris, batch tersimpan di MySQL, role admin/analis dan tes; template/mapping kanonis menunggu ketetapan DPKP
+- [ ] Development Rest API data terintegrasi — sinkronisasi/API sumber eksternal menunggu kontrak resmi; batch import lokal tersedia, belum ada model/endpoint baca baris kanonis
 - [ ] Development Dashboard & Visualisasi Data Pertanian
 
 ## 📍 Tahap 3: Modul Layanan Registrasi Lahan & Pohon Induk (Hortikultura)

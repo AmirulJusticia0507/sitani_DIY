@@ -158,6 +158,8 @@ Bucket dibuat otomatis saat backend pertama kali terhubung. Instance MinIO resmi
 
 ## Menjalankan dengan Docker Compose
 
+Modul Repository Data Lokal tersedia untuk import batch CSV/XLSX. Batasan format, role yang diizinkan, validasi, endpoint, dan spesifikasi yang masih menunggu DPKP dijelaskan di [docs/repository-data.md](docs/repository-data.md).
+
 Salin `.env.example` menjadi `.env`, ganti seluruh password contoh, lalu jalankan dari root repository:
 
 ```powershell
