@@ -120,15 +120,25 @@ Task `dev` dan `migrate` menyusun DSN PostgreSQL dari `POSTGRES_USER`,
 `DB_DSN` eksplisit tetap dapat dipakai. Jalankan database baru dengan
 `docker compose --env-file .env -f infra/compose.yml up -d database`, terapkan
 migrasi memakai `task migrate`, kemudian jalankan `task dev`. PostgreSQL
-dipublikasikan pada port host 5433 secara default agar tidak bentrok dengan
-instance lokal. Untuk unggah dokumen, MinIO juga harus tersedia dan `MINIO_*`
-di `.env` dikonfigurasi.
+dipublikasikan pada `POSTGRES_HOST_PORT` (default 5433) agar tidak bentrok dengan
+instance lokal; bila port itu sudah dipakai proyek lain, pilih port bebas lain
+(mis. 5435) di `.env`. Ganti `POSTGRES_PASSWORD` sebelum membuat volume baru —
+password pada volume yang sudah ada tidak ikut berubah dan akan menyebabkan
+kegagalan autentikasi. Untuk unggah dokumen, MinIO juga harus tersedia dan
+`MINIO_*` di `.env` dikonfigurasi.
 
 > Perhatian: konfigurasi PostgreSQL ini membuat volume `postgres_data` baru.
 > Volume MySQL lama tidak dihapus, diubah, atau disalin. Migrasi
 > data dari MySQL tidak termasuk dalam perpindahan backend ini dan harus
 > direncanakan/diuji terpisah. Backend lokal juga tidak akan bisa bind bila
 > `DEV_BACKEND_PORT` sedang dipakai; ubah nilainya atau hentikan proses pemilik port.
+
+### Login lokal development (opsional)
+
+Bila SSO Jogjaprov belum aktif, `SITANI_DEV_LOGIN=true` di `.env` mengaktifkan
+login email/password dari database lokal. Akun dibuat lewat `task seed-dev` dan
+password diambil dari `SEED_DEV_PASSWORD`. Fitur ini dimatikan otomatis bila
+lingkungan terdeteksi produksi. Lihat `docs/login-lokal-development.md`.
 
 ### Skema Database & Migrasi
 

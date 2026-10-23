@@ -82,25 +82,27 @@ func (m *Manager) RegisterRoutes(mux *http.ServeMux) {
 	}
 }
 
-// Require memverifikasi identitas dari token SSO. Bila SSO belum dikonfigurasi
-// (mis. development sebelum aktivasi client), sesi login lokal
-// (auth/devlogin) masih dapat diterima; bila tidak ada sesi lokal, permintaan
-// tetap ditolak 503 agar sistem gagal tertutup.
+// Require memverifikasi identitas dari token SSO. Sesi login lokal
+// (auth/devlogin) diterima lebih dulu karena cookie-nya berbeda; tanpa sesi
+// lokal, alur SSO berjalan seperti biasa. Bila keduanya tidak tersedia,
+// permintaan ditolak agar sistem gagal tertutup.
 func (m *Manager) Require(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.Header.Del("X-User-ID")
 		r.Header.Del("X-User-Role")
-		if err := m.config.Validate(); err != nil {
-			if m.devLocal != nil && m.devLocal.Aktif() {
-				if lokal, ok := m.devLocal.Resolve(r.Context(), r); ok {
-					principal := Principal{
-						UserID: lokal.UserID, Subject: lokal.Subject, Email: lokal.Email,
-						Name: lokal.Name, Username: lokal.Username, Role: lokal.Role, Realm: lokal.Realm,
-					}
-					next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), principalKey{}, principal)))
-					return
+		if m.devLocal != nil && m.devLocal.Aktif() {
+			if lokal, ok := m.devLocal.Resolve(r.Context(), r); ok {
+				principal := Principal{
+					UserID: lokal.UserID, Subject: lokal.Subject, Email: lokal.Email,
+					Name: lokal.Name, Username: lokal.Username, Role: lokal.Role, Realm: lokal.Realm,
 				}
+				r.Header.Set("X-User-ID", strconv.FormatInt(principal.UserID, 10))
+				r.Header.Set("X-User-Role", principal.Role)
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), principalKey{}, principal)))
+				return
 			}
+		}
+		if err := m.config.Validate(); err != nil {
 			writeAuthError(w, http.StatusServiceUnavailable, err.Error())
 			return
 		}

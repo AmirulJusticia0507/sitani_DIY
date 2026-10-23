@@ -22,6 +22,15 @@ tasks:
     cmds:
       - go run ./cmd/migrate
 
+  seed-dev:
+    desc: Buat akun login lokal development (butuh SEED_DEV_PASSWORD)
+    dir: backend
+    env:
+      DB_DSN: '{{.DB_DSN | default (printf "postgres://%s:%s@127.0.0.1:%s/%s?sslmode=disable" .POSTGRES_USER .POSTGRES_PASSWORD .POSTGRES_HOST_PORT .POSTGRES_DB)}}'
+      SEED_DEV_PASSWORD: '{{.SEED_DEV_PASSWORD}}'
+    cmds:
+      - go run ./cmd/seed-dev
+
   frontend:
     desc: Jalankan frontend Next.js untuk pengembangan lokal
     dir: frontend

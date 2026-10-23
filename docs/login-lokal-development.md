@@ -64,6 +64,22 @@ jalur masuk produksi.
    "Masuk lokal" hanya muncul di antarmuka bila backend menjawab
    `GET /auth/dev/status` dengan `{"aktif": true}`.
 
+### Memakai stack Docker Compose
+
+Ringkas bila database dijalankan lewat `infra/compose.yml`:
+
+1. Isi `.env`: `POSTGRES_*`, `SITANI_DEV_LOGIN=true`, `SEED_DEV_PASSWORD`, dan
+   `FRONTEND_PUBLIC_URL` yang sama dengan port frontend (`FRONTEND_PORT`, mis.
+   `http://localhost:3001`). `FRONTEND_PUBLIC_URL` dipakai untuk memeriksa
+   `Origin` login/logout, jadi nilai yang salah menyebabkan `403`.
+2. `task migrate`, lalu `task seed-dev` (membaca `.env` dan `SEED_DEV_PASSWORD`).
+   Keduanya menyusun DSN dari `POSTGRES_HOST_PORT`; ganti port itu bila 5433
+   sudah dipakai proyek lain.
+3. `docker compose --env-file .env -f infra/compose.yml up -d --build backend frontend`.
+   Compose meneruskan `SITANI_DEV_LOGIN` ke backend; log backend menulis
+   `PERINGATAN: login lokal development AKTIF`.
+4. Buka `http://localhost:3001/dashboard/masuk` (sesuai `FRONTEND_PORT`).
+
 ## Perilaku keamanan
 
 - **Gagal tertutup.** Saat `SITANI_DEV_LOGIN` tidak diset atau lingkungan terdeteksi
@@ -83,9 +99,15 @@ jalur masuk produksi.
 
 ## Hubungan dengan verifikasi API
 
-`auth.Manager.Require` tetap memakai SSO sebagai jalur utama. Sesi lokal hanya
-diperiksa bila konfigurasi realm SSO belum lengkap. Bila SSO sudah dikonfigurasi,
-permintaan tanpa token SSO valid tetap ditolak.
+Saat `SITANI_DEV_LOGIN` aktif, `auth.Manager.Require` memeriksa sesi lokal
+(cookie `sitani_dev_session`) lebih dulu; bila tidak ada, alur SSO berjalan
+seperti biasa. Tanpa sesi lokal maupun token SSO valid, permintaan ditolak
+(`401`/`503`) sehingga sistem tetap gagal tertutup. Bila login lokal nonaktif,
+perilakunya sama persis dengan sebelum fitur ini ada: hanya SSO yang diterima.
+
+Di stack Docker Compose, realm SSO selalu terisi (placeholder dari `.env`), jadi
+sebelum perbaikan ini sesi lokal ditolak untuk seluruh `/v1/*`. Regresi untuk
+kondisi tersebut dicakup `backend/internal/auth/require_devlocal_test.go`.
 
 ## Yang harus dilakukan sebelum produksi
 
@@ -106,3 +128,7 @@ permintaan tanpa token SSO valid tetap ditolak.
 - Uji manual terhadap PostgreSQL 17: migrasi 009, seed 7 akun, login berhasil/gagal,
   `GET /auth/me`, dan logout. Dengan `APP_ENV=production` login ditolak `404`.
 - `npx playwright test tests/login-lokal.spec.ts` — 6 tes (desktop + mobile).
+- Uji di stack Docker Compose (PostgreSQL 17 pada volume `sitani-diy_postgres_data`,
+  migrasi 008–009, `task seed-dev`): login admin berhasil, sesi bertahan setelah
+  reload, profil terbaca, logout mengakhiri sesi, dan `/v1/*` menerima sesi lokal
+  meski realm SSO terisi placeholder.

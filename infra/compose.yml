@@ -37,6 +37,9 @@ services:
       BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://localhost:8080}
       FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://localhost:3000}
       SSO_COOKIE_SECURE: ${SSO_COOKIE_SECURE:-false}
+      # Login lokal development/UAT (docs/login-lokal-development.md). Backend
+      # menolak mengaktifkannya bila lingkungan terdeteksi produksi.
+      SITANI_DEV_LOGIN: ${SITANI_DEV_LOGIN:-false}
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:-}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-}
