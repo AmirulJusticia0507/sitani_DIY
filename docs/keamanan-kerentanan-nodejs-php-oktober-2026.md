@@ -1,6 +1,9 @@
 # Antisipasi Kerentanan Keamanan Go, Node.js, dan PHP — Oktober 2026
 
-Tanggal dokumentasi: 23 Oktober 2026  
+Tanggal dokumentasi: 23 Oktober 2026
+
+Pembaruan terakhir: 26 Oktober 2026
+
 Sumber verifikasi: advisory resmi Go (20–21 Oktober 2026), rilis keamanan resmi Node.js (21 Oktober 2026), pengumuman PHP (21 Oktober 2026), dan peringatan CERT-EU 2026-018 (21 Oktober 2026).
 
 Dokumen ini mencatat tiga berita kerentanan yang diterbitkan sekitar 21–22 Oktober 2026 dan langkah anticipasi yang relevan bagi proyek Portal Pertanian dan Ketahanan Pangan DIY.
@@ -82,6 +85,60 @@ Sumber resmi:
 - https://pkg.go.dev/vuln/list
 - https://www.mozilla.org/en-US/security/advisories/mfsa2026-111/ (konfirmasi kompromi eMudhra)
 
+### 2.4 Python, Next.js, Nuxt.js, dan NestJS
+
+Status keamanan tidak dapat ditentukan hanya dari nama bahasa atau framework. Versi runtime, versi framework, dependensi transitif, fitur yang digunakan, dan pola deployment harus diperiksa bersama.
+
+#### Python
+
+Python tidak digunakan oleh aplikasi inti SiTani DIY, tetapi tersedia pada workstation pengembangan. Pemeriksaan 26 Oktober 2026 menemukan Python **3.13.0**, sedangkan rilis keamanan terbaru untuk cabang 3.13 adalah **3.13.18** (25 Oktober 2026). Python 3.13 masih mendapat dukungan keamanan hingga Oktober 2029, tetapi patch level lama tidak boleh dianggap aman.
+
+Rilis Oktober 2026 memperbaiki sejumlah isu pada `ssl`, `tarfile`, `zipfile`, `urllib`, Expat, dan pemblokiran intermediate CA eMudhra yang dikompromikan. Bila aplikasi Python menggunakan paket `certifi`, gunakan minimal **certifi 2026.10.19** dan rebuild image/container agar trust store ikut diperbarui.
+
+Rekomendasi:
+
+- Perbarui Python 3.13 ke **3.13.18 atau lebih baru**, atau gunakan cabang aktif 3.14/3.15 dengan patch terbaru.
+- Hindari Python 3.10 karena telah EOL pada 1 Oktober 2026.
+- Jalankan audit dependensi aplikasi Python dengan `pip-audit` bila Python kelak masuk ke stack produksi.
+
+Sumber resmi:
+- https://www.python.org/downloads/
+- https://www.python.org/downloads/release/python-31318/
+- https://mail.python.org/archives/list/security-announce@python.org/
+
+#### Next.js
+
+SiTani DIY menggunakan **Next.js 16.4.2**. Versi ini berada di atas versi perbaikan **16.4.1** untuk advisori 14 Oktober 2026 yang mencakup dua kerentanan remote code execution kritis dan satu denial of service tingkat tinggi. Pemeriksaan `npm audit --omit=dev` pada 26 Oktober 2026 menghasilkan **0 kerentanan dependensi produksi yang diketahui**. Versi terbaru yang tersedia saat pemeriksaan adalah **16.4.3**.
+
+Kesimpulan terbatas: dependency Next.js proyek tidak menunjukkan advisori yang diketahui pada saat pemeriksaan, tetapi hal ini bukan jaminan aplikasi bebas kerentanan. Otorisasi Server Actions/Route Handlers, validasi input, pengelolaan cache, konfigurasi header keamanan, dan pembaruan rutin tetap diperlukan.
+
+Sumber resmi:
+- https://nextjs.org/blog/nextjs-security-update-october-14-2026
+- https://nextjs.org/blog
+
+#### Nuxt.js
+
+Nuxt.js **tidak digunakan** dalam implementasi SiTani DIY. Jika dipakai pada sistem lain, jangan menganggap semua versi aman. Advisori 2026 mencakup remote code execution melalui Server Island Props, kebocoran payload SSR lintas pengguna, bypass route rules, XSS pada `NuxtLink`, dan RCE pada DevTools.
+
+- Untuk RCE Server Island Props, versi yang diperbaiki adalah **Nuxt 4.5.1** dan **3.21.10**.
+- Nuxt 3 telah mencapai EOL pada 31 Juli 2026; gunakan cabang yang masih didukung.
+- Periksa juga Nitro, h3, Vue, vue-router, unhead, Vite, dan dependensi transitif karena keamanan Nuxt tersusun dari beberapa lapisan.
+
+Sumber resmi:
+- https://github.com/nuxt/nuxt/security/advisories
+- https://github.com/nuxt/nuxt/releases
+
+#### NestJS
+
+NestJS **tidak digunakan** dalam implementasi SiTani DIY. Aplikasi NestJS tetap bergantung pada keamanan runtime Node.js dan setiap paket `@nestjs/*` yang digunakan. Advisori September 2026 mencatat denial of service tingkat tinggi pada `@nestjs/microservices` untuk transport TCP atau RabbitMQ akibat pola pesan yang sangat dalam.
+
+- Versi terdampak: `@nestjs/microservices` sebelum **11.2.4**, serta 12.x sebelum **12.0.2**.
+- Advisori merekomendasikan upgrade ke **11.2.5** atau **12.0.3**.
+- Aplikasi yang tidak memasang atau tidak memakai `@nestjs/microservices` pada transport terdampak tidak terkena jalur eksploitasi khusus tersebut, tetapi tetap harus mengaudit paket lainnya.
+
+Sumber resmi:
+- https://github.com/nestjs/nest/security/advisories/GHSA-m8vh-jmq9-5rjg
+
 ---
 
 ## 3. Dampak terhadap Proyek SiTani DIY
@@ -90,7 +147,7 @@ Berdasarkan `analisis_kebutuhan.md` dan `docs/analisis-proyek.md`, stack proyek 
 
 | Komponen | Teknologi | Terpengaruh CVE Go? | Terpengaruh CVE Node.js? | Terpengaruh CVE PHP? |
 |----------|-----------|---------------------|--------------------------|----------------------|
-| Backend API | Go 1.23 | **Ya** (CVE-2026-111943) | Tidak | Tidak |
+| Backend API | Go 1.26 (`go.mod` 1.26.0; image build 1.26.2) | **Ya**, perlu minimal 1.26.10 | Tidak | Tidak |
 | Frontend Web | Next.js 16 (berjalan di atas Node.js) | Tidak | **Ya** (runtime Node.js) | Tidak |
 | Database | MySQL | Tidak | Tidak | Tidak |
 | Object Storage | MinIO | Tidak | Tidak | Tidak |
@@ -100,9 +157,10 @@ Berdasarkan `analisis_kebutuhan.md` dan `docs/analisis-proyek.md`, stack proyek 
 
 **Kesimpulan dampak:**
 
-1. **Go relevan dan PRIORITAS TERTINGGI** karena backend API SiTani DIY menggunakan **Go 1.23**, yang termasuk dalam cakupan CVE-2026-111943 (Go 1.25 dan lebih lama). Toolchain Go di workstation pengembang, CI/CD, dan container backend harus diperbaruhi ke cabang yang didukung (minimal Go 1.26.10 atau 1.27.3, atau rilis terbaru yang didukung).
-2. **Node.js relevan** karena frontend Next.js di-build dan dijalankan menggunakan runtime Node.js. Versi Node yang dipakai di workstation pengembang, CI/CD, dan container frontend harus diperbaruhi ke versi yang terpatch.
+1. **Go relevan dan PRIORITAS TERTINGGI.** Implementasi aktual sudah berpindah dari baseline Go 1.23: `backend/go.mod` menetapkan Go 1.26.0 dan `backend/Dockerfile` memakai Go 1.26.2. Keduanya masih di bawah versi perbaikan 1.26.10 yang dicatat dokumen ini.
+2. **Node.js relevan** karena frontend Next.js di-build dan dijalankan menggunakan runtime Node.js. Image `frontend/Dockerfile` sudah memakai Node.js 22.23.4, tetapi workstation yang diperiksa masih memakai 22.23.2 dan harus diperbarui.
 3. **PHP bukan bagian dari stack inti proyek.** Tidak ada komponen PHP dalam arsitektur target. Namun, dokumentasi ini tetap dibuat sebagai referensi administrasi server dan pengawasan aset yang mungkin menyisipkan PHP (misalnya alat pihak ketiga, panel kontrol, atau legacy tooling di lingkungan operasi DPKP).
+4. **Python, Nuxt.js, dan NestJS bukan bagian dari stack aplikasi saat ini.** Python lokal tetap perlu diperbarui untuk mengurangi risiko tooling pengembangan; Nuxt.js dan NestJS baru menjadi relevan jika kelak ditambahkan atau digunakan oleh sistem pendukung.
 
 ---
 
@@ -148,7 +206,7 @@ PHP tidak digunakan dalam stack inti, tetapi jika terdapat instalasi PHP di ling
 
 ### 4.3 Untuk Go (backend API — prioritas tertinggi)
 
-Backend SiTani DIY menggunakan **Go 1.23**, yang terkena dampak CVE-2026-111943. Langkah remediasi:
+Baseline kebutuhan menyebut Go 1.23, tetapi implementasi aktual menggunakan **Go 1.26.0** pada `go.mod` dan **Go 1.26.2** pada image build. Keduanya masih perlu diperbarui untuk CVE-2026-111943. Langkah remediasi:
 
 1. **Periksa versi Go yang digunakan di workstation, CI/CD, dan container backend:**
    ```powershell
@@ -204,7 +262,7 @@ Backend SiTani DIY menggunakan **Go 1.23**, yang terkena dampak CVE-2026-111943.
 
 ## 5. Catatan Verifikasi
 
-- Informasi di atas diverifikasi dari sumber resmi Go, Node.js, PHP, dan CERT-EU pada 23 Oktober 2026.
+- Informasi awal diverifikasi dari sumber resmi Go, Node.js, PHP, dan CERT-EU pada 23 Oktober 2026. Bagian Python, Next.js, Nuxt.js, dan NestJS serta kondisi implementasi aktual diperiksa kembali pada 26 Oktober 2026.
 - Proyek saat ini masih pada tahap perencanaan/fondasi; integrasi SSO, SPL, Sadewa, MinIO, dan containerisasi belum tersedia sepenuhnya. Dokumen ini akan disesuaikan saat implementasi container frontend dan backend tersedia.
 - Tidak ada kredensial, token, atau data pribadi yang dicatat dalam dokumen ini, sesuai konvensi keamanan proyek.
 
