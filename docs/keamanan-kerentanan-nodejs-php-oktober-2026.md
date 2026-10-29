@@ -12,11 +12,11 @@ Dokumen ini mencatat tiga berita kerentanan yang diterbitkan sekitar 21–22 Okt
 
 ## 1. Ringkasan Kerentanan
 
-| # | Produk | Tanggal Rilis Keamanan | ID Kerentanan | Tingkat Tertinggi | Versi Terkena Dampak | Versi Tanggal |
-|---|--------|------------------------|---------------|-------------------|----------------------|---------------|
-| 1 | Go (Golang) | 20–21 Oktober 2026 | CVE-2026-111943 | HIGH / Critical | Go 1.26, 1.27, dan 1.25 atau lebih lama | Go 1.26.10, Go 1.27.3 |
-| 2 | Node.js | 21 Oktober 2026 | CVE-2026-111497 dan 9 CVE lain | HIGH | 26.x, 24.x, 22.x | v22.23.4, v24.22.1, v26.12.1 |
-| 3 | PHP | 21–22 Oktober 2026 | CVE-2026-109618, CVE-2026-109619 | Critical (CVSS 9.2) | 8.5 < 8.5.12, 8.4 < 8.4.27, 8.3 < 8.3.36, 8.2 < 8.2.35, cabang EOL | 8.5.12, 8.4.27, 8.3.36, 8.2.35 |
+| # | Produk      | Tanggal Rilis Keamanan | ID Kerentanan                    | Tingkat Tertinggi   | Versi Terkena Dampak                                               | Versi Tanggal                  |
+| - | ----------- | ---------------------- | -------------------------------- | ------------------- | ------------------------------------------------------------------ | ------------------------------ |
+| 1 | Go (Golang) | 20–21 Oktober 2026    | CVE-2026-111943                  | HIGH / Critical     | Go 1.26, 1.27, dan 1.25 atau lebih lama                            | Go 1.26.10, Go 1.27.3          |
+| 2 | Node.js     | 21 Oktober 2026        | CVE-2026-111497 dan 9 CVE lain   | HIGH                | 26.x, 24.x, 22.x                                                   | v22.23.4, v24.22.1, v26.12.1   |
+| 3 | PHP         | 21–22 Oktober 2026    | CVE-2026-109618, CVE-2026-109619 | Critical (CVSS 9.2) | 8.5 < 8.5.12, 8.4 < 8.4.27, 8.3 < 8.3.36, 8.2 < 8.2.35, cabang EOL | 8.5.12, 8.4.27, 8.3.36, 8.2.35 |
 
 ---
 
@@ -37,6 +37,7 @@ Kerentanan utama yang relevan:
 - **CVE-2026-106070, CVE-2026-106071, CVE-2026-106073 (LOW):** Masalah ZipFile, Permission Model wildcard radix, dan Permission Model bypass via `fs.realpathSync`.
 
 **Versi yang diperbaiki:**
+
 - Node.js 22.x → **v22.23.4**
 - Node.js 24.x → **v24.22.1**
 - Node.js 26.x → **v26.12.1**
@@ -52,13 +53,13 @@ Pada 21 Oktober 2026, PHP merilis pembaruan darurat untuk dua kerentanan kritis 
 
 **Versi yang terpengaruh dan diperbaiki:**
 
-| Cabang PHP | Versi yang Terpengaruh | Versi yang Diperbaiki |
-|------------|------------------------|-----------------------|
-| PHP 8.5.x | < 8.5.12 | 8.5.12 |
-| PHP 8.4.x | < 8.4.27 | 8.4.27 |
-| PHP 8.3.x | < 8.3.36 | 8.3.36 |
-| PHP 8.2.x | < 8.2.35 | 8.2.35 |
-| PHP 8.1 dan lebih lama (EOL) | Semua versi | Tidak ada rilis resmi; gunakan paket distribusi/LTS vendor, backport minimal sumber PHP, atau upgrade |
+| Cabang PHP                   | Versi yang Terpengaruh | Versi yang Diperbaiki                                                                                 |
+| ---------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------- |
+| PHP 8.5.x                    | < 8.5.12               | 8.5.12                                                                                                |
+| PHP 8.4.x                    | < 8.4.27               | 8.4.27                                                                                                |
+| PHP 8.3.x                    | < 8.3.36               | 8.3.36                                                                                                |
+| PHP 8.2.x                    | < 8.2.35               | 8.2.35                                                                                                |
+| PHP 8.1 dan lebih lama (EOL) | Semua versi            | Tidak ada rilis resmi; gunakan paket distribusi/LTS vendor, backport minimal sumber PHP, atau upgrade |
 
 Setiap instalasi PHP yang melayani permintaan web berada dalam risiko, termasuk PHP-FPM, Apache `mod_php`, `php-cgi`, FrankenPHP, dan LiteSpeed. PHP menilai `mod_php` sebagai konfigurasi tertinggi risiko. PHP menyatakan bahwa **tidak ada perubahan konfigurasi yang sepenuhnya mitigasi** kedua kerentanan ini; pembaruan adalah solusi tunggal yang cukup.
 
@@ -72,15 +73,16 @@ Pada 20–21 Oktober 2026, Go merilis pembaruan darurat untuk kerentanan keperca
 
 **Versi yang terpengaruh dan diperbaiki:**
 
-| Cabang Go | Versi yang Terpengaruh | Versi yang Diperbaiki |
-|-----------|------------------------|-----------------------|
-| Go 1.27.x | Sebelum 1.27.3 | 1.27.3 atau lebih baru |
-| Go 1.26.x | Sebelum 1.26.10 | 1.26.10 atau lebih baru |
+| Cabang Go              | Versi yang Terpengaruh  | Versi yang Diperbaiki                                           |
+| ---------------------- | ----------------------- | --------------------------------------------------------------- |
+| Go 1.27.x              | Sebelum 1.27.3          | 1.27.3 atau lebih baru                                          |
+| Go 1.26.x              | Sebelum 1.26.10         | 1.26.10 atau lebih baru                                         |
 | Go 1.25 dan lebih lama | Semua versi yang rentan | Pindah ke cabang yang didukung, atau bukti backport dari vendor |
 
 **Relevansi untuk SiTani DIY:** Backend SiTani DIY menggunakan **Go 1.23** (lihat `analisis_kebutuhan.md` dan `readme.md`). Go 1.23 termasuk dalam cakupan "Go 1.25 dan lebih lama" yang perlu diperbarui ke cabang yang didukung atau memperoleh bukti backport dari vendor. Toolchain Go yang digunakan di CI/CD, workstation pengembang, dan container backend harus dicek dan diperbarui.
 
 Sumber resmi:
+
 - https://github.com/golang/go/issues/82345
 - https://pkg.go.dev/vuln/list
 - https://www.mozilla.org/en-US/security/advisories/mfsa2026-111/ (konfirmasi kompromi eMudhra)
@@ -102,6 +104,7 @@ Rekomendasi:
 - Jalankan audit dependensi aplikasi Python dengan `pip-audit` bila Python kelak masuk ke stack produksi.
 
 Sumber resmi:
+
 - https://www.python.org/downloads/
 - https://www.python.org/downloads/release/python-31318/
 - https://mail.python.org/archives/list/security-announce@python.org/
@@ -113,6 +116,7 @@ SiTani DIY menggunakan **Next.js 16.4.2**. Versi ini berada di atas versi perbai
 Kesimpulan terbatas: dependency Next.js proyek tidak menunjukkan advisori yang diketahui pada saat pemeriksaan, tetapi hal ini bukan jaminan aplikasi bebas kerentanan. Otorisasi Server Actions/Route Handlers, validasi input, pengelolaan cache, konfigurasi header keamanan, dan pembaruan rutin tetap diperlukan.
 
 Sumber resmi:
+
 - https://nextjs.org/blog/nextjs-security-update-october-14-2026
 - https://nextjs.org/blog
 
@@ -125,6 +129,7 @@ Nuxt.js **tidak digunakan** dalam implementasi SiTani DIY. Jika dipakai pada sis
 - Periksa juga Nitro, h3, Vue, vue-router, unhead, Vite, dan dependensi transitif karena keamanan Nuxt tersusun dari beberapa lapisan.
 
 Sumber resmi:
+
 - https://github.com/nuxt/nuxt/security/advisories
 - https://github.com/nuxt/nuxt/releases
 
@@ -137,6 +142,7 @@ NestJS **tidak digunakan** dalam implementasi SiTani DIY. Aplikasi NestJS tetap 
 - Aplikasi yang tidak memasang atau tidak memakai `@nestjs/microservices` pada transport terdampak tidak terkena jalur eksploitasi khusus tersebut, tetapi tetap harus mengaudit paket lainnya.
 
 Sumber resmi:
+
 - https://github.com/nestjs/nest/security/advisories/GHSA-m8vh-jmq9-5rjg
 
 ---
@@ -145,15 +151,15 @@ Sumber resmi:
 
 Berdasarkan `analisis_kebutuhan.md` dan `docs/analisis-proyek.md`, stack proyek saat ini adalah:
 
-| Komponen | Teknologi | Terpengaruh CVE Go? | Terpengaruh CVE Node.js? | Terpengaruh CVE PHP? |
-|----------|-----------|---------------------|--------------------------|----------------------|
-| Backend API | Go 1.26 (`go.mod` 1.26.0; image build 1.26.2) | **Ya**, perlu minimal 1.26.10 | Tidak | Tidak |
-| Frontend Web | Next.js 16 (berjalan di atas Node.js) | Tidak | **Ya** (runtime Node.js) | Tidak |
-| Database | MySQL | Tidak | Tidak | Tidak |
-| Object Storage | MinIO | Tidak | Tidak | Tidak |
-| TTE / Central Sign | Sadewa | Tidak | Tidak | Tidak |
-| API Gateway | SPL / Cakra API | Tidak | Tidak | Tidak |
-| Autentikasi | SSO JSP/Satriya | Tidak | Tidak | Tidak |
+| Komponen           | Teknologi                                       | Terpengaruh CVE Go?                 | Terpengaruh CVE Node.js?       | Terpengaruh CVE PHP? |
+| ------------------ | ----------------------------------------------- | ----------------------------------- | ------------------------------ | -------------------- |
+| Backend API        | Go 1.26 (`go.mod` 1.26.0; image build 1.26.2) | **Ya**, perlu minimal 1.26.10 | Tidak                          | Tidak                |
+| Frontend Web       | Next.js 16 (berjalan di atas Node.js)           | Tidak                               | **Ya** (runtime Node.js) | Tidak                |
+| Database           | MySQL                                           | Tidak                               | Tidak                          | Tidak                |
+| Object Storage     | MinIO                                           | Tidak                               | Tidak                          | Tidak                |
+| TTE / Central Sign | Sadewa                                          | Tidak                               | Tidak                          | Tidak                |
+| API Gateway        | SPL / Cakra API                                 | Tidak                               | Tidak                          | Tidak                |
+| Autentikasi        | SSO JSP/Satriya                                 | Tidak                               | Tidak                          | Tidak                |
 
 **Kesimpulan dampak:**
 
@@ -209,42 +215,44 @@ PHP tidak digunakan dalam stack inti, tetapi jika terdapat instalasi PHP di ling
 Baseline kebutuhan menyebut Go 1.23, tetapi implementasi aktual menggunakan **Go 1.26.0** pada `go.mod` dan **Go 1.26.2** pada image build. Keduanya masih perlu diperbarui untuk CVE-2026-111943. Langkah remediasi:
 
 1. **Periksa versi Go yang digunakan di workstation, CI/CD, dan container backend:**
+
    ```powershell
    go version
    ```
+
    Untuk memeriksa versi Go yang tertanam dalam binary yang sudah dibangun:
+
    ```powershell
    go version -m /path/to/your-application
    ```
-
 2. **Perbarui toolchain Go ke versi yang aman:**
+
    - Go 1.26.x → minimal **1.26.10**
    - Go 1.27.x → minimal **1.27.3**
    - Go 1.25 dan lebih lama (termasuk Go 1.23 yang dipakai SiTani) → pindah ke cabang yang didukung, atau dapatkan bukti backport dari vendor
-
 3. **Perbarui `GOTOOLCHAIN` dan pengaturan build di CI, Docker, serta file version-manager:**
+
    ```powershell
    GOTOOLCHAIN=go1.27.3 go version
    GOTOOLCHAIN=go1.27.3 go test ./...
    GOTOOLCHAIN=go1.27.3 go build ./...
    ```
-
 4. **Perbarui image container backend** di `infra/compose.yml` agar menggunakan base image Go yang telah diperbaiki, lalu rebuild dan redeploy.
-
 5. **Perbarui dependensi Go modul backend:**
+
    ```powershell
    cd backend
    go mod tidy
    go mod verify
    ```
-
 6. **Jalankan pemeriksaan kerentanan Go:**
+
    ```powershell
    go install golang.org/x/vuln/cmd/govulncheck@latest
    govulncheck ./...
    ```
-
 7. **Verifikasi build backend:**
+
    ```powershell
    cd backend
    go build ./...
