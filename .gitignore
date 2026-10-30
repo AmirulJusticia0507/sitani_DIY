@@ -13,3 +13,14 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 Thumbs.db
+
+# Screenshot lokal (bukan aset portal).
+Screenshot_*.jpeg
+Screenshot_*.png
+
+# Skrip bantu di akar repo, bukan bagian aplikasi.
+/cek-hydration.mjs
+
+# Playwright: hasil uji dan laporan lokal.
+/playwright-report/
+/test-results/
