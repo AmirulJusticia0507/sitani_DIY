@@ -191,6 +191,7 @@ export default function CertificationPage() {
               <span
                 className="stepper-jalur-isi"
                 style={{
+                  // Garis hijau berhenti di tengah titik aktif (seperti stepper umumnya).
                   width: `${(PERAN.findIndex((p) => p.id === role) / (PERAN.length - 1)) * 100}%`,
                 }}
               />
