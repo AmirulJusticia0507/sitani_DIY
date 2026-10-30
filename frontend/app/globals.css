@@ -1806,4 +1806,126 @@ a:hover {
   .sso-card { padding: 1.6rem 1.1rem 1.25rem; }
   .sso-card-head h1 { font-size: 1.35rem; }
 }
-body { --uji: 1px; }
+
+
+/* ===== Stepper peran (halaman sertifikasi) =====
+   Mengikuti pola Material Tailwind "stepper with dots": satu garis penuh di
+   belakang titik-titik, progres terisi dari kiri, titik sejajar di atas garis,
+   dan label di bawahnya. Klik label untuk berpindah peran. */
+.stepper {
+  margin: 1.5rem 0 0.5rem;
+  padding: 1.5rem 1.75rem 1rem;
+  border: 1px solid var(--color-sitani-border);
+  border-radius: 14px;
+  background: var(--color-white);
+}
+
+.stepper-jalur {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* Garis dasar dan garis progres menempati tepat 50% tinggi titik. */
+.stepper-jalur::before,
+.stepper-jalur-isi {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  content: "";
+}
+
+.stepper-jalur::before {
+  width: 100%;
+  background: var(--color-sitani-border);
+}
+
+.stepper-jalur-isi {
+  background: var(--color-sitani-green-600);
+  transition: width 0.5s ease;
+  z-index: 1;
+}
+
+.stepper-titik {
+  position: relative;
+  z-index: 2;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: var(--color-sitani-border);
+  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.stepper-titik.is-selesai {
+  background: var(--color-sitani-green-600);
+}
+
+.stepper-titik.is-aktif {
+  background: var(--color-sitani-green-600);
+  box-shadow: 0 0 0 4px rgba(31, 107, 73, 0.18);
+  transform: scale(1.25);
+}
+
+.stepper-label-baris {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+.stepper-label-tombol {
+  display: grid;
+  gap: 0.15rem;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.35rem 0.5rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.stepper-label-tombol:first-child { justify-items: start; text-align: left; }
+.stepper-label-tombol:last-child { justify-items: end; text-align: right; }
+.stepper-label-tombol:not(:first-child):not(:last-child) { justify-items: center; }
+
+.stepper-label-tombol:hover { background: var(--color-sitani-green-50); }
+
+.stepper-label-tombol:focus-visible {
+  outline: 2px solid var(--color-sitani-green-500);
+  outline-offset: 2px;
+}
+
+.stepper-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-sitani-muted);
+}
+
+.stepper-keterangan {
+  font-size: 0.74rem;
+  color: var(--color-sitani-muted);
+}
+
+.stepper-label-tombol.is-aktif .stepper-label {
+  color: var(--color-sitani-green-900);
+}
+
+.stepper-label-tombol.is-aktif .stepper-keterangan {
+  color: var(--color-sitani-green-700);
+}
+
+@media (max-width: 640px) {
+  .stepper { padding: 1.25rem 1rem 0.75rem; }
+  .stepper-label-baris { margin-top: 0.75rem; }
+  .stepper-keterangan { display: none; }
+  .stepper-label { font-size: 0.78rem; }
+  .stepper-label-tombol { padding: 0.3rem 0.2rem; }
+}

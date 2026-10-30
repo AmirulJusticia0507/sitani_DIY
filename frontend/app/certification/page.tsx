@@ -20,6 +20,14 @@ type Role =
   | "legalisasi"
   | "percetakan";
 
+// Peran yang dapat dipilih dari halaman ini, berurutan sesuai alur kerja
+// (pemohon → laboratorium → penandatangan). Urutan tampil = urutan step bar.
+const PERAN: ReadonlyArray<{ id: Role; label: string; keterangan: string }> = [
+  { id: "pelanggan", label: "Pelanggan", keterangan: "Mengajukan & memantau" },
+  { id: "analis", label: "Analis Lab", keterangan: "Menguji mutu sampel" },
+  { id: "penandatangan", label: "Penandatangan", keterangan: "Menandatangani hasil" },
+];
+
 interface Permohonan {
   ID: number;
   NomorPermohonan: string;
@@ -170,16 +178,50 @@ export default function CertificationPage() {
                 Alur 7 aktor berdasarkan diagram XML (Fase 1–3).
               </p>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setRole("pelanggan")}>
-                Pelanggan
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setRole("analis")}>
-                Analis Lab
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setRole("penandatangan")}>
-                Penandatangan
-              </Button>
+            <p className="text-xs text-sitani-muted">
+              Peran aktif: <strong className="text-sitani-green-800">{PERAN.find((p) => p.id === role)?.label}</strong>
+            </p>
+          </div>
+
+          {/* Stepper peran mengikuti pola Material Tailwind "stepper with dots":
+              satu garis horizontal penuh di belakang titik-titik, progres terisi
+              dari kiri ke posisi langkah aktif, label di bawah setiap titik. */}
+          <div className="stepper" role="group" aria-label="Peran dalam alur sertifikasi">
+            <div className="stepper-jalur" aria-hidden="true">
+              <span
+                className="stepper-jalur-isi"
+                style={{
+                  width: `${(PERAN.findIndex((p) => p.id === role) / (PERAN.length - 1)) * 100}%`,
+                }}
+              />
+              {PERAN.map((item) => (
+                <span
+                  key={item.id}
+                  className={`stepper-titik${role === item.id ? " is-aktif" : ""}${
+                    PERAN.findIndex((p) => p.id === role) > PERAN.findIndex((p) => p.id === item.id)
+                      ? " is-selesai"
+                      : ""
+                  }`}
+                />
+              ))}
+            </div>
+
+            <div className="stepper-label-baris">
+              {PERAN.map((item) => {
+                const aktif = role === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`stepper-label-tombol${aktif ? " is-aktif" : ""}`}
+                    aria-current={aktif ? "step" : undefined}
+                    onClick={() => setRole(item.id)}
+                  >
+                    <span className="stepper-label">{item.label}</span>
+                    <span className="stepper-keterangan">{item.keterangan}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
