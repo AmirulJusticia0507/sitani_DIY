@@ -191,20 +191,24 @@ export default function CertificationPage() {
               <span
                 className="stepper-jalur-isi"
                 style={{
-                  // Garis hijau berhenti di tengah titik aktif (seperti stepper umumnya).
+                  // Garis hijau berhenti di tengah langkah aktif (seperti stepper umumnya).
                   width: `${(PERAN.findIndex((p) => p.id === role) / (PERAN.length - 1)) * 100}%`,
                 }}
               />
-              {PERAN.map((item) => (
-                <span
-                  key={item.id}
-                  className={`stepper-titik${role === item.id ? " is-aktif" : ""}${
-                    PERAN.findIndex((p) => p.id === role) > PERAN.findIndex((p) => p.id === item.id)
-                      ? " is-selesai"
-                      : ""
-                  }`}
-                />
-              ))}
+              {PERAN.map((item, index) => {
+                const idx = PERAN.findIndex((p) => p.id === item.id);
+                const idxAktif = PERAN.findIndex((p) => p.id === role);
+                const selesai = idx < idxAktif;
+                return (
+                  <span
+                    key={item.id}
+                    className={`stepper-titik${selesai ? " is-selesai" : ""}${role === item.id ? " is-aktif" : ""}`}
+                    aria-label={`${index + 1}. ${item.label}`}
+                  >
+                    {selesai ? "✓" : index + 1}
+                  </span>
+                );
+              })}
             </div>
 
             <div className="stepper-label-baris">
