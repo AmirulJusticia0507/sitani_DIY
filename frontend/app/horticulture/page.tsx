@@ -4,18 +4,22 @@ import { Layout } from "../../components/layout";
 export default function HorticulturePage() {
   return (
     <Layout>
-      <main className="horticulture-page">
-        <header className="repository-header">
-          <a className="repository-back" href="/">
-            ← Beranda
+      <main className="layanan-page">
+        <div className="layanan-shell">
+          <a className="layanan-back" href="/">
+            <span aria-hidden="true">←</span> Beranda
           </a>
-          <p className="eyebrow">Layanan hortikultura</p>
-          <h1>Registrasi Lahan Usaha</h1>
-          <p className="repository-lead">
-            Ajukan registrasi kebun, lengkapi data tanaman, dan lampirkan berkas pendukung secara privat.
-          </p>
-        </header>
-        <HorticulturePanel />
+          <div className="layanan-head">
+            <p className="layanan-eyebrow">Layanan hortikultura</p>
+            <h1>Registrasi Lahan Usaha</h1>
+            <p className="layanan-lead">
+              Ajukan registrasi kebun, lengkapi data tanaman, dan lampirkan berkas pendukung secara privat.
+            </p>
+          </div>
+          <div className="layanan-body">
+            <HorticulturePanel />
+          </div>
+        </div>
       </main>
     </Layout>
   );
