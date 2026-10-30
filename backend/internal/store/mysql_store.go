@@ -36,35 +36,45 @@ func FormatNomorPermohonan(tanggal time.Time, urut int64) string {
 	return fmt.Sprintf("SPB-%s-%04d", tanggal.Format("20060102"), urut)
 }
 
-// CreatePermohonan menyimpan pengajuan baru beserta nomor permohonannya dalam
-// satu transaksi. Urutan harian dihitung dari baris terakhir pada tanggal yang
-// sama sehingga tidak bergantung pada jam server maupun ID dari client.
-func (s *DBStore) CreatePermohonan(ctx context.Context, p db.PermohonanBenih, tanggal time.Time) (int64, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, fmt.Errorf("mulai transaksi permohonan: %w", err)
-	}
-	defer tx.Rollback()
+// formatNomorSementara membentuk nomor untuk draft. Kolom nomor_permohonan
+// NOT NULL UNIQUE dan draft belum punya nomor resmi, jadi draft memakai nomor
+// berawalan "DRAFT-" yang tidak pernah ditampilkan ke pengguna. Awalan ini
+// sengaja berbeda dari "SPB-" agar tidak ikut terhitung dalam penomoran harian.
+func formatNomorSementara(tanggal time.Time) string {
+	return fmt.Sprintf("DRAFT-%d", tanggal.UnixNano())
+}
 
-	// Nomor sementara wajib unik (kolom NOT NULL UNIQUE) dan tidak pernah
-	// ditampilkan. Isinya langsung diganti nomor resmi dalam transaksi ini.
-	sementara := fmt.Sprintf("TMP-%d", tanggal.UnixNano())
-	if _, err := tx.ExecContext(ctx, `INSERT INTO permohonan_benih (nomor_permohonan,pelanggan_id,jenis_benih,varietas,luas_lahan,lokasi_kebun,status,pembayaran_awal_status) VALUES (?,?,?,?,?,?,?,?)`,
-		sementara, p.PelangganID, p.JenisBenih, p.Varietas, p.LuasLahan, p.LokasiKebun, p.Status, p.PembayaranAwalStatus); err != nil {
-		return 0, fmt.Errorf("insert permohonan: %w", err)
-	}
+const permohonanColumns = `id,nomor_permohonan,pelanggan_id,jenis_benih,COALESCE(varietas,''),COALESCE(luas_lahan,0),COALESCE(lokasi_kebun,''),status,pembayaran_awal_status,COALESCE(buku_induk_nomor,''),COALESCE(laporan_verifikasi,''),diajukan_pada,created_at,updated_at`
 
-	// Kunci advisory per tanggal menyerialkan penomoran sehingga dua pengajuan
-	// bersamaan tidak mendapat nomor urut yang sama.
+// permohonanAktifQuery memilih permohonan yang masih berjalan milik pelanggan:
+// draft lebih dulu, lalu pengajuan resmi yang belum diinspeksi buku induknya.
+// Permohonan yang sudah ditolak/dibatalkan/divalidasi tidak dipilih agar
+// pelanggan dapat mulai pengajuan baru.
+const permohonanAktifQuery = `SELECT ` + permohonanColumns + `
+	FROM permohonan_benih
+	WHERE pelanggan_id = ?
+	  AND status NOT IN (?, ?, ?)
+	ORDER BY CASE status WHEN ? THEN 0 ELSE 1 END, id DESC
+	LIMIT 1`
+
+// kunciPenomoran menyerialkan penomoran nomor permohonan resmi per tanggal.
+// PostgreSQL memakai advisory lock transaksi; bila dialek belum mendukungnya
+// (MySQL) baris permohonan itu sendiri yang dikunci dengan FOR UPDATE.
+func kunciPenomoran(ctx context.Context, tx *db.Tx, tanggal time.Time) error {
 	kunci := "permohonan:" + tanggal.Format("20060102")
 	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtext(?))`, kunci); err != nil {
-		return 0, fmt.Errorf("kunci penomoran permohonan: %w", err)
+		return fmt.Errorf("kunci penomoran permohonan: %w", err)
 	}
+	return nil
+}
 
+// nomorBerikutnya menghitung nomor harian berikutnya untuk tanggal tertentu.
+// Pemanggil wajib memegang kunci penomoran.
+func nomorBerikutnya(ctx context.Context, tx *db.Tx, tanggal time.Time) (string, error) {
 	prefix := FormatNomorPermohonan(tanggal, 0)[:len("SPB-")+8+1]
 	var nomorTerakhir sql.NullString
 	if err := tx.QueryRowContext(ctx, `SELECT MAX(nomor_permohonan) FROM permohonan_benih WHERE nomor_permohonan LIKE ?`, prefix+"%").Scan(&nomorTerakhir); err != nil {
-		return 0, fmt.Errorf("ambil urutan nomor permohonan: %w", err)
+		return "", fmt.Errorf("ambil urutan nomor permohonan: %w", err)
 	}
 	urut := int64(1)
 	if nomorTerakhir.Valid && len(nomorTerakhir.String) > len(prefix) {
@@ -72,11 +82,40 @@ func (s *DBStore) CreatePermohonan(ctx context.Context, p db.PermohonanBenih, ta
 			urut = n + 1
 		}
 	}
-	nomor := FormatNomorPermohonan(tanggal, urut)
+	return FormatNomorPermohonan(tanggal, urut), nil
+}
+
+// CreatePermohonan menyimpan pengajuan baru beserta nomor permohonannya dalam
+// satu transaksi. Urutan harian dihitung dari baris terakhir pada tanggal yang
+// sama sehingga tidak bergantung pada jam server maupun ID dari client.
+// Permohonan berstatus draft hanya mendapat nomor sementara; nomor resmi
+// dibuat AjukanPermohonan.
+func (s *DBStore) CreatePermohonan(ctx context.Context, p db.PermohonanBenih, tanggal time.Time) (int64, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("mulai transaksi permohonan: %w", err)
+	}
+	defer tx.Rollback()
+
+	if err := kunciPenomoran(ctx, tx, tanggal); err != nil {
+		return 0, err
+	}
+
+	draft := p.Status == db.StatusPermohonanDraft
+	nomor := formatNomorSementara(tanggal)
+	var diajukanPada sql.NullTime
+	if !draft {
+		nomor, err = nomorBerikutnya(ctx, tx, tanggal)
+		if err != nil {
+			return 0, err
+		}
+		diajukanPada = sql.NullTime{Time: tanggal, Valid: true}
+	}
 
 	var id int64
-	if err := tx.QueryRowContext(ctx, `UPDATE permohonan_benih SET nomor_permohonan=? WHERE nomor_permohonan=? RETURNING id`, nomor, sementara).Scan(&id); err != nil {
-		return 0, fmt.Errorf("tetapkan nomor permohonan: %w", err)
+	if err := tx.QueryRowContext(ctx, `INSERT INTO permohonan_benih (nomor_permohonan,pelanggan_id,jenis_benih,varietas,luas_lahan,lokasi_kebun,status,pembayaran_awal_status,diajukan_pada) VALUES (?,?,?,?,?,?,?,?,?) RETURNING id`,
+		nomor, p.PelangganID, p.JenisBenih, p.Varietas, p.LuasLahan, p.LokasiKebun, p.Status, p.PembayaranAwalStatus, diajukanPada).Scan(&id); err != nil {
+		return 0, fmt.Errorf("insert permohonan: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit permohonan: %w", err)
@@ -89,7 +128,115 @@ func (s *DBStore) GetPermohonan(ctx context.Context, id int64) (*db.PermohonanBe
 	return scanPermohonan(row)
 }
 
-const permohonanColumns = `id,nomor_permohonan,pelanggan_id,jenis_benih,varietas,luas_lahan,lokasi_kebun,status,pembayaran_awal_status,buku_induk_nomor,laporan_verifikasi,created_at,updated_at`
+// GetPermohonanAktifPelanggan mengambil permohonan berjalan milik pelanggan
+// untuk mengisi ulang form: draft lebih dulu, lalu pengajuan yang masih dalam
+// proses. Permohonan yang sudah ditolak/dibatalkan/divalidasi diabaikan agar
+// pelanggan dapat mulai pengajuan baru. Hasil nil berarti tidak ada.
+func (s *DBStore) GetPermohonanAktifPelanggan(ctx context.Context, pelangganID int64) (*db.PermohonanBenih, error) {
+	row := s.db.QueryRowContext(ctx, permohonanAktifQuery,
+		pelangganID,
+		db.StatusPermohonanDitolak, db.StatusPermohonanDibatalkan, "divalidasi",
+		db.StatusPermohonanDraft,
+	)
+	p, err := scanPermohonan(row)
+	if errors.Is(err, ErrNotFound) {
+		return nil, nil
+	}
+	return p, err
+}
+
+// UpdatePermohonanDraft mengubah isian draft. Status bukan draft menghasilkan
+// ErrBukanDraft sehingga perubahan setelah pengajuan resmi tidak berlaku diam
+// diam (misal tab lama yang masih terbuka).
+func (s *DBStore) UpdatePermohonanDraft(ctx context.Context, id int64, p db.PermohonanBenih) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE permohonan_benih SET jenis_benih=?,varietas=?,luas_lahan=?,lokasi_kebun=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND pelanggan_id=? AND status=?`,
+		p.JenisBenih, p.Varietas, p.LuasLahan, p.LokasiKebun, id, p.PelangganID, db.StatusPermohonanDraft)
+	if err != nil {
+		return fmt.Errorf("update draft permohonan: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("cek hasil update draft: %w", err)
+	}
+	if affected == 1 {
+		return nil
+	}
+	// Bedakan "draft tidak ditemukan/bukan miliknya" dari "sudah diajukan".
+	ada, err := s.adaDraft(ctx, id, p.PelangganID)
+	if err != nil {
+		return err
+	}
+	if ada {
+		return ErrBukanDraft
+	}
+	return ErrNotFound
+}
+
+func (s *DBStore) adaDraft(ctx context.Context, id, pelangganID int64) (bool, error) {
+	var jumlah int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM permohonan_benih WHERE id=? AND pelanggan_id=?`, id, pelangganID).Scan(&jumlah); err != nil {
+		return false, fmt.Errorf("cek kepemilikan draft: %w", err)
+	}
+	return jumlah > 0, nil
+}
+
+// AjukanPermohonan mengubah draft menjadi pengajuan resmi. Isian final,
+// nomor resmi, dan waktu pengajuan ditulis dalam satu transaksi; UPDATE hanya
+// berhasil bila status masih draft sehingga dua pengajuan bersamaan tidak
+// menghasilkan dua nomor untuk permohonan yang sama.
+func (s *DBStore) AjukanPermohonan(ctx context.Context, id int64, p db.PermohonanBenih, tanggal time.Time) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("mulai transaksi ajukan permohonan: %w", err)
+	}
+	defer tx.Rollback()
+
+	if err := kunciPenomoran(ctx, tx, tanggal); err != nil {
+		return err
+	}
+	nomor, err := nomorBerikutnya(ctx, tx, tanggal)
+	if err != nil {
+		return err
+	}
+
+	result, err := tx.ExecContext(ctx, `UPDATE permohonan_benih
+		SET jenis_benih=?, varietas=?, luas_lahan=?, lokasi_kebun=?,
+		    nomor_permohonan=?, status=?, diajukan_pada=?, updated_at=CURRENT_TIMESTAMP
+		WHERE id=? AND pelanggan_id=? AND status=?`,
+		p.JenisBenih, p.Varietas, p.LuasLahan, p.LokasiKebun,
+		nomor, db.StatusPermohonanDiajukan, tanggal, id, p.PelangganID, db.StatusPermohonanDraft)
+	if err != nil {
+		return fmt.Errorf("ajukan permohonan: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("cek hasil pengajuan: %w", err)
+	}
+	if affected != 1 {
+		ada, err := adaDraftSeperti(ctx, tx, id, p.PelangganID)
+		if err != nil {
+			return err
+		}
+		if ada {
+			return ErrBukanDraft
+		}
+		return ErrNotFound
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit pengajuan: %w", err)
+	}
+	return nil
+}
+
+func adaDraftSeperti(ctx context.Context, q interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}, id, pelangganID int64) (bool, error) {
+	var jumlah int
+	if err := q.QueryRowContext(ctx, `SELECT COUNT(*) FROM permohonan_benih WHERE id=? AND pelanggan_id=?`, id, pelangganID).Scan(&jumlah); err != nil {
+		return false, fmt.Errorf("cek kepemilikan permohonan: %w", err)
+	}
+	return jumlah > 0, nil
+}
 
 // SetNomorPermohonan mengganti nomor permohonan, misalnya format lama ke
 // format SPB-YYYYMMDD-XXXX saat migrasi data. Nomor tidak berasal dari client.
@@ -465,30 +612,21 @@ func scanUser(row *sql.Row) (*db.User, error) {
 	return &u, nil
 }
 
-func scanPermohonan(row *sql.Row) (*db.PermohonanBenih, error) {
+// scanPermohonan membaca satu baris permohonan dengan kolom persis seperti
+// permohonanColumns. Baris yang tidak ada dikembalikan sebagai ErrNotFound
+// agar pemanggil dapat membedakannya dari kegagalan database.
+func scanPermohonan(row rowScanner) (*db.PermohonanBenih, error) {
 	var p db.PermohonanBenih
-	var luas sql.NullFloat64
-	var varietas, lokasi, bukuInduk, laporan sql.NullString
-	if err := row.Scan(&p.ID, &p.NomorPermohonan, &p.PelangganID, &p.JenisBenih, &varietas, &luas, &lokasi, &p.Status, &p.PembayaranAwalStatus, &bukuInduk, &laporan, &p.CreatedAt, &p.UpdatedAt); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
+	var diajukanPada sql.NullTime
+	if err := row.Scan(&p.ID, &p.NomorPermohonan, &p.PelangganID, &p.JenisBenih, &p.Varietas, &p.LuasLahan, &p.LokasiKebun, &p.Status, &p.PembayaranAwalStatus, &p.BukuIndukNomor, &p.LaporanVerifikasi, &diajukanPada, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("scan permohonan: %w", err)
 	}
-	if luas.Valid {
-		p.LuasLahan = luas.Float64
-	}
-	if varietas.Valid {
-		p.Varietas = varietas.String
-	}
-	if lokasi.Valid {
-		p.LokasiKebun = lokasi.String
-	}
-	if bukuInduk.Valid {
-		p.BukuIndukNomor = bukuInduk.String
-	}
-	if laporan.Valid {
-		p.LaporanVerifikasi = laporan.String
+	if diajukanPada.Valid {
+		waktu := diajukanPada.Time
+		p.DiajukanPada = &waktu
 	}
 	return &p, nil
 }

@@ -25,6 +25,15 @@ func (fakeStore) CreatePermohonan(context.Context, db.PermohonanBenih, time.Time
 func (fakeStore) GetPermohonan(context.Context, int64) (*db.PermohonanBenih, error) {
 	panic("tidak diharapkan")
 }
+func (fakeStore) GetPermohonanAktifPelanggan(context.Context, int64) (*db.PermohonanBenih, error) {
+	panic("tidak diharapkan")
+}
+func (fakeStore) UpdatePermohonanDraft(context.Context, int64, db.PermohonanBenih) error {
+	panic("tidak diharapkan")
+}
+func (fakeStore) AjukanPermohonan(context.Context, int64, db.PermohonanBenih, time.Time) error {
+	panic("tidak diharapkan")
+}
 func (fakeStore) SetNomorPermohonan(context.Context, int64, string) error {
 	panic("tidak diharapkan")
 }

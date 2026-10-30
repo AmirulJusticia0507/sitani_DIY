@@ -13,6 +13,9 @@ var (
 	ErrNotFound        = errors.New("data tidak ditemukan")
 	ErrStokTidakCukup  = errors.New("stok benih tidak mencukupi")
 	ErrSudahDibatalkan = errors.New("penjualan sudah dibatalkan")
+	// ErrBukanDraft dikembalikan saat draft diubah setelah diajukan (misal
+	// dua tab menyimpan draf yang sama).
+	ErrBukanDraft = errors.New("permohonan bukan draft")
 )
 
 // Store adalah antarmuka akses data untuk modul sertifikasi benih BP3MBTP.
@@ -26,9 +29,21 @@ type Store interface {
 
 	// Fase 1: Permohonan & pembayaran
 	// CreatePermohonan mengisi nomor_permohonan secara atomik dengan format
-	// SPB-YYYYMMDD-XXXX berdasarkan tanggal pengajuan.
+	// SPB-YYYYMMDD-XXXX berdasarkan tanggal pengajuan. Bila p.Status adalah
+	// draft, nomor sementara yang tidak pernah ditampilkan dipakai dan nomor
+	// resmi baru dibuat lewat AjukanPermohonan.
 	CreatePermohonan(ctx context.Context, p db.PermohonanBenih, tanggal time.Time) (int64, error)
 	GetPermohonan(ctx context.Context, id int64) (*db.PermohonanBenih, error)
+	// GetPermohonanAktifPelanggan mengambil permohonan terakhir milik pelanggan
+	// yang masih berjalan (draft atau sudah diajukan), atau nil bila tidak ada.
+	GetPermohonanAktifPelanggan(ctx context.Context, pelangganID int64) (*db.PermohonanBenih, error)
+	// UpdatePermohonanDraft mengubah isian draft milik pelanggan. Implementasi
+	// wajib menolak perubahan bila status bukan draft atau bukan pemiliknya.
+	UpdatePermohonanDraft(ctx context.Context, id int64, p db.PermohonanBenih) error
+	// AjukanPermohonan mengubah draft menjadi pengajuan resmi dalam satu
+	// transaksi: mengisi isian final, memberi nomor SPB-YYYYMMDD-XXXX, dan
+	// mencatat waktu pengajuan. ErrBukanDraft bila status sudah berubah.
+	AjukanPermohonan(ctx context.Context, id int64, p db.PermohonanBenih, tanggal time.Time) error
 	SetNomorPermohonan(ctx context.Context, id int64, nomor string) error
 	UpdatePermohonanStatus(ctx context.Context, id int64, status, pembayaranAwalStatus string) error
 	ListPermohonanSiapRegistrasi(ctx context.Context, pemilikID int64, semua bool, limit int) ([]db.SiapRegistrasiPermohonan, error)

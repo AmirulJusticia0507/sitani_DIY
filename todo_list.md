@@ -55,5 +55,7 @@
 - [x] Koreksi/pembatalan penjualan melalui transaksi pembalik dan audit trail tanpa menghapus histori
 - [x] Laporan registrasi, stok, masa berlaku, dan penjualan benih
 - [x] Nomor permohonan dibuat server dengan format `SPB-YYYYMMDD-XXXX` dan tersimpan di database
+- [x] Draft permohonan: pelanggan dapat menyimpan draf, mengeditnya, lalu mengajukannya; langkah Analis Lab dan Penandatangan baru terbuka setelah permohonan diajukan (migrasi 011, `POST /v1/permohonan/draft`, `POST /v1/permohonan/ajukan`, `GET /v1/permohonan/aktif`)
+- [ ] Unggahan dokumen permohonan Fase 1 (proposal, struktur organisasi, daftar anggota, form registrasi kebun, peta kebun) pada form sertifikasi
 - [x] Form registrasi benih memilih permohonan (bukan mengetik ID permohonan)
 - [ ] Validasi format resmi nomor registrasi/dokumen, kelas benih, masa berlaku, dan kontrak SIM Perbenihan bersama BP3MBTP/Diskominfo

@@ -31,18 +31,30 @@ type User struct {
 	UpdatedAt time.Time
 }
 
-// Status permohonan yang menandakan pengajuan sudah selesai atau tidak
-// dilanjutkan. Permohonan dengan status ini tidak ditawarkan untuk registrasi
-// lot benih.
+// Status permohonan benih.
+//
+// Alur status yang sah (dijaga lapisan service):
+//
+//	(tanpa status) -> StatusPermohonanDraft -> StatusPermohonanDiajukan
+//	-> StatusPermohonanDibayar -> (diverifikasi -> diinspeksi -> divalidasi)
+//
+// StatusPermohonanDitolak dan StatusPermohonanDibatalkan mengakhiri proses dan
+// tidak ditawarkan untuk registrasi lot benih. Nilai yang belum perlu dirujuk
+// dari Go (diverifikasi, diinspeksi, divalidasi) tetap berupa string literal
+// agar konstan baru ditambahkan saat benar-benar dipakai.
 const (
+	StatusPermohonanDraft      = "draft"
+	StatusPermohonanDiajukan   = "diajukan"
+	StatusPermohonanDibayar    = "dibayar"
 	StatusPermohonanDitolak    = "ditolak"
 	StatusPermohonanDibatalkan = "dibatalkan"
 )
 
 // PermohonanBenih merekam pengajuan sertifikasi benih pelanggan (Fase 1).
 //
-// NomorPermohonan tidak diisi oleh client: nomor dibuat server setelah insert
-// dengan format SPB-YYYYMMDD-XXXX lalu disimpan di kolom nomor_permohonan.
+// NomorPermohonan diisi server dengan format SPB-YYYYMMDD-XXXX. Draft belum
+// memiliki nomor resmi; NomorPermohonan bernilai kosong selama berstatus draft
+// dan baru dibuat ketika permohonan diajukan.
 type PermohonanBenih struct {
 	ID                   int64
 	NomorPermohonan      string
@@ -55,6 +67,7 @@ type PermohonanBenih struct {
 	PembayaranAwalStatus string
 	BukuIndukNomor       string
 	LaporanVerifikasi    string
+	DiajukanPada         *time.Time
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 }

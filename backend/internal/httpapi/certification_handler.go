@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -25,6 +26,9 @@ func newCertificationHandler(svc *service.Service) *certificationHandler {
 
 func (h *certificationHandler) register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/permohonan", h.buatPermohonan)
+	mux.HandleFunc("GET /v1/permohonan/aktif", h.permohonanAktif)
+	mux.HandleFunc("POST /v1/permohonan/draft", h.simpanDraft)
+	mux.HandleFunc("POST /v1/permohonan/ajukan", h.ajukanPermohonan)
 	mux.HandleFunc("GET /v1/permohonan/{id}", h.getPermohonan)
 	mux.HandleFunc("POST /v1/permohonan/{id}/pembayaran/awal", h.bayarAwal)
 	mux.HandleFunc("POST /v1/permohonan/{id}/inspeksi", h.catatInspeksi)
@@ -48,6 +52,9 @@ type permohonanRequest struct {
 	Varietas    string  `json:"varietas"`
 	LuasLahan   float64 `json:"luas_lahan"`
 	LokasiKebun string  `json:"lokasi_kebun"`
+	// DraftID dipakai saat menyimpan ulang atau mengajukan draft yang sudah
+	// ada; nilai 0 berarti permohonan baru / draft aktif milik pelanggan.
+	DraftID int64 `json:"draft_id"`
 }
 
 type pembayaranAwalRequest struct {
@@ -150,6 +157,100 @@ func (h *certificationHandler) buatPermohonan(w http.ResponseWriter, r *http.Req
 		return
 	}
 	respondJSON(w, http.StatusCreated, p)
+}
+
+// simpanDraft menyimpan atau memperbarui draft permohonan. Draft boleh belum
+// lengkap; kelengkapan diperiksa saat diajukan.
+func (h *certificationHandler) simpanDraft(w http.ResponseWriter, r *http.Request) {
+	userID, role, err := identitasPeminta(r)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	var req permohonanRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
+		return
+	}
+
+	p, err := h.svc.SimpanDraft(r.Context(), userID, role, req.DraftID, service.BuatPermohonanRequest{
+		JenisBenih:  req.JenisBenih,
+		Varietas:    req.Varietas,
+		LuasLahan:   req.LuasLahan,
+		LokasiKebun: req.LokasiKebun,
+	})
+	if err != nil {
+		respondPermohonanError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, p)
+}
+
+// ajukanPermohonan mengubah draft menjadi pengajuan resmi sehingga nomor
+// permohonan dibuat dan langkah berikutnya terbuka.
+func (h *certificationHandler) ajukanPermohonan(w http.ResponseWriter, r *http.Request) {
+	userID, role, err := identitasPeminta(r)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	var req permohonanRequest
+	if r.Body != nil {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+			respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
+			return
+		}
+	}
+
+	p, err := h.svc.AjukanPermohonan(r.Context(), userID, role, req.DraftID, service.BuatPermohonanRequest{
+		JenisBenih:  req.JenisBenih,
+		Varietas:    req.Varietas,
+		LuasLahan:   req.LuasLahan,
+		LokasiKebun: req.LokasiKebun,
+	})
+	if err != nil {
+		respondPermohonanError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, p)
+}
+
+// permohonanAktif mengembalikan draft atau pengajuan berjalan milik pelanggan
+// agar form dapat diisi ulang saat halaman dibuka.
+func (h *certificationHandler) permohonanAktif(w http.ResponseWriter, r *http.Request) {
+	userID, role, err := identitasPeminta(r)
+	if err != nil {
+		respondError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	p, err := h.svc.PermohonanAktif(r.Context(), userID, role)
+	if err != nil {
+		respondPermohonanError(w, err)
+		return
+	}
+	if p == nil {
+		// 204: belum ada draft maupun pengajuan yang berjalan.
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	respondJSON(w, http.StatusOK, p)
+}
+
+// respondPermohonanError menerjemahkan kesalahan alur draft menjadi kode HTTP
+// yang sesuai agar frontend dapat menampilkan pesan yang tepat.
+func respondPermohonanError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, service.ErrNotFound):
+		respondError(w, http.StatusNotFound, "permohonan tidak ditemukan")
+	case errors.Is(err, service.ErrBukanDraft), errors.Is(err, service.ErrSudahMengajukan):
+		respondError(w, http.StatusConflict, err.Error())
+	case errors.Is(err, service.ErrDraftTidakAda):
+		respondError(w, http.StatusNotFound, err.Error())
+	default:
+		respondError(w, http.StatusBadRequest, err.Error())
+	}
 }
 
 func (h *certificationHandler) getPermohonan(w http.ResponseWriter, r *http.Request) {

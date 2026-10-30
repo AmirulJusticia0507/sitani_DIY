@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -32,13 +33,19 @@ func newPermohonanStore() *permohonanStore {
 }
 
 func (s *permohonanStore) CreatePermohonan(_ context.Context, p db.PermohonanBenih, tanggal time.Time) (int64, error) {
-	hari := tanggal.Format("20060102")
-	s.urutHarian[hari]++
 	id := s.nextID
 	s.nextID++
 	p.ID = id
-	p.NomorPermohonan = store.FormatNomorPermohonan(tanggal, s.urutHarian[hari])
 	p.CreatedAt = tanggal
+	p.NomorPermohonan = fmt.Sprintf("DRAFT-%d", id)
+	if p.Status != db.StatusPermohonanDraft {
+		// Pengajuan langsung mendapat nomor resmi seperti di store sungguhan.
+		hari := tanggal.Format("20060102")
+		s.urutHarian[hari]++
+		p.NomorPermohonan = store.FormatNomorPermohonan(tanggal, s.urutHarian[hari])
+		waktu := tanggal
+		p.DiajukanPada = &waktu
+	}
 	s.data[id] = p
 	s.simpan++
 	return id, nil
@@ -47,9 +54,71 @@ func (s *permohonanStore) CreatePermohonan(_ context.Context, p db.PermohonanBen
 func (s *permohonanStore) GetPermohonan(_ context.Context, id int64) (*db.PermohonanBenih, error) {
 	p, ok := s.data[id]
 	if !ok {
-		return nil, nil
+		return nil, store.ErrNotFound
 	}
 	return &p, nil
+}
+
+func (s *permohonanStore) GetPermohonanAktifPelanggan(_ context.Context, pelangganID int64) (*db.PermohonanBenih, error) {
+	var terpilih *db.PermohonanBenih
+	for _, p := range s.data {
+		if p.PelangganID != pelangganID {
+			continue
+		}
+		switch p.Status {
+		case db.StatusPermohonanDitolak, db.StatusPermohonanDibatalkan, "divalidasi":
+			continue
+		}
+		if terpilih == nil {
+			salin := p
+			terpilih = &salin
+			continue
+		}
+		// Draft selalu dipilih lebih dulu, lalu pengajuan ber-ID terbesar.
+		if p.Status == db.StatusPermohonanDraft && terpilih.Status != db.StatusPermohonanDraft {
+			salin := p
+			terpilih = &salin
+		}
+	}
+	return terpilih, nil
+}
+
+func (s *permohonanStore) UpdatePermohonanDraft(_ context.Context, id int64, p db.PermohonanBenih) error {
+	lama, ok := s.data[id]
+	if !ok || lama.PelangganID != p.PelangganID {
+		return store.ErrNotFound
+	}
+	if lama.Status != db.StatusPermohonanDraft {
+		return store.ErrBukanDraft
+	}
+	lama.JenisBenih = p.JenisBenih
+	lama.Varietas = p.Varietas
+	lama.LuasLahan = p.LuasLahan
+	lama.LokasiKebun = p.LokasiKebun
+	s.data[id] = lama
+	return nil
+}
+
+func (s *permohonanStore) AjukanPermohonan(_ context.Context, id int64, p db.PermohonanBenih, tanggal time.Time) error {
+	lama, ok := s.data[id]
+	if !ok || lama.PelangganID != p.PelangganID {
+		return store.ErrNotFound
+	}
+	if lama.Status != db.StatusPermohonanDraft {
+		return store.ErrBukanDraft
+	}
+	hari := tanggal.Format("20060102")
+	s.urutHarian[hari]++
+	lama.JenisBenih = p.JenisBenih
+	lama.Varietas = p.Varietas
+	lama.LuasLahan = p.LuasLahan
+	lama.LokasiKebun = p.LokasiKebun
+	lama.NomorPermohonan = store.FormatNomorPermohonan(tanggal, s.urutHarian[hari])
+	lama.Status = db.StatusPermohonanDiajukan
+	waktu := tanggal
+	lama.DiajukanPada = &waktu
+	s.data[id] = lama
+	return nil
 }
 
 func (s *permohonanStore) UpdatePermohonanStatus(_ context.Context, id int64, status, pembayaran string) error {
@@ -91,9 +160,10 @@ func TestBuatPermohonanMenerapkanFormatNomorDanMenyimpanNomornya(t *testing.T) {
 	svc := servicePermohonan(st)
 
 	pertama, err := svc.BuatPermohonan(context.Background(), 10, db.RolePelanggan, BuatPermohonanRequest{
-		JenisBenih: "  Tomat ",
-		Varietas:   " Rama ",
-		LuasLahan:  0.5,
+		JenisBenih:  "  Tomat ",
+		Varietas:    " Rama ",
+		LuasLahan:   0.5,
+		LokasiKebun: "  Sleman ",
 	})
 	if err != nil {
 		t.Fatalf("permohonan pertama: %v", err)
@@ -111,7 +181,12 @@ func TestBuatPermohonanMenerapkanFormatNomorDanMenyimpanNomornya(t *testing.T) {
 		t.Fatalf("audit permohonan = %+v", st.audit)
 	}
 
-	kedua, err := svc.BuatPermohonan(context.Background(), 10, db.RolePelanggan, BuatPermohonanRequest{JenisBenih: "Padi"})
+	kedua, err := svc.BuatPermohonan(context.Background(), 11, db.RolePelanggan, BuatPermohonanRequest{
+		JenisBenih:  "Padi",
+		Varietas:    "IR64",
+		LuasLahan:   1,
+		LokasiKebun: "Bantul",
+	})
 	if err != nil {
 		t.Fatalf("permohonan kedua: %v", err)
 	}
@@ -128,7 +203,10 @@ func TestBuatPermohonanMenolakInputTidakSah(t *testing.T) {
 		pesan string
 	}{
 		{"jenis kosong", BuatPermohonanRequest{JenisBenih: "   "}, db.RolePelanggan, "jenis benih wajib"},
-		{"luas negatif", BuatPermohonanRequest{JenisBenih: "Padi", LuasLahan: -1}, db.RolePelanggan, "luas lahan"},
+		{"luas negatif", BuatPermohonanRequest{JenisBenih: "Padi", Varietas: "IR64", LuasLahan: -1, LokasiKebun: "Bantul"}, db.RolePelanggan, "luas lahan"},
+		{"luas nol", BuatPermohonanRequest{JenisBenih: "Padi", Varietas: "IR64", LuasLahan: 0, LokasiKebun: "Bantul"}, db.RolePelanggan, "luas lahan"},
+		{"varietas kosong", BuatPermohonanRequest{JenisBenih: "Padi", LokasiKebun: "Bantul", LuasLahan: 1}, db.RolePelanggan, "varietas wajib"},
+		{"lokasi kosong", BuatPermohonanRequest{JenisBenih: "Padi", Varietas: "IR64", LuasLahan: 1}, db.RolePelanggan, "lokasi kebun wajib"},
 		{"role terlarang", BuatPermohonanRequest{JenisBenih: "Padi"}, db.RoleAnalis, "tidak diizinkan"},
 	}
 	for _, k := range kasus {
@@ -148,11 +226,11 @@ func TestBuatPermohonanMenolakInputTidakSah(t *testing.T) {
 func TestListPermohonanSiapRegistrasiMembatasiPemilik(t *testing.T) {
 	st := newPermohonanStore()
 	svc := servicePermohonan(st)
-	milikSaya, err := svc.BuatPermohonan(context.Background(), 10, db.RolePelanggan, BuatPermohonanRequest{JenisBenih: "Tomat"})
+	milikSaya, err := svc.BuatPermohonan(context.Background(), 10, db.RolePelanggan, BuatPermohonanRequest{JenisBenih: "Tomat", Varietas: "Rama", LuasLahan: 0.5, LokasiKebun: "Sleman"})
 	if err != nil {
 		t.Fatalf("permohonan pemilik: %v", err)
 	}
-	milikOrang, err := svc.BuatPermohonan(context.Background(), 11, db.RolePelanggan, BuatPermohonanRequest{JenisBenih: "Padi"})
+	milikOrang, err := svc.BuatPermohonan(context.Background(), 11, db.RolePelanggan, BuatPermohonanRequest{JenisBenih: "Padi", Varietas: "IR64", LuasLahan: 1, LokasiKebun: "Bantul"})
 	if err != nil {
 		t.Fatalf("permohonan pelanggan lain: %v", err)
 	}

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -94,7 +95,14 @@ func (p *palsuStore) CreatePermohonan(ctx context.Context, perm db.PermohonanBen
 	id := p.nextID
 	p.nextID++
 	perm.ID = id
-	perm.NomorPermohonan = store.FormatNomorPermohonan(tanggal, id)
+	if perm.Status == db.StatusPermohonanDraft {
+		// Draft belum punya nomor resmi; nomor sementara tidak ditampilkan.
+		perm.NomorPermohonan = "DRAFT-" + strconv.FormatInt(id, 10)
+	} else {
+		perm.NomorPermohonan = store.FormatNomorPermohonan(tanggal, id)
+		diajukan := tanggal
+		perm.DiajukanPada = &diajukan
+	}
 	p.permohonan[id] = &perm
 	return id, nil
 }
@@ -103,6 +111,55 @@ func (p *palsuStore) SetNomorPermohonan(ctx context.Context, id int64, nomor str
 	if x, ok := p.permohonan[id]; ok {
 		x.NomorPermohonan = nomor
 	}
+	return nil
+}
+
+// GetPermohonanAktifPelanggan mengembalikan permohonan draft/diajukan terakhir
+// milik pelanggan, meniru query repository MySQL.
+func (p *palsuStore) GetPermohonanAktifPelanggan(ctx context.Context, pelangganID int64) (*db.PermohonanBenih, error) {
+	var terpilih *db.PermohonanBenih
+	for _, x := range p.permohonan {
+		if x.PelangganID != pelangganID {
+			continue
+		}
+		if x.Status != db.StatusPermohonanDraft && x.Status != db.StatusPermohonanDiajukan {
+			continue
+		}
+		if terpilih == nil || x.ID > terpilih.ID {
+			terpilih = x
+		}
+	}
+	return terpilih, nil
+}
+
+// UpdatePermohonanDraft menolak perubahan setelah pengajuan resmi.
+func (p *palsuStore) UpdatePermohonanDraft(ctx context.Context, id int64, perm db.PermohonanBenih) error {
+	x, ok := p.permohonan[id]
+	if !ok || x.PelangganID != perm.PelangganID {
+		return store.ErrNotFound
+	}
+	if x.Status != db.StatusPermohonanDraft {
+		return store.ErrBukanDraft
+	}
+	x.JenisBenih, x.Varietas, x.LuasLahan, x.LokasiKebun = perm.JenisBenih, perm.Varietas, perm.LuasLahan, perm.LokasiKebun
+	return nil
+}
+
+// AjukanPermohonan memberi nomor resmi dan mengubah status draft menjadi
+// diajukan, meniru transaksi repository MySQL.
+func (p *palsuStore) AjukanPermohonan(ctx context.Context, id int64, perm db.PermohonanBenih, tanggal time.Time) error {
+	x, ok := p.permohonan[id]
+	if !ok || x.PelangganID != perm.PelangganID {
+		return store.ErrNotFound
+	}
+	if x.Status != db.StatusPermohonanDraft {
+		return store.ErrBukanDraft
+	}
+	x.JenisBenih, x.Varietas, x.LuasLahan, x.LokasiKebun = perm.JenisBenih, perm.Varietas, perm.LuasLahan, perm.LokasiKebun
+	x.NomorPermohonan = store.FormatNomorPermohonan(tanggal, id)
+	x.Status = db.StatusPermohonanDiajukan
+	diajukan := tanggal
+	x.DiajukanPada = &diajukan
 	return nil
 }
 
@@ -129,7 +186,7 @@ func (p *palsuStore) GetPermohonan(ctx context.Context, id int64) (*db.Permohona
 	if x, ok := p.permohonan[id]; ok {
 		return x, nil
 	}
-	return nil, nil
+	return nil, store.ErrNotFound
 }
 func (p *palsuStore) UpdatePermohonanStatus(ctx context.Context, id int64, status, pembayaranAwalStatus string) error {
 	if x, ok := p.permohonan[id]; ok {

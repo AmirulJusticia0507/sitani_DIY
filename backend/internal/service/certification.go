@@ -14,6 +14,18 @@ import (
 // ErrNotFound dikembalikan saat data yang diminta tidak tersedia.
 var ErrNotFound = errors.New("data tidak ditemukan")
 
+// Kesalahan alur draft yang perlu diterjemahkan menjadi kode HTTP berbeda.
+var (
+	// ErrBukanDraft: permohonan yang dimaksud bukan draft lagi (misalnya
+	// sudah diajukan dari tab lain).
+	ErrBukanDraft = errors.New("permohonan sudah diajukan sehingga tidak dapat diubah sebagai draft")
+	// ErrDraftTidakAda: permohonan diajukan tanpa draft yang tersimpan.
+	ErrDraftTidakAda = errors.New("belum ada draft permohonan yang dapat diajukan")
+	// ErrSudahMengajukan: pelanggan mencoba menyimpan draft baru padahal masih
+	// punya pengajuan resmi yang berjalan.
+	ErrSudahMengajukan = errors.New("masih ada permohonan yang berjalan; selesaikan atau batalkan terlebih dahulu")
+)
+
 // FaseInspeksi adalah jumlah fase inspeksi lapangan yang wajib diselesaikan.
 const FaseInspeksi = 4
 
@@ -103,14 +115,8 @@ func (s *Service) BuatPermohonan(ctx context.Context, pelangganID int64, pelangg
 	if !boleh(pelangganRole, "permohonan:buat") {
 		return nil, errors.New("role tidak diizinkan membuat permohonan")
 	}
-	req.JenisBenih = strings.TrimSpace(req.JenisBenih)
-	req.Varietas = strings.TrimSpace(req.Varietas)
-	req.LokasiKebun = strings.TrimSpace(req.LokasiKebun)
-	if req.JenisBenih == "" {
-		return nil, errors.New("jenis benih wajib diisi")
-	}
-	if req.LuasLahan < 0 {
-		return nil, errors.New("luas lahan tidak boleh negatif")
+	if err := validasiIsianPermohonan(&req); err != nil {
+		return nil, err
 	}
 
 	now := s.now()
@@ -120,14 +126,13 @@ func (s *Service) BuatPermohonan(ctx context.Context, pelangganID int64, pelangg
 		Varietas:             req.Varietas,
 		LuasLahan:            req.LuasLahan,
 		LokasiKebun:          req.LokasiKebun,
-		Status:               "diajukan",
+		Status:               db.StatusPermohonanDiajukan,
 		PembayaranAwalStatus: "belum",
 	}
 	id, err := s.st.CreatePermohonan(ctx, p, now)
 	if err != nil {
 		return nil, fmt.Errorf("buat permohonan: %w", err)
 	}
-	p.ID = id
 	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
 		ActorID:   &pelangganID,
 		ActorRole: pelangganRole,
@@ -138,8 +143,178 @@ func (s *Service) BuatPermohonan(ctx context.Context, pelangganID int64, pelangg
 	}); err != nil {
 		return nil, fmt.Errorf("catat audit: %w", err)
 	}
-	// Baca ulang agar nomor yang dikembalikan adalah nomor yang benar-benar
-	// tersimpan, bukan hasil perhitungan terpisah di service.
+	return s.permohonanTersimpan(ctx, id)
+}
+
+// SimpanDraft menyimpan permohonan sebagai draft. Draft boleh disimpan walau
+// isian belum lengkap; validasi lengkap dilakukan saat permohonan diajukan.
+// Bila pelanggan belum punya draft atau pengajuan berjalan, draft baru dibuat;
+// bila sudah ada draft, isiannya diperbarui sehingga tombol "Simpan Draft"
+// dapat ditekan berkali-kali tanpa membuat baris ganda.
+func (s *Service) SimpanDraft(ctx context.Context, pelangganID int64, pelangganRole string, draftID int64, req BuatPermohonanRequest) (*db.PermohonanBenih, error) {
+	if !boleh(pelangganRole, "permohonan:buat") {
+		return nil, errors.New("role tidak diizinkan menyimpan draft permohonan")
+	}
+	req.JenisBenih = strings.TrimSpace(req.JenisBenih)
+	req.Varietas = strings.TrimSpace(req.Varietas)
+	req.LokasiKebun = strings.TrimSpace(req.LokasiKebun)
+	if req.LuasLahan < 0 {
+		return nil, errors.New("luas lahan tidak boleh negatif")
+	}
+
+	if draftID > 0 {
+		err := s.st.UpdatePermohonanDraft(ctx, draftID, db.PermohonanBenih{
+			PelangganID: pelangganID,
+			JenisBenih:  req.JenisBenih,
+			Varietas:    req.Varietas,
+			LuasLahan:   req.LuasLahan,
+			LokasiKebun: req.LokasiKebun,
+		})
+		switch {
+		case errors.Is(err, store.ErrNotFound):
+			return nil, ErrNotFound
+		case errors.Is(err, store.ErrBukanDraft):
+			return nil, ErrBukanDraft
+		case err != nil:
+			return nil, fmt.Errorf("simpan draft permohonan: %w", err)
+		}
+		return s.catatDraftTersimpan(ctx, draftID, pelangganID, pelangganRole, req)
+	}
+
+	aktif, err := s.permohonanAktif(ctx, pelangganID)
+	if err != nil {
+		return nil, err
+	}
+	if aktif != nil && aktif.Status != db.StatusPermohonanDraft {
+		return nil, ErrSudahMengajukan
+	}
+	if aktif != nil {
+		return s.SimpanDraft(ctx, pelangganID, pelangganRole, aktif.ID, req)
+	}
+
+	id, err := s.st.CreatePermohonan(ctx, db.PermohonanBenih{
+		PelangganID:          pelangganID,
+		JenisBenih:           req.JenisBenih,
+		Varietas:             req.Varietas,
+		LuasLahan:            req.LuasLahan,
+		LokasiKebun:          req.LokasiKebun,
+		Status:               db.StatusPermohonanDraft,
+		PembayaranAwalStatus: "belum",
+	}, s.now())
+	if err != nil {
+		return nil, fmt.Errorf("buat draft permohonan: %w", err)
+	}
+	return s.catatDraftTersimpan(ctx, id, pelangganID, pelangganRole, req)
+}
+
+// AjukanPermohonan mengajukan permohonan resmi. Semua isian wajib lengkap;
+// setelah diajukan, isian tidak dapat diubah pelanggan dan nomor permohonan
+// sudah final.
+//
+// draftID menentukan sumber draft:
+//   - > 0: draft yang sudah tersimpan (misal hasil "Simpan Draft") diajukan;
+//   - 0: draft aktif milik pelanggan diajukan bila ada, atau draft baru dibuat
+//     lalu langsung diajukan dalam satu langkah.
+func (s *Service) AjukanPermohonan(ctx context.Context, pelangganID int64, pelangganRole string, draftID int64, req BuatPermohonanRequest) (*db.PermohonanBenih, error) {
+	if !boleh(pelangganRole, "permohonan:buat") {
+		return nil, errors.New("role tidak diizinkan mengajukan permohonan")
+	}
+	if err := validasiIsianPermohonan(&req); err != nil {
+		return nil, err
+	}
+
+	if draftID == 0 {
+		aktif, err := s.permohonanAktif(ctx, pelangganID)
+		if err != nil {
+			return nil, err
+		}
+		switch {
+		case aktif != nil && aktif.Status == db.StatusPermohonanDraft:
+			draftID = aktif.ID
+		case aktif != nil:
+			// Pengajuan resmi yang masih berjalan tidak boleh digandakan.
+			return nil, ErrSudahMengajukan
+		default:
+			draftID, err = s.st.CreatePermohonan(ctx, db.PermohonanBenih{
+				PelangganID:          pelangganID,
+				Status:               db.StatusPermohonanDraft,
+				PembayaranAwalStatus: "belum",
+			}, s.now())
+			if err != nil {
+				return nil, fmt.Errorf("buat draft permohonan: %w", err)
+			}
+		}
+	}
+
+	if err := s.st.AjukanPermohonan(ctx, draftID, db.PermohonanBenih{
+		PelangganID: pelangganID,
+		JenisBenih:  req.JenisBenih,
+		Varietas:    req.Varietas,
+		LuasLahan:   req.LuasLahan,
+		LokasiKebun: req.LokasiKebun,
+	}, s.now()); err != nil {
+		switch {
+		case errors.Is(err, store.ErrNotFound):
+			return nil, ErrNotFound
+		case errors.Is(err, store.ErrBukanDraft):
+			return nil, ErrBukanDraft
+		}
+		return nil, fmt.Errorf("ajukan permohonan: %w", err)
+	}
+
+	tersimpan, err := s.permohonanTersimpan(ctx, draftID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
+		ActorID:   &pelangganID,
+		ActorRole: pelangganRole,
+		Action:    "permohonan:ajukan",
+		Entity:    "permohonan_benih",
+		EntityID:  &draftID,
+		Detail:    fmt.Sprintf("nomor_permohonan=%s jenis_benih=%s", tersimpan.NomorPermohonan, tersimpan.JenisBenih),
+	}); err != nil {
+		return nil, fmt.Errorf("catat audit: %w", err)
+	}
+	return tersimpan, nil
+}
+
+// PermohonanAktif mengembalikan draft atau pengajuan berjalan milik pelanggan
+// agar form dapat diisi ulang. Hasil nil berarti belum ada yang berjalan.
+func (s *Service) PermohonanAktif(ctx context.Context, pelangganID int64, pelangganRole string) (*db.PermohonanBenih, error) {
+	if !boleh(pelangganRole, "permohonan:buat") {
+		return nil, errors.New("role tidak diizinkan melihat permohonan sendiri")
+	}
+	return s.permohonanAktif(ctx, pelangganID)
+}
+
+func (s *Service) permohonanAktif(ctx context.Context, pelangganID int64) (*db.PermohonanBenih, error) {
+	p, err := s.st.GetPermohonanAktifPelanggan(ctx, pelangganID)
+	if err != nil {
+		return nil, fmt.Errorf("ambil permohonan aktif: %w", err)
+	}
+	return p, nil
+}
+
+// catatDraftTersimpan mencatat audit simpan draft dan mengembalikan isi draft
+// yang benar-benar tersimpan.
+func (s *Service) catatDraftTersimpan(ctx context.Context, id, pelangganID int64, pelangganRole string, req BuatPermohonanRequest) (*db.PermohonanBenih, error) {
+	if _, err := s.st.CreateAuditLog(ctx, db.AuditLog{
+		ActorID:   &pelangganID,
+		ActorRole: pelangganRole,
+		Action:    "permohonan:draft_simpan",
+		Entity:    "permohonan_benih",
+		EntityID:  &id,
+		Detail:    fmt.Sprintf("jenis_benih=%s", req.JenisBenih),
+	}); err != nil {
+		return nil, fmt.Errorf("catat audit: %w", err)
+	}
+	return s.permohonanTersimpan(ctx, id)
+}
+
+// permohonanTersimpan membaca ulang agar nilai yang dikembalikan (termasuk
+// nomor) sama dengan yang benar-benar tersimpan di database.
+func (s *Service) permohonanTersimpan(ctx context.Context, id int64) (*db.PermohonanBenih, error) {
 	tersimpan, err := s.st.GetPermohonan(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("ambil permohonan tersimpan: %w", err)
@@ -148,6 +323,33 @@ func (s *Service) BuatPermohonan(ctx context.Context, pelangganID int64, pelangg
 		return nil, ErrNotFound
 	}
 	return tersimpan, nil
+}
+
+// validasiIsianPermohonan merapikan spasi dan memastikan isian wajib terisi.
+// Dipakai saat mengajukan permohonan; draft boleh belum lengkap.
+func validasiIsianPermohonan(req *BuatPermohonanRequest) error {
+	if req == nil {
+		return errors.New("isian permohonan tidak tersedia")
+	}
+	req.JenisBenih = strings.TrimSpace(req.JenisBenih)
+	req.Varietas = strings.TrimSpace(req.Varietas)
+	req.LokasiKebun = strings.TrimSpace(req.LokasiKebun)
+	if req.JenisBenih == "" {
+		return errors.New("jenis benih wajib diisi")
+	}
+	if req.Varietas == "" {
+		return errors.New("varietas wajib diisi")
+	}
+	if req.LuasLahan <= 0 {
+		return errors.New("luas lahan harus lebih dari nol")
+	}
+	if req.LokasiKebun == "" {
+		return errors.New("lokasi kebun wajib diisi")
+	}
+	if len(req.JenisBenih) > 100 || len(req.Varietas) > 100 {
+		return errors.New("jenis benih atau varietas terlalu panjang")
+	}
+	return nil
 }
 
 // GetPermohonan mengembalikan detail permohonan berdasarkan ID.
@@ -177,6 +379,12 @@ func (s *Service) BayarAwal(ctx context.Context, permohonanID int64, pelangganID
 	}
 	if p.PelangganID != pelangganID {
 		return errors.New("bukan pemilik permohonan")
+	}
+	if p.Status == db.StatusPermohonanDraft {
+		return errors.New("draft belum diajukan; ajukan permohonan terlebih dahulu sebelum membayar")
+	}
+	if p.Status != db.StatusPermohonanDiajukan {
+		return fmt.Errorf("pembayaran awal hanya dapat dilakukan pada permohonan berstatus diajukan (status saat ini: %s)", p.Status)
 	}
 	if p.PembayaranAwalStatus == "lunas" {
 		return errors.New("pembayaran awal sudah lunas")
@@ -225,7 +433,10 @@ func (s *Service) CatatInspeksi(ctx context.Context, permohonanID int64, fase in
 	if err != nil {
 		return fmt.Errorf("ambil permohonan: %w", err)
 	}
-	if p.Status != "dibayar" {
+	if p.Status == db.StatusPermohonanDraft {
+		return errors.New("draft belum diajukan sehingga belum dapat diinspeksi")
+	}
+	if p.Status != db.StatusPermohonanDibayar {
 		return errors.New("inspeksi hanya dapat dilakukan setelah pembayaran awal lunas")
 	}
 
