@@ -67,3 +67,41 @@
 - [x] Galat peran pada alur permohonan pelanggan dijawab `403` (bukan `400`) lewat `service.ErrTidakBerhak`/`ErrPeran`, dan form permohonan tidak memuat `/v1/permohonan/aktif` untuk peran non-pelanggan sehingga kartu galat tidak muncul di dashboard peran internal (`TestAlurDraftDitolakUntukRoleInternal`)
 - [ ] Validasi daftar resmi jenis/komoditas dan varietas benih: daftar saat ini adalah pilihan praktis (varietas populer DIY), bukan master resmi BP3MBTP; perlu konfirmasi daftar komoditas, varietas terdaftar, dan kelas benih sebelum dipakai sebagai validasi. Penolakan jenis di luar daftar saat ini hanya berlaku di frontend; backend masih menerima isian bebas
 - [ ] Validasi format resmi nomor registrasi/dokumen, kelas benih, masa berlaku, dan kontrak SIM Perbenihan bersama BP3MBTP/Diskominfo
+- [ ] UAT alur dokumen: unggah berkas asli ke MinIO, lalu buka dari akun peran lain untuk membuktikan pemeriksaan hak akses (belum dapat diuji tanpa instance MinIO siap)
+
+## 📍 Sprint November 2026: Formulir Modul & CRUD Profil
+Rencana kerja 1–30 November 2026. Setiap task di bawah masih berupa rencana: diperlukan backend yang sudah berjalan (`task dev`), sesi uji per peran, dan instance MinIO untuk unggah dokumen. Task hanya ditandai selesai setelah implementasi, pemeriksaan (`tsc`, `oxlint`, tes perilaku) dijalankan, dan commit terfokus dipush.
+
+### Pekan 1 (1–7 November): Pondasi formulir bersama
+- [ ] **Komponen formulir bersama** — buat `frontend/components/form/` berisi `FormField` (label, keterangan, wajib, galat per kolom), `FormSection`, `FormActions` (simpan draf/kirim, status mengirim), dan `FormAlert`; pakai pola visual yang sama dengan form pengajuan hortikultura (`pengajuan-bagian`, `hortikultura-grid`) agar seluruh modul konsisten. Kriteria selesai: dipakai minimal satu halaman baru, `tsc`/`oxlint` bersih, tanpa galat konsol.
+- [ ] **Utilitas validasi & format** — `frontend/lib/validasi.ts` untuk pesan galat Bahasa Indonesia yang konsisten (wajib isi, panjang maksimum, angka/desimal, tanggal), plus `formatTanggal`/`formatAngka` untuk tampilan. Kriteria selesai: unit test perilaku fungsi murni tersedia atau bukti uji manual terdokumentasi.
+- [ ] **Pola pengambilan data per modul** — helper `apiFetch` dengan penanganan 401/403/413/503 yang seragam dan pesan dari backend ditampilkan apa adanya; ganti pola `fetch` berulang di modul baru. Kriteria selesai: galat 413 (batas body 1 MB) dan 403 tampil jelas di formulir, bukan pesan umum.
+- [ ] **Pemeriksaan akhir pekan 1** — jalankan `npm run typecheck`, `npm run lint`, dan uji browser formulir yang sudah ada (`/dashboard/horticulture`, `/dashboard/certification`) untuk memastikan komponen bersama tidak merusak tampilan lama.
+
+### Pekan 2 (8–14 November): Uji Mutu Lab
+- [ ] **Halaman uji mutu lab** (`/dashboard/certification?tab=lab` atau rute `/dashboard/laboratorium`) — formulir input hasil uji sesuai `POST /v1/uji-mutu`: pilih sampel dari daftar (bukan mengetik ID), parameter uji, hasil per parameter, satuan, metode, dan kesimpulan lulus/tidak lulus; tampilkan ringkasan permohonan yang terkait.
+- [ ] **Formulir kodifikasi sampel** — UI `POST /v1/sampel/{id}/kodifikasi` bagi analis (kode pengujian, tanggal terima), dengan pratinjau kode yang dihasilkan server.
+- [ ] **Formulir laporan mutu** — UI `POST /v1/laporan-mutu`: tarik sampel dan hasil uji yang sudah ada, susun narasi laporan, pratinjau sebelum kirim.
+- [ ] **Pemisahan akses analis** — pastikan peran `analis` hanya melihat tab lab (bukan verifikasi lapangan), dan percobaan akses langsung dijawab 403 dengan pesan yang jelas di UI.
+- [ ] **Uji uji-mutu end-to-end lokal** — sampel → kodifikasi → hasil uji → laporan mutu dengan akun `analis@sitani.local`; dokumentasikan langkah dan bukti status HTTP. Catatan: perlakuan lulus/gagal memicu notifikasi (Discord) — arahkan ke webhook uji atau matikan kirim nyata.
+
+### Pekan 3 (15–21 November): Penerbitan dokumen & penjualan benih
+- [ ] **Halaman penerbitan dokumen** — form sertifikat (`POST /v1/sertifikat`), TTE (`/v1/sertifikat/{permohonan_id}/tte`), draft label (`POST /v1/draft-label`), integrasi SIM (`/sim`), cetak (`/cetak`), dan legalisasi (`/legalisasi`), ditata sebagai langkah bertahap dengan status per langkah (Hormati peran: penandatangan, legalisasi, percetakan).
+- [ ] **Prasyarat percabangan lulus** — UI hanya menampilkan langkah penerbitan bila permohonan dinyatakan lulus; untuk jalur tidak lulus tampilkan tautan laporan lengkap (bukan form penerbitan).
+- [ ] **Form penjualan benih** (`POST /v1/penjualan-benih`) — pilih lot dari daftar stok tersedia (bukan ID bebas), kuantitas tervalidasi terhadap stok, harga, nomor dokumen, tanggal; cegah kirim bila lot belum punya registrasi/sertifikat/label sah.
+- [ ] **Pembatalan penjualan** — dialog konfirmasi `POST /v1/penjualan-benih/{id}/batal` dengan alasan wajib; tampilkan status transaksi pembalik dan jejak audit.
+- [ ] **Rekap penjualan** — tabel `GET /v1/penjualan-benih` dengan penyaring tanggal/lot dan ringkasan total.
+
+### Pekan 4 (22–30 November): Laporan, dokumen, dan profil & akses
+- [ ] **Halaman laporan** — satu halaman dengan tab Registrasi, Stok, Kedaluwarsa, dan Penjualan (`GET /v1/laporan/*`), penyaring rentang tanggal, ringkasan angka, dan tombol unduh CSV/PDF (bila format ekspor belum ada di backend, tandai sebagai pekerjaan backend terpisah, jangan menampilkan tombol palsu).
+- [ ] **Papan status dokumen** (`/dashboard/dokumen`) — gabungkan daftar (`GET /v1/dokumen`), unggah dengan batas ukuran/tipe jelas, status kepemilikan, dan penanganan 413 dari server. Tergantung MinIO siap.
+- [ ] **Profil & akses — baca** — rapikan halaman `/dashboard/profil` menjadi kartu identitas, ringkasan modul sesuai peran, dan riwayat sesi (bila tersedia dari backend); jangan menampilkan token atau data pribadi yang tidak diperlukan.
+- [ ] **Profil & akses — CRUD pengguna (khusus admin/superadmin)** — halaman kelola pengguna: daftar (cari/filter peran), tambah, ubah peran/status, nonaktifkan, dan reset password dev (khusus lingkungan lokal). **Butuh endpoint backend baru** (`GET/POST/PATCH/DELETE /v1/pengguna`) yang belum ada: kerjakan migrasi, otorisasi admin, audit trail, dan larangan naikkan peran sendiri sebagai satu paket dengan UI.
+- [ ] **Profil & akses — perubahan data diri mandiri** — hanya untuk data yang dimiliki portal (bukan identitas SSO): ajukan permintaan perubahan (nama tampilan, kontak) dengan status menunggu persetujuan admin; identitas inti tetap dari JSP/Satriya. **Butuh kontrak backend baru**; jangan menjanjikan perubahan email/peran instan.
+- [ ] **Review sprint & dokumentasi** — perbarui `todo_list.md` dan `docs/`, catat task yang tertunda beserta alasan teknis (mis. menunggu MinIO/Keycloak/kontrak SPL), lalu jalankan pemeriksaan penuh sebelum penutupan bulan.
+
+### Risiko & dependensi Sprint November
+- Endpoint CRUD pengguna, perubahan data diri, dan ekspor laporan **belum ada di backend**; UI tidak boleh menampilkan tombol yang tidak berfungsi sebelum endpoint tersedia.
+- MinIO harus berjalan untuk alur dokumen; SSO Jogjaprov (`client portal`) dan issuer lokal (`127.0.0.1:8085`) masih terblokir dari browser host.
+- Notifikasi Discord dan tanda tangan TTE pada alur penerbitan memakai layanan eksternal: gunakan mode uji, jangan kirim pesan atau tanda tangan sungguhan tanpa persetujuan DPKP/Diskominfo.
+
