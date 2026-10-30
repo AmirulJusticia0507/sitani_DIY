@@ -198,6 +198,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     href={link.href}
                     className={`sidebar-link${aktif ? " is-active" : ""}`}
                     aria-current={aktif ? "page" : undefined}
+                    // Nama aksesibel tetap label lengkap meski di rail/drawer
+                    // layar sempit yang tampil hanya label singkat.
+                    aria-label={link.label}
                     onClick={() => setTerbuka(false)}
                   >
                     <NavIcon name={link.icon} />
