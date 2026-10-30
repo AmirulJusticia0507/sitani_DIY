@@ -7,7 +7,10 @@ import { useEffect, useRef, useState } from "react";
 import { masukHref } from "./auth/masuk-url";
 import { akhiriSesi } from "./dashboard/principal";
 
-const apiURL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080";
+const apiURL =
+  process.env.NEXT_PUBLIC_API_BASE ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  "http://localhost:8080";
 
 type Principal = {
   name?: string;
