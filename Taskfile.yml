@@ -43,6 +43,11 @@ tasks:
       # Halaman yang dibangun `npm run dev` mengikuti alamat backend di atas,
       # jadi pemeriksaan sesi di sidebar juga harus memakai alamat yang sama.
       NEXT_PUBLIC_API_BASE: '{{.DEV_BACKEND_URL}}'
+      # Direktori hasil build dev dipisah dari `frontend/.next`. Direktori itu
+      # ikut ditempel ke image Docker (lihat frontend/Dockerfile), sehingga
+      # `next dev` yang menulis ke sana mengubah CSS/halaman container :3001.
+      # .next-dev juga diabaikan git dan Docker (lihat .gitignore/.dockerignore).
+      NEXT_DIST_DIR: .next-dev
     cmds:
       # Host binding mengikuti DEV_FRONTEND_HOST agar Origin yang dikirim browser
       # sama persis dengan FRONTEND_PUBLIC_URL (127.0.0.1 dan localhost berbeda).
