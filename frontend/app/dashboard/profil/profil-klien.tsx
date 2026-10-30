@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { masukHref } from "../../../components/auth/masuk-url";
 import {
   apiURL,
   devLoginTersedia,
@@ -52,8 +53,8 @@ export function ProfilKlien() {
           {devLogin && (
             <a href="/dashboard/masuk" className="btn btn-primary">Masuk lokal (dev)</a>
           )}
-          <a href={`${apiURL}/auth/login/jsp?redirect=/dashboard/profil`} className="btn btn-primary">Masuk JSP</a>
-          <a href={`${apiURL}/auth/login/satriya?redirect=/dashboard/profil`} className="btn btn-outline">Masuk Satriya</a>
+          <a href={masukHref("/dashboard/profil", "jsp")} className="btn btn-primary">Masuk JSP</a>
+          <a href={masukHref("/dashboard/profil", "satriya")} className="btn btn-outline">Masuk Satriya</a>
         </div>
       </section>
     );

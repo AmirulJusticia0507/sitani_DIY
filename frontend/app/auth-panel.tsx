@@ -1,6 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
+
+import { apiURL, devLoginTersedia } from "../components/dashboard/principal";
+import { masukHref } from "../components/auth/masuk-url";
 
 type Principal = {
   email: string;
@@ -9,22 +13,39 @@ type Principal = {
   realm: string;
 };
 
-const apiURL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080";
-
+// Panjang sesi ringkas untuk panel portal. Semua data berasal dari /auth/me;
+// tidak ada identitas yang diambil dari query atau localStorage.
 export function AuthPanel() {
   const [principal, setPrincipal] = useState<Principal | null>(null);
   const [loading, setLoading] = useState(true);
+  const [devLogin, setDevLogin] = useState(false);
 
   useEffect(() => {
-    fetch(`${apiURL}/auth/me`, { credentials: "include" })
+    let active = true;
+    devLoginTersedia().then((tersedia) => {
+      if (active) setDevLogin(tersedia);
+    });
+    fetch(`${apiURL}/auth/me`, { credentials: "include", cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
-      .then((data) => setPrincipal(data))
-      .catch(() => setPrincipal(null))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (active) setPrincipal(data);
+      })
+      .catch(() => {
+        if (active) setPrincipal(null);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function logout() {
-    await fetch(`${apiURL}/auth/logout`, { method: "POST", credentials: "include" });
+    await Promise.all([
+      fetch(`${apiURL}/auth/dev/logout`, { method: "POST", credentials: "include" }).catch(() => null),
+      fetch(`${apiURL}/auth/logout`, { method: "POST", credentials: "include" }).catch(() => null),
+    ]);
     setPrincipal(null);
   }
 
@@ -44,7 +65,6 @@ export function AuthPanel() {
     );
   }
 
-  const redirect = encodeURIComponent("/");
   return (
     <div className="auth-panel">
       <div>
@@ -52,8 +72,9 @@ export function AuthPanel() {
         <span>Gunakan JSP untuk masyarakat atau Satriya untuk ASN.</span>
       </div>
       <div className="auth-actions">
-        <a href={`${apiURL}/auth/login/jsp?redirect=${redirect}`}>Masuk dengan JSP</a>
-        <a href={`${apiURL}/auth/login/satriya?redirect=${redirect}`}>Masuk dengan Satriya</a>
+        <Link href={masukHref("/", "jsp")}>Masuk dengan JSP</Link>
+        <Link href={masukHref("/", "satriya")}>Masuk dengan Satriya</Link>
+        {devLogin && <Link href="/dashboard/masuk">Masuk lokal (dev)</Link>}
       </div>
     </div>
   );

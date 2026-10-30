@@ -2,6 +2,8 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
+import { masukHref } from "../../components/auth/masuk-url";
+
 const apiURL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080";
 
 type Principal = { name?: string; email: string; role: string };
@@ -115,14 +117,14 @@ export function RepositoryDataPanel() {
 
   if (loading) return <section className="repository-content"><p role="status">Memeriksa sesi SSO…</p></section>;
   if (!principal) {
-    const redirect = encodeURIComponent("/repository-data");
+    const redirect = "/repository-data";
     return (
       <section className="repository-content">
         <h2>Masuk diperlukan</h2>
         <p>Silakan masuk dengan akun internal yang memiliki role admin atau analis.</p>
         <div className="repository-actions">
-          <a href={`${apiURL}/auth/login/satriya?redirect=${redirect}`}>Masuk dengan Satriya</a>
-          <a href={`${apiURL}/auth/login/jsp?redirect=${redirect}`}>Masuk dengan JSP</a>
+          <a href={masukHref(redirect, "satriya")}>Masuk dengan Satriya</a>
+          <a href={masukHref(redirect, "jsp")}>Masuk dengan JSP</a>
         </div>
       </section>
     );

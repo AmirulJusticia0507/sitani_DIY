@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -210,15 +211,20 @@ func (m *Manager) callback(w http.ResponseWriter, r *http.Request) {
 	}
 	token, expiresIn, err := m.exchangeCode(r.Context(), realm, code, verifierCookie.Value)
 	if err != nil {
+		// Dicatat agar kegagalan konfigurasi (redirect_uri, secret, PKCE) dapat
+		// didiagnosis. Nilai error hanya berisi kode kesalahan OAuth.
+		slog.Warn("pertukaran authorization code gagal", "realm", realm.Name, "error", err)
 		writeAuthError(w, http.StatusUnauthorized, "pertukaran authorization code gagal")
 		return
 	}
 	claims, verifiedRealm, err := m.verifier.Verify(r.Context(), token)
 	if err != nil {
+		slog.Warn("verifikasi token SSO gagal", "realm", realm.Name, "error", err)
 		writeAuthError(w, http.StatusUnauthorized, "token SSO hasil callback tidak valid")
 		return
 	}
 	if _, err := m.resolvePrincipal(r.Context(), claims, verifiedRealm); err != nil {
+		slog.Warn("pemetaan identitas SSO gagal", "realm", realm.Name, "error", err)
 		writeAuthError(w, http.StatusUnauthorized, "identitas SSO tidak dapat dipetakan")
 		return
 	}
@@ -242,6 +248,11 @@ func (m *Manager) exchangeCode(ctx context.Context, realm Realm, code, verifier 
 		"code":          {code},
 		"code_verifier": {verifier},
 	}
+	// Client confidential mengautentikasi dengan secret; client publik yang
+	// hanya memakai PKCE tidak mengirimnya.
+	if realm.ClientSecret != "" {
+		values.Set("client_secret", realm.ClientSecret)
+	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, realm.Issuer+"/protocol/openid-connect/token", strings.NewReader(values.Encode()))
 	if err != nil {
 		return "", 0, err
@@ -253,7 +264,14 @@ func (m *Manager) exchangeCode(ctx context.Context, realm Realm, code, verifier 
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return "", 0, fmt.Errorf("token endpoint status %d", response.StatusCode)
+		// Hanya kode kesalahan OAuth yang dicatat: pesannya berasal dari
+		// penyedia identitas dan tidak memuat token atau data pribadi.
+		var oauthErr struct {
+			Error       string `json:"error"`
+			Description string `json:"error_description"`
+		}
+		_ = json.NewDecoder(io.LimitReader(response.Body, 4<<10)).Decode(&oauthErr)
+		return "", 0, fmt.Errorf("token endpoint status %d: %s %s", response.StatusCode, oauthErr.Error, oauthErr.Description)
 	}
 	var payload struct {
 		AccessToken string `json:"access_token"`
@@ -340,9 +358,16 @@ func (m *Manager) setFlowCookie(w http.ResponseWriter, name, value string, maxAg
 	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: "/auth/callback/", HttpOnly: true, Secure: m.config.SecureCookie, SameSite: http.SameSiteLaxMode, MaxAge: maxAge})
 }
 
+// clearFlowCookies mengakhiri cookie state/PKCE satu realm setelah callback.
+// Nilai dikosongkan dan kedaluwarsa seketika (MaxAge negatif tidak dirender
+// sebagai atribut dalam spesifikasi cookie, jadi tambahkan Expires juga).
 func (m *Manager) clearFlowCookies(w http.ResponseWriter, realm string) {
 	for _, prefix := range []string{"sitani_sso_state_", "sitani_sso_verifier_", "sitani_sso_redirect_"} {
-		m.setFlowCookie(w, prefix+realm, "", -1)
+		http.SetCookie(w, &http.Cookie{
+			Name: prefix + realm, Value: "", Path: "/auth/callback/", HttpOnly: true,
+			Secure: m.config.SecureCookie, SameSite: http.SameSiteLaxMode,
+			MaxAge: -1, Expires: time.Unix(0, 0),
+		})
 	}
 }
 

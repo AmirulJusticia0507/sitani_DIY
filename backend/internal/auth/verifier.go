@@ -82,11 +82,14 @@ func (v *Verifier) Verify(ctx context.Context, rawToken string) (*Claims, Realm,
 			return nil, errors.New("header kid tidak tersedia")
 		}
 		return v.publicKey(ctx, realm, kid)
-	}, jwt.WithIssuer(realm.Issuer), jwt.WithAudience(realm.ClientID), jwt.WithExpirationRequired())
+	}, jwt.WithIssuer(realm.Issuer), jwt.WithExpirationRequired())
 	if err != nil || !token.Valid {
 		return nil, Realm{}, fmt.Errorf("verifikasi token gagal: %w", err)
 	}
-	if claims.AuthorizedParty != "" && claims.AuthorizedParty != realm.ClientID {
+	// Keycloak mengisi aud dengan peran resource (mis. "account") dan menaruh
+	// client id pada azp, sehingga klaim azp yang diwajibkan cocok. Dengan
+	// begitu token dari client lain pada realm yang sama tetap ditolak.
+	if claims.AuthorizedParty != realm.ClientID {
 		return nil, Realm{}, errors.New("authorized party token tidak sesuai")
 	}
 	if claims.Subject == "" || claims.Email == "" || !claims.EmailVerified {

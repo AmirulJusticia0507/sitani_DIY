@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { masukHref } from "../auth/masuk-url";
 import { Brand } from "../brand";
 import { apiURL, devLoginTersedia, getRealmLabel, getRoleLabel, type DashboardPrincipal } from "./principal";
 import { getDashboardNav, getRoleAccess, isRole } from "./role-access";
@@ -109,10 +110,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                     Masuk lokal
                   </Link>
                 )}
-                <a href={`${apiURL}/auth/login/jsp?redirect=/dashboard`} className="btn btn-outline btn-sm">
+                <a href={masukHref("/dashboard", "jsp")} className="btn btn-outline btn-sm">
                   Masuk JSP
                 </a>
-                <a href={`${apiURL}/auth/login/satriya?redirect=/dashboard`} className="btn btn-outline btn-sm">
+                <a href={masukHref("/dashboard", "satriya")} className="btn btn-outline btn-sm">
                   Masuk Satriya
                 </a>
               </div>

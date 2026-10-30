@@ -32,8 +32,10 @@ services:
       DB_DSN: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}?sslmode=disable
       SSO_JSP_ISSUER: ${SSO_JSP_ISSUER:-https://sso.jogjaprov.go.id/realms/jsp}
       SSO_JSP_CLIENT_ID: ${SSO_JSP_CLIENT_ID:-portal}
+      SSO_JSP_CLIENT_SECRET: ${SSO_JSP_CLIENT_SECRET:-}
       SSO_SATRIYA_ISSUER: ${SSO_SATRIYA_ISSUER:-https://sso.jogjaprov.go.id/realms/satriya}
       SSO_SATRIYA_CLIENT_ID: ${SSO_SATRIYA_CLIENT_ID:-portal}
+      SSO_SATRIYA_CLIENT_SECRET: ${SSO_SATRIYA_CLIENT_SECRET:-}
       BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://localhost:8080}
       FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://localhost:3000}
       SSO_COOKIE_SECURE: ${SSO_COOKIE_SECURE:-false}

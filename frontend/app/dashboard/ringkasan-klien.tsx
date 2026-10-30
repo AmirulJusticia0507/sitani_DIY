@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { masukHref } from "../../components/auth/masuk-url";
 import {
   apiURL,
   devLoginTersedia,
@@ -59,8 +60,8 @@ export function RingkasanKlien() {
           {devLogin && (
             <Link href="/dashboard/masuk" className="btn btn-primary">Masuk lokal (dev)</Link>
           )}
-          <a href={`${apiURL}/auth/login/jsp?redirect=/dashboard`} className="btn btn-primary">Masuk JSP</a>
-          <a href={`${apiURL}/auth/login/satriya?redirect=/dashboard`} className="btn btn-outline">Masuk Satriya</a>
+          <a href={masukHref("/dashboard", "jsp")} className="btn btn-primary">Masuk JSP</a>
+          <a href={masukHref("/dashboard", "satriya")} className="btn btn-outline">Masuk Satriya</a>
         </div>
         <p className="dashboard-note">
           {devLogin

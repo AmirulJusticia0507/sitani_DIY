@@ -1,0 +1,42 @@
+name: sitani-identity
+
+# Keycloak lokal untuk UAT SSO SiTani DIY. Hanya untuk pengembangan: memakai
+# start-dev (HTTP, tanpa TLS) dan bukan pengganti SSO Jogjaprov produksi.
+#
+# Menjalankan:
+#   docker compose -f infra/keycloak/compose.yml up -d
+#
+# Realm, client, dan akun uji dibuat lewat skrip
+# infra/keycloak/configure-realm.ps1 (idempoten).
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: sitani-keycloak
+    restart: unless-stopped
+    # start-dev bukan mode produksi: data disimpan di volume bernama dan tidak
+    # memerlukan sertifikat TLS pada host lokal.
+    command: ["start-dev", "--http-port", "8080", "--hostname-strict", "false"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?KEYCLOAK_ADMIN_PASSWORD wajib diisi}
+      KC_HEALTH_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+    ports:
+      - "${KEYCLOAK_HOST_PORT:-8085}:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    healthcheck:
+      # Endpoint health grup tersedia saat KC_HEALTH_ENABLED=true (port 9000).
+      test:
+        [
+          "CMD-SHELL",
+          "{ printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&0; grep -q '200 OK'; } 0</dev/tcp/localhost/9000",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+volumes:
+  keycloak_data:

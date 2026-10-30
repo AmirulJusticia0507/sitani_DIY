@@ -62,7 +62,21 @@ jalur masuk produksi.
 
 4. Buka `/dashboard/masuk`, masukkan email dan password, lalu masuk. Tautan
    "Masuk lokal" hanya muncul di antarmuka bila backend menjawab
-   `GET /auth/dev/status` dengan `{"aktif": true}`.
+   `GET /auth/dev/status` dengan `{"aktif": true}`. Halaman masuk resmi portal
+   ada di `/masuk` (tema SSO Pemda DIY) dan menampilkan tautan ke login lokal
+   hanya bila status tersebut aktif.
+
+### Halaman `/masuk` dan navigasi portal
+
+- Sidebar portal (kiri) memuat tautan **Masuk JSP** dan **Masuk Satriya** ke
+  `/masuk?realm=jsp|satriya`. Tombol di halaman itu meminta backend melakukan
+  pengalihan, lalu browser berpindah ke issuer SSO
+  (`/auth/login/{realm}` → `302` → issuer). Frontend tidak menebak endpoint SSO;
+  bila backend menjawab JSON `error`, pesannya ditampilkan di halaman.
+- Sidebar dapat diciutkan menjadi rail ikon lewat tombol **Ciutkan**; preferensi
+  disimpan di `localStorage` (`sitani:sidebar-collapsed`). Di bawah 1024px sidebar
+  menjadi drawer yang dibuka lewat tombol **Menu** dan ditutup dengan Escape,
+  overlay, tautan, atau tombol ×.
 
 ### Memakai stack Docker Compose
 

@@ -2,6 +2,8 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
+import { masukHref } from "../../components/auth/masuk-url";
+
 const apiURL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080";
 type Principal = { name?: string; email: string; role: string };
 type Application = { id: number; nomor_permohonan: string; nama_organisasi: string; status: string; dibuat_pada: string; jadwal_inspeksi?: { id: number; waktu: string; lokasi: string; status: string }[]; inspeksi?: { id: number; temuan: string; rekomendasi: string }[]; penilaian?: { id: number; jenis_penilaian: string; rekomendasi: string; nama_tanaman: string; varietas: string; skor_vigoritas:number; skor_kesehatan:number; skor_kebenaran_varietas:number; catatan:string }[] };
@@ -131,8 +133,8 @@ export function HorticulturePanel() {
 
   if (loading) return <section className="repository-content"><p role="status">Memeriksa sesi SSO…</p></section>;
   if (!principal) {
-    const redirect = encodeURIComponent("/horticulture");
-    return <section className="repository-content"><div className="repository-card"><h2>Masuk diperlukan</h2><p>Masuk dengan akun yang telah terverifikasi melalui SSO.</p><div className="repository-actions"><a href={`${apiURL}/auth/login/jsp?redirect=${redirect}`}>Masuk dengan JSP</a><a href={`${apiURL}/auth/login/satriya?redirect=${redirect}`}>Masuk dengan Satriya</a></div></div></section>;
+    const redirect = "/horticulture";
+    return <section className="repository-content"><div className="repository-card"><h2>Masuk diperlukan</h2><p>Masuk dengan akun yang telah terverifikasi melalui SSO.</p><div className="repository-actions"><a href={masukHref(redirect, "jsp")}>Masuk dengan JSP</a><a href={masukHref(redirect, "satriya")}>Masuk dengan Satriya</a></div></div></section>;
   }
 
   return <section className="repository-content">

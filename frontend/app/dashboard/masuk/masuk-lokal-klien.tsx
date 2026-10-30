@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { masukHref } from "../../../components/auth/masuk-url";
 import { apiURL, devLoginTersedia } from "../../../components/dashboard/principal";
 
 // Halaman login lokal untuk development/UAT. Formulir hanya ditampilkan bila
@@ -63,10 +64,10 @@ export function MasukLokalKlien() {
           sistem.
         </p>
         <div className="dashboard-actions">
-          <a href={`${apiURL}/auth/login/jsp?redirect=/dashboard`} className="btn btn-primary">
+          <a href={masukHref("/dashboard", "jsp")} className="btn btn-primary">
             Masuk JSP
           </a>
-          <a href={`${apiURL}/auth/login/satriya?redirect=/dashboard`} className="btn btn-outline">
+          <a href={masukHref("/dashboard", "satriya")} className="btn btn-outline">
             Masuk Satriya
           </a>
         </div>

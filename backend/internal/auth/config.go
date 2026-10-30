@@ -7,9 +7,10 @@ import (
 )
 
 type Realm struct {
-	Name     string
-	Issuer   string
-	ClientID string
+	Name         string
+	Issuer       string
+	ClientID     string
+	ClientSecret string
 }
 
 type Config struct {
@@ -32,16 +33,19 @@ func ConfigFromEnv() Config {
 	if config.BackendURL == "" {
 		config.BackendURL = "http://localhost:8080"
 	}
-	addRealm(config.Realms, "jsp", os.Getenv("SSO_JSP_ISSUER"), os.Getenv("SSO_JSP_CLIENT_ID"))
-	addRealm(config.Realms, "satriya", os.Getenv("SSO_SATRIYA_ISSUER"), os.Getenv("SSO_SATRIYA_CLIENT_ID"))
+	addRealm(config.Realms, "jsp", os.Getenv("SSO_JSP_ISSUER"), os.Getenv("SSO_JSP_CLIENT_ID"), os.Getenv("SSO_JSP_CLIENT_SECRET"))
+	addRealm(config.Realms, "satriya", os.Getenv("SSO_SATRIYA_ISSUER"), os.Getenv("SSO_SATRIYA_CLIENT_ID"), os.Getenv("SSO_SATRIYA_CLIENT_SECRET"))
 	return config
 }
 
-func addRealm(realms map[string]Realm, name, issuer, clientID string) {
+func addRealm(realms map[string]Realm, name, issuer, clientID, clientSecret string) {
 	issuer = strings.TrimRight(strings.TrimSpace(issuer), "/")
 	clientID = strings.TrimSpace(clientID)
 	if issuer != "" && clientID != "" {
-		realms[name] = Realm{Name: name, Issuer: issuer, ClientID: clientID}
+		// Client secret opsional: client publik memakai PKCE saja. Client
+		// confidential (seperti realm lokal Keycloak) wajib mengisinya agar
+		// token endpoint menerima pertukaran authorization code.
+		realms[name] = Realm{Name: name, Issuer: issuer, ClientID: clientID, ClientSecret: strings.TrimSpace(clientSecret)}
 	}
 }
 

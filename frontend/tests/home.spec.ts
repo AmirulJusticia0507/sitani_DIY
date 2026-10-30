@@ -9,34 +9,37 @@ test("menampilkan identitas dan modul utama", async ({ page }, testInfo) => {
   );
   await expect(page.getByRole("heading", { name: "Repository Data Lokal" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Registrasi Hortikultura" })).toBeVisible();
-  // Tautan SSO mengikuti NEXT_PUBLIC_BACKEND_URL (8080 bawaan, 8081 pada
-  // lingkungan dev tertentu). Periksa path dan tujuan redirectnya saja.
+  // Tautan masuk kini menuju halaman portal /masuk (tema SSO Pemda DIY), bukan
+  // langsung ke endpoint backend; pengalihan ke issuer dilakukan di sana.
   await expect(page.getByRole("link", { name: "Masuk JSP" })).toHaveAttribute(
     "href",
-    /\/auth\/login\/jsp\?redirect=(%2F|\/)$/,
+    "/masuk?realm=jsp",
   );
   await expect(page.getByRole("link", { name: "Masuk Satriya" })).toHaveAttribute(
     "href",
-    /\/auth\/login\/satriya\?redirect=(%2F|\/)$/,
+    "/masuk?realm=satriya",
   );
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/favicon.svg");
-  // Hanya navigasi utama portal yang dihitung; navigasi footer memakai peran
-  // "navigation" dengan nama aksesibel sendiri.
+  // Navigasi utama kini berada di sidebar, bukan header horizontal.
+  const navigasi = page.getByRole("navigation", { name: "Navigasi utama" });
   if (testInfo.project.name === "mobile") {
-    await page.getByRole("button", { name: "Menu" }).click();
+    // Di layar sempit sidebar berupa drawer; buka lewat tombol Menu.
+    await page.getByRole("button", { name: "Menu", exact: true }).click();
+    await expect(page.locator("#sidebar-portal")).toBeVisible();
   }
-  await expect(
-    page.getByRole("navigation", { name: "Navigasi utama" }).getByRole("link"),
-  ).toHaveCount(5);
-  await expect(
-    page.getByRole("navigation", { name: "Navigasi utama" }).getByRole("link", { name: "Sertifikasi Benih BP3MBTP" }),
-  ).toBeVisible();
+  await expect(navigasi.getByRole("link")).toHaveCount(5);
+  // Pada drawer mobile label penuh disembunyikan dan diganti label ringkas;
+  // nama aksesibel tetap memuat keduanya, jadi periksa teks yang memang tampil.
+  const labelSertifikasi = testInfo.project.name === "mobile" ? "Sertifikasi" : "Sertifikasi Benih BP3MBTP";
+  const tautanSertifikasi = navigasi.getByRole("link", { name: /Sertifikasi/ }).first();
+  await expect(tautanSertifikasi.locator("span:visible").filter({ hasText: labelSertifikasi }).first()).toBeVisible();
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "Tentang" })).toHaveAttribute("href", "/tentang");
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "Kebijakan Privasi" })).toHaveAttribute("href", "/kebijakan-privasi");
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "Bantuan" })).toHaveAttribute("href", "/bantuan");
 
-  // Halaman publik tetap memakai kerangka portal, bukan kerangka dashboard.
+  // Halaman publik tetap memakai kerangka portal (sidebar), bukan kerangka dashboard.
   await expect(page.locator(".dashboard-header")).toHaveCount(0);
+  await expect(page.locator("#sidebar-portal")).toHaveCount(1);
 
   const manifest = await page.request.get("/manifest.webmanifest");
   expect(manifest.ok()).toBeTruthy();
