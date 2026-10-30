@@ -134,7 +134,11 @@ func cors(next http.Handler) http.Handler {
 		if allowedOrigin != "" && origin == allowedOrigin {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			// X-User-Role masih dikirim halaman sertifikasi fase 1; tanpa izin di
+			// preflight, browser menolak request sebelum backend memverifikasi
+			// sesi. Identitas tetap diambil dari sesi — header X-User-ID dari
+			// klien selalu dibuang oleh middleware Require.
+			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-User-Role")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 			w.Header().Set("Vary", "Origin")
 		}

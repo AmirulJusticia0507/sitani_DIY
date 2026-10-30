@@ -3,9 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { Layout } from "../../components/layout";
 import { Card } from "../../components/card";
-import { Badge } from "../../components/badge";
 import { Button } from "../../components/button";
-import { FormPermohonan, labelStatusPermohonan, type DataPermohonan } from "./form-permohonan";
+import { FormPermohonan, type DataPermohonan } from "./form-permohonan";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ||
@@ -75,12 +74,13 @@ export default function CertificationPage() {
   const api = useCallback(
     (path: string, opts: RequestInit = {}) => {
       const headers: Record<string, string> = {
-        "X-User-ID": "1",
         "X-User-Role": role,
         "Content-Type": "application/json",
         ...(opts.headers as Record<string, string>),
       };
-      return fetch(`${API_BASE}${path}`, { ...opts, headers });
+      // Sesi SSO/login lokal tersimpan di cookie HttpOnly; tanpa include,
+      // backend menolak dengan 401 "token SSO tidak valid".
+      return fetch(`${API_BASE}${path}`, { credentials: "include", ...opts, headers });
     },
     [role],
   );

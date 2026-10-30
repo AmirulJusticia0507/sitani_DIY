@@ -6,6 +6,7 @@ export function Button({
   onClick,
   type = "button",
   size = "md",
+  title,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -14,6 +15,7 @@ export function Button({
   onClick?: () => void;
   type?: "button" | "submit" | "reset";
   size?: "sm" | "md";
+  title?: string;
 }) {
   const base = "btn";
   const variants: Record<string, string> = {
@@ -32,6 +34,7 @@ export function Button({
       className={[base, variants[variant], sizes[size], className].filter(Boolean).join(" ")}
       disabled={disabled}
       onClick={onClick}
+      title={title}
     >
       {children}
     </button>
