@@ -9,7 +9,11 @@ tasks:
     dir: backend
     env:
       PORT: '{{.DEV_BACKEND_PORT}}'
+      # Nilai .env dipakai Compose (localhost:3001); task dev harus memakai
+      # origin frontend dev agar CORS dan pemeriksaan Origin login tidak 403.
       FRONTEND_PUBLIC_URL: '{{.DEV_FRONTEND_URL}}'
+      # Harus sama dengan PORT dev; redirect_uri callback memakai nilai ini.
+      BACKEND_PUBLIC_URL: '{{.DEV_BACKEND_URL}}'
       DB_DSN: '{{.DB_DSN | default (printf "postgres://%s:%s@127.0.0.1:%s/%s?sslmode=disable" .POSTGRES_USER .POSTGRES_PASSWORD .POSTGRES_HOST_PORT .POSTGRES_DB)}}'
     cmds:
       - go run ./cmd/api
@@ -37,7 +41,9 @@ tasks:
     env:
       NEXT_PUBLIC_BACKEND_URL: '{{.DEV_BACKEND_URL}}'
     cmds:
-      - npm run dev -- --hostname 127.0.0.1 --port {{.DEV_FRONTEND_PORT}}
+      # Host binding mengikuti DEV_FRONTEND_HOST agar Origin yang dikirim browser
+      # sama persis dengan FRONTEND_PUBLIC_URL (127.0.0.1 dan localhost berbeda).
+      - npm run dev -- --hostname {{.DEV_FRONTEND_HOST}} --port {{.DEV_FRONTEND_PORT}}
 
   test:
     desc: Jalankan seluruh unit test backend
