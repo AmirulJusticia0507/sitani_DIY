@@ -9,15 +9,20 @@ test("menampilkan identitas dan modul utama", async ({ page }, testInfo) => {
   );
   await expect(page.getByRole("heading", { name: "Repository Data Lokal" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Registrasi Hortikultura" })).toBeVisible();
+  // Modul layanan berada di area kerja; kartu mengarah ke login dengan tujuan
+  // modulnya, bukan langsung membuka halaman modul.
+  await expect(
+    page.getByRole("link", { name: /Registrasi Hortikultura/ }).first(),
+  ).toHaveAttribute("href", "/masuk?redirect=%2Fdashboard%2Fhorticulture");
   // Tautan masuk kini menuju halaman portal /masuk (tema SSO Pemda DIY), bukan
   // langsung ke endpoint backend; pengalihan ke issuer dilakukan di sana.
   await expect(page.getByRole("link", { name: "Masuk JSP" })).toHaveAttribute(
     "href",
-    "/masuk?realm=jsp",
+    "/masuk?redirect=%2Fdashboard&realm=jsp",
   );
   await expect(page.getByRole("link", { name: "Masuk Satriya" })).toHaveAttribute(
     "href",
-    "/masuk?realm=satriya",
+    "/masuk?redirect=%2Fdashboard&realm=satriya",
   );
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/favicon.svg");
   // Navigasi utama kini berada di sidebar, bukan header horizontal.
@@ -27,12 +32,13 @@ test("menampilkan identitas dan modul utama", async ({ page }, testInfo) => {
     await page.getByRole("button", { name: "Menu", exact: true }).click();
     await expect(page.locator("#sidebar-portal")).toBeVisible();
   }
-  await expect(navigasi.getByRole("link")).toHaveCount(5);
-  // Pada drawer mobile label penuh disembunyikan dan diganti label ringkas;
-  // nama aksesibel tetap memuat keduanya, jadi periksa teks yang memang tampil.
-  const labelSertifikasi = testInfo.project.name === "mobile" ? "Sertifikasi" : "Sertifikasi Benih BP3MBTP";
-  const tautanSertifikasi = navigasi.getByRole("link", { name: /Sertifikasi/ }).first();
-  await expect(tautanSertifikasi.locator("span:visible").filter({ hasText: labelSertifikasi }).first()).toBeVisible();
+  // Sidebar publik hanya memuat beranda dan pintu masuk area kerja; modul
+  // layanan dibuka dari sidebar dashboard setelah login.
+  await expect(navigasi.getByRole("link")).toHaveCount(2);
+  await expect(navigasi.getByRole("link", { name: /Masuk area kerja/ })).toHaveAttribute(
+    "href",
+    "/masuk",
+  );
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "Tentang" })).toHaveAttribute("href", "/tentang");
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "Kebijakan Privasi" })).toHaveAttribute("href", "/kebijakan-privasi");
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "Bantuan" })).toHaveAttribute("href", "/bantuan");
@@ -66,7 +72,7 @@ test("halaman informasi portal tersedia", async ({ page }) => {
 });
 
 test("menampilkan modul registrasi dan penjualan benih", async ({ page }) => {
-  await page.goto("/benih");
+  await page.goto("/dashboard/benih");
 
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "Registrasi & Penjualan Benih",

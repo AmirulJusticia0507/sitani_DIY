@@ -101,14 +101,14 @@ export type DashboardNavItem = {
 
 const SEMUA_NAV: Record<DashboardModule, DashboardNavItem> = {
   ringkasan: { key: "ringkasan", label: "Ringkasan", href: "/dashboard", deskripsi: "Ikhtisar pekerjaan dan status layanan." },
-  "repository-data": { key: "repository-data", label: "Repository Data", href: "/repository-data", deskripsi: "Impor dan pantau dataset pertanian." },
-  hortikultura: { key: "hortikultura", label: "Hortikultura", href: "/horticulture", deskripsi: "Permohonan, verifikasi, inspeksi, dan penilaian." },
-  sertifikasi: { key: "sertifikasi", label: "Sertifikasi Benih", href: "/certification", deskripsi: "Alur sertifikasi dan penerbitan label BP3MBTP." },
-  laboratorium: { key: "laboratorium", label: "Uji Mutu Lab", href: "/certification", deskripsi: "Kodifikasi sampel, hasil uji, dan laporan mutu." },
-  penerbitan: { key: "penerbitan", label: "Penerbitan Dokumen", href: "/certification", deskripsi: "TTE sertifikat, legalisasi, cetak, dan penyerahan." },
-  "registrasi-benih": { key: "registrasi-benih", label: "Registrasi & Stok Benih", href: "/benih", deskripsi: "Master lot, persediaan, dan mutasi stok." },
-  "penjualan-benih": { key: "penjualan-benih", label: "Penjualan Benih", href: "/benih", deskripsi: "Transaksi penjualan dan pembatalan." },
-  laporan: { key: "laporan", label: "Laporan", href: "/benih", deskripsi: "Registrasi, stok, kedaluwarsa, dan penjualan." },
+  "repository-data": { key: "repository-data", label: "Repository Data", href: "/dashboard/repository-data", deskripsi: "Impor dan pantau dataset pertanian." },
+  hortikultura: { key: "hortikultura", label: "Hortikultura", href: "/dashboard/horticulture", deskripsi: "Permohonan, verifikasi, inspeksi, dan penilaian." },
+  sertifikasi: { key: "sertifikasi", label: "Sertifikasi Benih", href: "/dashboard/certification", deskripsi: "Alur sertifikasi dan penerbitan label BP3MBTP." },
+  laboratorium: { key: "laboratorium", label: "Uji Mutu Lab", href: "/dashboard/certification", deskripsi: "Kodifikasi sampel, hasil uji, dan laporan mutu." },
+  penerbitan: { key: "penerbitan", label: "Penerbitan Dokumen", href: "/dashboard/certification", deskripsi: "TTE sertifikat, legalisasi, cetak, dan penyerahan." },
+  "registrasi-benih": { key: "registrasi-benih", label: "Registrasi & Stok Benih", href: "/dashboard/benih", deskripsi: "Master lot, persediaan, dan mutasi stok." },
+  "penjualan-benih": { key: "penjualan-benih", label: "Penjualan Benih", href: "/dashboard/benih", deskripsi: "Transaksi penjualan dan pembatalan." },
+  laporan: { key: "laporan", label: "Laporan", href: "/dashboard/benih", deskripsi: "Registrasi, stok, kedaluwarsa, dan penjualan." },
   dokumen: { key: "dokumen", label: "Dokumen", href: "/dashboard/dokumen", deskripsi: "Lampiran privat sesuai hak akses." },
   profil: { key: "profil", label: "Profil & Akses", href: "/dashboard/profil", deskripsi: "Identitas sesi dan modul yang tersedia." },
 };

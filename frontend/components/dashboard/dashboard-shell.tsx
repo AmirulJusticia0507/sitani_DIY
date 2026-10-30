@@ -195,10 +195,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 // ditautkan dari sidebar) dengan kunci modul untuk penanda navigasi aktif.
 function getModulAktif(pathname: string, role?: string): string | null {
   if (pathname.startsWith("/dashboard/profil")) return "profil";
-  if (pathname.startsWith("/dashboard")) return "ringkasan";
-  if (pathname.startsWith("/repository-data")) return "repository-data";
-  if (pathname.startsWith("/horticulture")) return "hortikultura";
-  if (pathname.startsWith("/benih")) {
+  if (pathname.startsWith("/dashboard/dokumen")) return "dokumen";
+  // Modul layanan berada di bawah /dashboard agar memakai sidebar area kerja.
+  if (pathname.startsWith("/dashboard/certification")) {
+    const akses = getRoleAccess(role);
+    if (akses.has("sertifikasi")) return "sertifikasi";
+    if (akses.has("laboratorium")) return "laboratorium";
+    return "penerbitan";
+  }
+  if (pathname.startsWith("/dashboard/benih")) {
     // Modul benih dipakai bersama oleh registrasi, penjualan, dan laporan;
     // pilih kunci pertama yang tersedia untuk peran tersebut.
     const akses = getRoleAccess(role);
@@ -206,13 +211,8 @@ function getModulAktif(pathname: string, role?: string): string | null {
     if (akses.has("penjualan-benih")) return "penjualan-benih";
     return "laporan";
   }
-  if (pathname.startsWith("/certification")) {
-    const akses = getRoleAccess(role);
-    if (akses.has("sertifikasi")) return "sertifikasi";
-    if (akses.has("laboratorium")) return "laboratorium";
-    return "penerbitan";
-  }
-  if (pathname.startsWith("/dashboard/dokumen")) return "dokumen";
-  if (pathname.startsWith("/v1/dokumen")) return "dokumen";
+  if (pathname.startsWith("/dashboard/horticulture")) return "hortikultura";
+  if (pathname.startsWith("/dashboard/repository-data")) return "repository-data";
+  if (pathname.startsWith("/dashboard")) return "ringkasan";
   return null;
 }

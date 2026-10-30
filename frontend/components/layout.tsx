@@ -19,14 +19,15 @@ type Principal = {
   realm?: string;
 };
 
-type NavIcon = "home" | "chart" | "leaf" | "seed" | "grain";
+// Navigasi portal publik hanya memuat halaman informasi. Modul layanan
+// (repository data, hortikultura, sertifikasi, benih) berada di area kerja
+// /dashboard dan dibuka setelah masuk melalui SSO, sehingga sidebar publik
+// tidak lagi menautkannya langsung.
+type NavIcon = "home" | "layout" | "chart" | "leaf" | "seed" | "grain";
 
 const NAV_LINKS: ReadonlyArray<{ label: string; short: string; href: string; icon: NavIcon }> = [
   { label: "Beranda", short: "Beranda", href: "/", icon: "home" },
-  { label: "Repository Data Lokal", short: "Repository", href: "/repository-data", icon: "chart" },
-  { label: "Registrasi Hortikultura", short: "Hortikultura", href: "/horticulture", icon: "leaf" },
-  { label: "Sertifikasi Benih BP3MBTP", short: "Sertifikasi", href: "/certification", icon: "seed" },
-  { label: "Registrasi & Penjualan Benih", short: "Benih", href: "/benih", icon: "grain" },
+  { label: "Masuk area kerja", short: "Masuk", href: "/masuk", icon: "layout" },
 ];
 
 const FOOTER_LINKS = [
@@ -41,6 +42,7 @@ const COLLAPSE_KEY = "sitani:sidebar-collapsed";
 function NavIcon({ name }: { name: NavIcon }) {
   const paths: Record<NavIcon, React.ReactNode> = {
     home: <><path d="M4 11.5 12 4l8 7.5" /><path d="M6 10v9h12v-9" /></>,
+    layout: <><path d="M4 5h16v14H4z" /><path d="M9 5v14" /></>,
     chart: <><path d="M5 19v-6M10 19V7M15 19v-8M20 19v-4" /><path d="M3 21h18" /></>,
     leaf: <><path d="M20 4c-9 .5-14 5-13.5 12C14 16.5 19 12 20 4Z" /><path d="M5 19c3-4 6-7 11-11" /></>,
     seed: <><path d="M12 20v-9" /><path d="M12 13c-4 0-6.5-2.5-6.5-6 4 0 6.5 2.5 6.5 6Z" /><path d="M12 16c4 0 6.5-2.5 6.5-6-4 0-6.5 2.5-6.5 6Z" /></>,
@@ -226,11 +228,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           ) : (
             <div className="sidebar-masuk">
-              <Link href={masukHref("/", "jsp")} className="sidebar-link masuk-jsp" title="Masuk JSP">
+              <Link href={masukHref("/dashboard", "jsp")} className="sidebar-link masuk-jsp" title="Masuk JSP">
                 <span className="sidebar-icon sidebar-icon-teks" aria-hidden="true">JSP</span>
                 <span className="sidebar-teks">Masuk JSP</span>
               </Link>
-              <Link href={masukHref("/", "satriya")} className="sidebar-link" title="Masuk Satriya">
+              <Link href={masukHref("/dashboard", "satriya")} className="sidebar-link" title="Masuk Satriya">
                 <span className="sidebar-icon sidebar-icon-teks" aria-hidden="true">SR</span>
                 <span className="sidebar-teks">Masuk Satriya</span>
               </Link>

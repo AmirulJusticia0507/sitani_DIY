@@ -1,6 +1,6 @@
 # Permohonan Sertifikasi Benih (Fase 1)
 
-Dokumen ini menjelaskan alur permohonan sertifikasi benih di halaman `/certification`
+Dokumen ini menjelaskan alur permohonan sertifikasi benih di halaman `/dashboard/certification`
 beserta API yang dipakainya. Fase 2 (pengujian lab mutu) dan Fase 3 (sertifikat, TTE,
 label) **bukan** form pelanggan: keduanya dijalankan petugas internal atas permohonan
 yang sudah diajukan.

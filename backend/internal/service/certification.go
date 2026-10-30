@@ -24,7 +24,16 @@ var (
 	// ErrSudahMengajukan: pelanggan mencoba menyimpan draft baru padahal masih
 	// punya pengajuan resmi yang berjalan.
 	ErrSudahMengajukan = errors.New("masih ada permohonan yang berjalan; selesaikan atau batalkan terlebih dahulu")
+	// ErrTidakBerhak: peran peminta tidak diizinkan menjalankan operasi ini.
+	// Dibedakan dari galat validasi agar handler menjawab 403, bukan 400.
+	ErrTidakBerhak = errors.New("peran tidak diizinkan menjalankan operasi ini")
 )
+
+// ErrPeran adalah galat peran yang membawa pesan spesifik per operasi; tetap
+// memenuhi errors.Is(err, ErrTidakBerhak) agar handler memetakannya ke 403.
+func ErrPeran(pesan string) error {
+	return fmt.Errorf("%w: %s", ErrTidakBerhak, pesan)
+}
 
 // FaseInspeksi adalah jumlah fase inspeksi lapangan yang wajib diselesaikan.
 const FaseInspeksi = 4
@@ -113,7 +122,7 @@ func NewService(st store.Store) *Service {
 // client; nomor itu baru ada setelah permohonan tersimpan.
 func (s *Service) BuatPermohonan(ctx context.Context, pelangganID int64, pelangganRole string, req BuatPermohonanRequest) (*db.PermohonanBenih, error) {
 	if !boleh(pelangganRole, "permohonan:buat") {
-		return nil, errors.New("role tidak diizinkan membuat permohonan")
+		return nil, ErrPeran("role tidak diizinkan membuat permohonan")
 	}
 	if err := validasiIsianPermohonan(&req); err != nil {
 		return nil, err
@@ -153,7 +162,7 @@ func (s *Service) BuatPermohonan(ctx context.Context, pelangganID int64, pelangg
 // dapat ditekan berkali-kali tanpa membuat baris ganda.
 func (s *Service) SimpanDraft(ctx context.Context, pelangganID int64, pelangganRole string, draftID int64, req BuatPermohonanRequest) (*db.PermohonanBenih, error) {
 	if !boleh(pelangganRole, "permohonan:buat") {
-		return nil, errors.New("role tidak diizinkan menyimpan draft permohonan")
+		return nil, ErrPeran("role tidak diizinkan menyimpan draft permohonan")
 	}
 	req.JenisBenih = strings.TrimSpace(req.JenisBenih)
 	req.Varietas = strings.TrimSpace(req.Varietas)
@@ -217,7 +226,7 @@ func (s *Service) SimpanDraft(ctx context.Context, pelangganID int64, pelangganR
 //     lalu langsung diajukan dalam satu langkah.
 func (s *Service) AjukanPermohonan(ctx context.Context, pelangganID int64, pelangganRole string, draftID int64, req BuatPermohonanRequest) (*db.PermohonanBenih, error) {
 	if !boleh(pelangganRole, "permohonan:buat") {
-		return nil, errors.New("role tidak diizinkan mengajukan permohonan")
+		return nil, ErrPeran("role tidak diizinkan mengajukan permohonan")
 	}
 	if err := validasiIsianPermohonan(&req); err != nil {
 		return nil, err
@@ -283,7 +292,7 @@ func (s *Service) AjukanPermohonan(ctx context.Context, pelangganID int64, pelan
 // agar form dapat diisi ulang. Hasil nil berarti belum ada yang berjalan.
 func (s *Service) PermohonanAktif(ctx context.Context, pelangganID int64, pelangganRole string) (*db.PermohonanBenih, error) {
 	if !boleh(pelangganRole, "permohonan:buat") {
-		return nil, errors.New("role tidak diizinkan melihat permohonan sendiri")
+		return nil, ErrPeran("role tidak diizinkan melihat permohonan sendiri")
 	}
 	return s.permohonanAktif(ctx, pelangganID)
 }

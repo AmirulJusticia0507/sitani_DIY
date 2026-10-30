@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Layout } from "../../components/layout";
-import { Card } from "../../components/card";
-import { Button } from "../../components/button";
+import { Card } from "../../../components/card";
+import { Button } from "../../../components/button";
 import { FormPermohonan, type DataPermohonan } from "./form-permohonan";
 
 const API_BASE =
@@ -174,8 +173,7 @@ export default function CertificationPage() {
   };
 
   return (
-    <Layout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="container">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-2">
             <div>
@@ -403,6 +401,5 @@ export default function CertificationPage() {
           </Card>
         </div>
       </div>
-    </Layout>
   );
 }

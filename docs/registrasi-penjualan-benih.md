@@ -116,7 +116,7 @@ Migrasi `008_formalize_nomor_permohonan.sql` menyeragamkan nomor lama
 
 ## Antarmuka
 
-Halaman `/benih` menyediakan formulir registrasi, daftar lot, detail stok dan mutasi, formulir penjualan, pembatalan, serta laporan stok/kedaluwarsa/penjualan. Halaman memakai sesi SSO (`credentials: include`) dan tidak menyimpan token di browser.
+Halaman `/dashboard/benih` menyediakan formulir registrasi, daftar lot, detail stok dan mutasi, formulir penjualan, pembatalan, serta laporan stok/kedaluwarsa/penjualan. Halaman memakai sesi SSO (`credentials: include`) dan tidak menyimpan token di browser.
 
 ## Menjalankan migrasi
 
@@ -142,4 +142,4 @@ go run ./cmd/migrate -dry-run
 - Penomoran permohonan diuji terhadap PostgreSQL 18 sungguhan (`SITANI_TEST_DATABASE_URL`): `CreatePermohonan` menghasilkan `SPB-20261023-0001`, `SPB-20261023-0002`, lalu `SPB-20261024-0001` pada hari berikutnya, dan tidak menyisakan nomor sementara.
 - Migrasi `008_formalize_nomor_permohonan.sql` diuji pada data lama `SPB-<id>-<epoch>`: nama lama dinomori ulang per tanggal (mis. `SPB-20261020-0001`), sedangkan nomor yang sudah berformat baru tidak diubah.
 
-Uji tersebut memakai data sintetis dan bukan UAT. Format resmi serta integrasi SIM Perbenihan tetap menunggu validasi pihak berwenang. Uji browser halaman `/benih` menunjukkan 0 error konsol dan 0 permintaan gagal.
+Uji tersebut memakai data sintetis dan bukan UAT. Format resmi serta integrasi SIM Perbenihan tetap menunggu validasi pihak berwenang. Uji browser halaman `/dashboard/benih` menunjukkan 0 error konsol dan 0 permintaan gagal.

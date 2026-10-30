@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { Layout } from "../components/layout";
+import { masukHref } from "../components/auth/masuk-url";
 
+// Kartu layanan kini mengarah ke halaman login dengan tujuan modulnya: modul
+// berada di area kerja /dashboard dan memerlukan sesi SSO terverifikasi.
 const modules = [
-  { title: "Repository Data Lokal", description: "Pusat data pertanian lintas bidang untuk pelaporan dan visualisasi terpadu.", href: "/repository-data", icon: "chart", label: "Data & pelaporan" },
-  { title: "Registrasi Hortikultura", description: "Pengajuan kebun, verifikasi dokumen, inspeksi, dan penerbitan registrasi.", href: "/horticulture", icon: "leaf", label: "Layanan kebun" },
-  { title: "Sertifikasi Benih BP3MBTP", description: "Alur tujuh aktor dari verifikasi lapangan sampai sertifikat dan label resmi.", href: "/certification", icon: "seed", label: "Sertifikasi" },
-  { title: "Registrasi & Penjualan Benih", description: "Kelola registrasi lot, persediaan, transaksi, masa berlaku, dan audit.", href: "/benih", icon: "grain", label: "Benih & stok" },
+  { title: "Repository Data Lokal", description: "Pusat data pertanian lintas bidang untuk pelaporan dan visualisasi terpadu.", href: masukHref("/dashboard/repository-data"), icon: "chart", label: "Data & pelaporan" },
+  { title: "Registrasi Hortikultura", description: "Pengajuan kebun, verifikasi dokumen, inspeksi, dan penerbitan registrasi.", href: masukHref("/dashboard/horticulture"), icon: "leaf", label: "Layanan kebun" },
+  { title: "Sertifikasi Benih BP3MBTP", description: "Alur tujuh aktor dari verifikasi lapangan sampai sertifikat dan label resmi.", href: masukHref("/dashboard/certification"), icon: "seed", label: "Sertifikasi" },
+  { title: "Registrasi & Penjualan Benih", description: "Kelola registrasi lot, persediaan, transaksi, masa berlaku, dan audit.", href: masukHref("/dashboard/benih"), icon: "grain", label: "Benih & stok" },
 ] as const;
 
 function ModuleIcon({ type }: { type: string }) {
@@ -30,8 +33,8 @@ export default function Home() {
               <h1>Portal Pertanian dan Ketahanan Pangan <em>DIY</em></h1>
               <p>Satu pintu layanan dan data pertanian untuk masyarakat, pelaku usaha, serta perangkat daerah. Lebih sederhana, terukur, dan terpercaya.</p>
               <div className="portal-actions">
-                <Link href="#layanan" className="portal-primary-action">Mulai layanan <span aria-hidden="true">↗</span></Link>
-                <Link href="/tentang" className="portal-secondary-action">Tentang portal <span aria-hidden="true">→</span></Link>
+                <Link href={masukHref("/dashboard")} className="portal-primary-action">Masuk <span aria-hidden="true">↗</span></Link>
+                <Link href="#layanan" className="portal-secondary-action">Lihat layanan <span aria-hidden="true">→</span></Link>
               </div>
             </div>
             <div className="portal-hero-art" aria-label="Ringkasan layanan SiTani DIY">
@@ -78,7 +81,7 @@ export default function Home() {
         <section className="portal-sso" id="tentang">
           <div className="portal-shell portal-sso-grid">
             <div><p className="portal-eyebrow portal-eyebrow-light"><span /> Akses aman</p><h2>Satu identitas untuk layanan yang terhubung.</h2></div>
-            <div className="portal-sso-copy"><p>Identitas pengguna diverifikasi melalui SSO Pemda DIY. Gunakan JSP untuk masyarakat dan pelaku usaha, atau Satriya untuk ASN dan aparatur pemerintah.</p><Link href="/dashboard">Masuk ke dashboard <span aria-hidden="true">→</span></Link></div>
+            <div className="portal-sso-copy"><p>Identitas pengguna diverifikasi melalui SSO Pemda DIY. Masuk sebagai JSP untuk masyarakat dan pelaku usaha, atau sebagai Satriya untuk ASN dan aparatur pemerintah.</p><Link href={masukHref("/dashboard")}>Masuk ke dashboard <span aria-hidden="true">→</span></Link></div>
           </div>
           <div className="portal-landscape" aria-hidden="true"><i /><i /></div>
         </section>

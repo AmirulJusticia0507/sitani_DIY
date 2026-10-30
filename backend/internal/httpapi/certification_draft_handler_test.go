@@ -225,11 +225,24 @@ func TestPermohonanDraftMenolakTanpaIdentitas(t *testing.T) {
 	}
 }
 
-func TestSimpanDraftDitolakUntukRoleInternal(t *testing.T) {
+// Peran internal yang membuka halaman sertifikasi tetap memanggil endpoint
+// alur pelanggan; jawabannya harus 403 (bukan 400) agar frontend membedakan
+// peran yang salah dari isian yang tidak valid.
+func TestAlurDraftDitolakUntukRoleInternal(t *testing.T) {
 	h, _ := permohonanHandlerUji()
 
-	w := panggilJSON(t, h, http.MethodPost, "/v1/permohonan/draft", `{"jenis_benih":"Tomat"}`, "3", "analis")
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, ingin 400; body=%s", w.Code, w.Body.String())
+	for _, jalur := range []struct{ method, path string }{
+		{http.MethodPost, "/v1/permohonan/draft"},
+		{http.MethodPost, "/v1/permohonan/ajukan"},
+		{http.MethodGet, "/v1/permohonan/aktif"},
+	} {
+		body := ""
+		if jalur.method == http.MethodPost {
+			body = `{"jenis_benih":"Tomat"}`
+		}
+		w := panggilJSON(t, h, jalur.method, jalur.path, body, "3", "analis")
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("%s %s: status = %d, ingin 403; body=%s", jalur.method, jalur.path, w.Code, w.Body.String())
+		}
 	}
 }

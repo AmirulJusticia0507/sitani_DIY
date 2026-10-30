@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Autocomplete } from "../../components/autocomplete";
-import { Badge } from "../../components/badge";
-import { Button } from "../../components/button";
-import { Card } from "../../components/card";
-import { JENIS_BENIH_OPTIONS, VARIETAS_BENIH } from "../../lib/jenis-benih";
+import { Autocomplete } from "../../../components/autocomplete";
+import { Badge } from "../../../components/badge";
+import { Button } from "../../../components/button";
+import { Card } from "../../../components/card";
+import { JENIS_BENIH_OPTIONS, VARIETAS_BENIH } from "../../../lib/jenis-benih";
 
 // Saran autocomplete jenis benih: satu entri per komoditas dengan label grup
 // komoditasnya, sehingga daftar saran tampil berkelompok.
@@ -144,7 +144,8 @@ export function FormPermohonan({ api, awal, onBerubah, aktif }: Props) {
 
   // Muat draft/pengajuan berjalan milik pelanggan saat halaman dibuka tanpa
   // data awal, agar tombol "Edit Draft" langsung tersedia. 204 berarti belum
-  // ada draft maupun pengajuan.
+  // ada draft maupun pengajuan. 403 berarti peran non-pelanggan: permintaan
+  // tidak relevan untuk pengguna itu dan bukan galat yang perlu ditampilkan.
   //
   // dimuat menahan pemuatan ulang bila efek dijalankan dua kali (React
   // StrictMode di mode pengembangan): satu permintaan saja per muat halaman.
@@ -156,10 +157,16 @@ export function FormPermohonan({ api, awal, onBerubah, aktif }: Props) {
     }
     if (dimuat.current) return;
     dimuat.current = true;
+    // Abaikan muat ulang selama peran aktif bukan pelanggan: perannya yang
+    // salah, bukan endpoint yang gagal.
+    if (!aktif) {
+      setStatusMuat("selesai");
+      return;
+    }
     (async () => {
       try {
         const res = await api("/v1/permohonan/aktif");
-        if (res.status === 204) {
+        if (res.status === 204 || res.status === 403) {
           setStatusMuat("selesai");
           return;
         }

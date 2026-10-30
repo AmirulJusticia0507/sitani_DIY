@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
-import { masukHref } from "../../components/auth/masuk-url";
+import { masukHref } from "../../../components/auth/masuk-url";
 
 const apiURL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080";
 
@@ -117,7 +117,7 @@ export function RepositoryDataPanel() {
 
   if (loading) return <section className="repository-content"><p role="status">Memeriksa sesi SSO…</p></section>;
   if (!principal) {
-    const redirect = "/repository-data";
+    const redirect = "/dashboard/repository-data";
     return (
       <section className="repository-content">
         <h2>Masuk diperlukan</h2>

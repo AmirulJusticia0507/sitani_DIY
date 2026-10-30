@@ -242,6 +242,10 @@ func (h *certificationHandler) permohonanAktif(w http.ResponseWriter, r *http.Re
 // yang sesuai agar frontend dapat menampilkan pesan yang tepat.
 func respondPermohonanError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, service.ErrTidakBerhak):
+		// Peran yang salah bukan permintaan yang cacat: jawab 403 agar klien
+		// tidak menyamakannya dengan validasi isian yang gagal (400).
+		respondError(w, http.StatusForbidden, err.Error())
 	case errors.Is(err, service.ErrNotFound):
 		respondError(w, http.StatusNotFound, "permohonan tidak ditemukan")
 	case errors.Is(err, service.ErrBukanDraft), errors.Is(err, service.ErrSudahMengajukan):

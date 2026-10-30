@@ -1,12 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Layout } from "../../components/layout";
-import { Card } from "../../components/card";
-import { Badge } from "../../components/badge";
-import { Button } from "../../components/button";
-import { Autocomplete } from "../../components/autocomplete";
-import { JENIS_BENIH_OPTIONS, VARIETAS_BENIH } from "../../lib/jenis-benih";
+import { Card } from "../../../components/card";
+import { Badge } from "../../../components/badge";
+import { Button } from "../../../components/button";
+import { Autocomplete } from "../../../components/autocomplete";
+import { JENIS_BENIH_OPTIONS, VARIETAS_BENIH } from "../../../lib/jenis-benih";
 
 // Saran komoditas untuk registrasi lot: dikelompokkan per rumpun komoditas.
 const OPSI_KOMODITAS = JENIS_BENIH_OPTIONS.flatMap((kelompok) =>
@@ -330,8 +329,7 @@ export default function BenihPage() {
   };
 
   return (
-    <Layout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="container">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-2">
             <div>
@@ -780,6 +778,5 @@ export default function BenihPage() {
           </section>
         </div>
       </div>
-    </Layout>
   );
 }
