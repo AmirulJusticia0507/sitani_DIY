@@ -58,4 +58,6 @@
 - [x] Draft permohonan: pelanggan dapat menyimpan draf, mengeditnya, lalu mengajukannya; langkah Analis Lab dan Penandatangan baru terbuka setelah permohonan diajukan (migrasi 011, `POST /v1/permohonan/draft`, `POST /v1/permohonan/ajukan`, `GET /v1/permohonan/aktif`)
 - [ ] Unggahan dokumen permohonan Fase 1 (proposal, struktur organisasi, daftar anggota, form registrasi kebun, peta kebun) pada form sertifikasi
 - [x] Form registrasi benih memilih permohonan (bukan mengetik ID permohonan)
+- [x] Form permohonan memakai autocomplete jenis benih dan varietas: kolom varietas menampilkan saran yang mengikuti jenis benih yang dipilih, dengan isian bebas untuk varietas/jenis di luar daftar (`frontend/components/autocomplete.tsx`, `frontend/app/certification/jenis-benih.ts`)
+- [ ] Validasi daftar resmi jenis/komoditas dan varietas benih: daftar saat ini adalah pilihan praktis (varietas populer DIY), bukan master resmi BP3MBTP; perlu konfirmasi daftar komoditas, varietas terdaftar, dan kelas benih sebelum dipakai sebagai validasi
 - [ ] Validasi format resmi nomor registrasi/dokumen, kelas benih, masa berlaku, dan kontrak SIM Perbenihan bersama BP3MBTP/Diskominfo

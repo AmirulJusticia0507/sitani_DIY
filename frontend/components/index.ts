@@ -3,6 +3,8 @@ export { Layout } from "./layout";
 export { Button } from "./button";
 export { Card } from "./card";
 export { Badge } from "./badge";
+export { Autocomplete } from "./autocomplete";
+export type { AutocompleteOpsi } from "./autocomplete";
 export { DashboardShell } from "./dashboard/dashboard-shell";
 export { getDashboardNav, getRoleLabel, getRealmLabel, getRoleAccess, isRole } from "./dashboard/role-access";
 export type { DashboardModule, DashboardNavItem, Role } from "./dashboard/role-access";

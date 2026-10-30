@@ -2,14 +2,33 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { Autocomplete } from "../../components/autocomplete";
 import { Badge } from "../../components/badge";
 import { Button } from "../../components/button";
 import { Card } from "../../components/card";
-import {
-  JENIS_BENIH_DATAR,
-  JENIS_BENIH_LAINNYA,
-  JENIS_BENIH_OPTIONS,
-} from "./jenis-benih";
+import { JENIS_BENIH_OPTIONS, VARIETAS_BENIH } from "./jenis-benih";
+
+// Saran autocomplete jenis benih: satu entri per komoditas dengan label grup
+// komoditasnya, sehingga daftar saran tampil berkelompok.
+const OPSI_JENIS_BENIH = JENIS_BENIH_OPTIONS.flatMap((kelompok) =>
+  kelompok.jenis.map((jenis) => ({ nilai: jenis, grup: kelompok.grup })),
+);
+
+const samakan = (v: string) => v.trim().toLowerCase();
+
+// Jenis benih wajib berupa salah satu komoditas pada daftar, supaya data
+// permohonan dapat direkap per komoditas. Komoditas baru ditambahkan ke
+// frontend/app/certification/jenis-benih.ts setelah daftar resmi dikonfirmasi.
+function jenisDikenal(nilai: string): boolean {
+  const isian = samakan(nilai);
+  return OPSI_JENIS_BENIH.some((o) => samakan(o.nilai) === isian);
+}
+
+// Saran autocomplete varietas: disaring mengikuti jenis benih yang dipilih
+// (Autocomplete menerima `induk` untuk penyaringan bertingkat).
+const OPSI_VARIETAS = Object.entries(VARIETAS_BENIH).flatMap(([jenis, varietas]) =>
+  varietas.map((v) => ({ nilai: v, induk: jenis })),
+);
 
 // Form pengajuan permohonan sertifikasi benih (Fase 1).
 //
@@ -160,14 +179,9 @@ export function FormPermohonan({ api, awal, onBerubah, aktif }: Props) {
   }, []);
 
   const kurang = useMemo(() => wajibIsi(nilai), [nilai]);
-  // Nilai draf lama (atau komoditas di luar daftar) tetap tampil apa adanya;
-  // pilihan hanya dianggap kosong bila isian benar-benar belum diisi.
-  const jenisTerpilih = useMemo(() => {
-    const isian = nilai.jenisBenih.trim();
-    if (!isian) return "";
-    const daftar = JENIS_BENIH_DATAR as ReadonlyArray<string>;
-    return daftar.includes(isian) ? isian : JENIS_BENIH_LAINNYA;
-  }, [nilai.jenisBenih]);
+  // Jenis benih yang diketik di luar daftar saran: isian tetap disimpan sebagai
+  // draft, tetapi tidak boleh diajukan sampai dipilih dari daftar.
+  const jenisDiLuarDaftar = nilai.jenisBenih.trim() !== "" && !jenisDikenal(nilai.jenisBenih);
   const sudahDiajukan = permohonan !== null && permohonan.Status !== "draft";
   const terkunci = sudahDiajukan || sibuk !== null;
   const bisaDitulisi = !terkunci;
@@ -211,6 +225,13 @@ export function FormPermohonan({ api, awal, onBerubah, aktif }: Props) {
       setGalat(`Lengkapi isian berikut sebelum mengajukan: ${kurang.join(", ")}.`);
       return;
     }
+    if (jenisDiLuarDaftar) {
+      setPesan("");
+      setGalat(
+        `Jenis benih "${nilai.jenisBenih.trim()}" belum ada di daftar komoditas. Pilih salah satu saran jenis benih sebelum mengajukan.`,
+      );
+      return;
+    }
     setSibuk("ajukan");
     setPesan("");
     setGalat("");
@@ -225,7 +246,7 @@ export function FormPermohonan({ api, awal, onBerubah, aktif }: Props) {
     } finally {
       setSibuk(null);
     }
-  }, [api, bodySimpan, kurang, terapkan]);
+  }, [api, bodySimpan, jenisDiLuarDaftar, kurang, nilai.jenisBenih, terapkan]);
 
   const editDraft = useCallback(() => {
     if (!permohonan || permohonan.Status !== "draft") {
@@ -296,80 +317,35 @@ export function FormPermohonan({ api, awal, onBerubah, aktif }: Props) {
           void ajukan();
         }}
       >
-        <div className="form-group">
-          <label className="form-label" htmlFor="form-jenis-benih">
-            Jenis benih
-          </label>
-          <select
-            id="form-jenis-benih"
-            name="jenis_benih"
-            className="form-input"
-            value={jenisTerpilih}
-            onChange={(e) => {
-              const dipilih = e.target.value;
-              // Opsi "Lainnya" mengosongkan isian supaya pengguna mengetik
-              // jenis yang belum tercantum pada input di bawahnya.
-              ubah("jenisBenih", dipilih === JENIS_BENIH_LAINNYA ? "" : dipilih);
-            }}
-            disabled={!bisaDitulisi}
-          >
-            <option value="">Pilih jenis benih</option>
-            {JENIS_BENIH_OPTIONS.map((kelompok) => (
-              <optgroup key={kelompok.grup} label={kelompok.grup}>
-                {kelompok.jenis.map((jenis) => (
-                  <option key={jenis} value={jenis}>
-                    {jenis}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-            <option value={JENIS_BENIH_LAINNYA}>{JENIS_BENIH_LAINNYA} (isi manual)</option>
-          </select>
-        </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="jenis-benih-lainnya">
-            Jenis benih lainnya
-          </label>
-          <input
-            id="jenis-benih-lainnya"
-            className="form-input"
-            list="daftar-jenis-benih"
-            value={nilai.jenisBenih}
-            onChange={(e) => ubah("jenisBenih", e.target.value)}
-            // Input ini hanya dipakai untuk mengetik jenis di luar daftar.
-            // Saat jenis dipilih dari dropdown, nilai ikut terbaca di sini
-            // sebagai konfirmasi tetapi tidak dapat diubah sampai pengguna
-            // memilih "Lainnya" — mencegah nilai yang tidak tercantum diam-diam.
-            readOnly={jenisTerpilih !== JENIS_BENIH_LAINNYA}
-            aria-disabled={jenisTerpilih !== JENIS_BENIH_LAINNYA}
-            disabled={!bisaDitulisi}
-            placeholder="Pilih “Lainnya” pada daftar, lalu ketik jenis benih di sini"
-            aria-describedby="bantuan-jenis-benih"
-          />
-          <datalist id="daftar-jenis-benih">
-            {JENIS_BENIH_DATAR.map((jenis) => (
-              <option key={jenis} value={jenis} />
-            ))}
-          </datalist>
-          <p id="bantuan-jenis-benih" className="text-xs text-sitani-muted mt-1">
-            Jenis terpilih dari daftar tampil di sini. Pilih “Lainnya” bila komoditas belum
-            tercantum, lalu ketik namanya.
-          </p>
-        </div>
-        <div className="form-group">
-          <label className="form-label" htmlFor="varietas">
-            Varietas
-          </label>
-          <input
-            id="varietas"
-            name="varietas"
-            className="form-input"
-            value={nilai.varietas}
-            onChange={(e) => ubah("varietas", e.target.value)}
-            disabled={!bisaDitulisi}
-            placeholder="Contoh: Rama"
-          />
-        </div>
+        <Autocomplete
+          id="form-jenis-benih"
+          nama="jenis_benih"
+          label="Jenis benih"
+          nilai={nilai.jenisBenih}
+          onUbah={(v) => ubah("jenisBenih", v)}
+          opsi={OPSI_JENIS_BENIH}
+          disabled={!bisaDitulisi}
+          wajib
+          pesanKosong="Jenis benih wajib diisi."
+          placeholder="Ketik atau pilih jenis benih, mis. Padi"
+          bantuan="Pilih dari saran atau ketik nama komoditas yang belum tercantum."
+          onPilih={() => ubah("varietas", "")}
+        />
+        <Autocomplete
+          id="form-varietas"
+          nama="varietas"
+          label="Varietas"
+          nilai={nilai.varietas}
+          onUbah={(v) => ubah("varietas", v)}
+          opsi={OPSI_VARIETAS}
+          induk={nilai.jenisBenih}
+          indukLabel="Jenis benih"
+          disabled={!bisaDitulisi}
+          wajib
+          pesanKosong="Varietas wajib diisi."
+          placeholder="Ketik atau pilih varietas"
+          bantuan="Saran varietas mengikuti jenis benih. Ketik langsung bila varietas belum tercantum."
+        />
         <div className="form-group">
           <label className="form-label" htmlFor="luas-lahan">
             Luas lahan (ha)
@@ -405,6 +381,13 @@ export function FormPermohonan({ api, awal, onBerubah, aktif }: Props) {
         {mode !== "terkirim" && kurang.length > 0 && (
           <p className="text-xs text-sitani-muted sm:col-span-2">
             Belum lengkap: {kurang.join(", ")}. Draft tetap dapat disimpan.
+          </p>
+        )}
+
+        {mode !== "terkirim" && jenisDiLuarDaftar && (
+          <p className="text-xs text-sitani-muted sm:col-span-2" id="peringatan-jenis-benih">
+            Jenis benih “{nilai.jenisBenih.trim()}” belum ada di daftar komoditas. Pilih salah satu
+            saran agar permohonan dapat diajukan; draft tetap dapat disimpan.
           </p>
         )}
 
