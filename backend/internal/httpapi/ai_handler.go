@@ -73,6 +73,9 @@ func (h *aiHandler) chat(w http.ResponseWriter, r *http.Request) {
 	dec.DisallowUnknownFields()
 	var payload aiChatRequest
 	if err := dec.Decode(&payload); err != nil {
+		if pesanBatasBody(w, err) {
+			return
+		}
 		respondError(w, http.StatusBadRequest, "body harus JSON dengan field messages")
 		return
 	}

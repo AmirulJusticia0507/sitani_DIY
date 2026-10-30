@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -84,7 +83,7 @@ func (h *registryHandler) buatRegistrasi(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	var req registrasiRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -173,7 +172,7 @@ func (h *registryHandler) ubahStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req ubahStatusRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -214,7 +213,7 @@ func (h *registryHandler) jualBenih(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req penjualanRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -263,7 +262,7 @@ func (h *registryHandler) batalkanPenjualan(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	var req batalPenjualanRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}

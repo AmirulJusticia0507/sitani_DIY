@@ -91,6 +91,9 @@ func (h *horticultureHandler) create(w http.ResponseWriter, r *http.Request) {
 	decoder.DisallowUnknownFields()
 	var req horticultureRequest
 	if err := decoder.Decode(&req); err != nil {
+		if pesanBatasBody(w, err) {
+			return
+		}
 		respondError(w, http.StatusBadRequest, "body permohonan tidak valid")
 		return
 	}
@@ -217,6 +220,9 @@ func decodeHorticultureJSON(w http.ResponseWriter, r *http.Request, target any) 
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
+		if pesanBatasBody(w, err) {
+			return false
+		}
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return false
 	}

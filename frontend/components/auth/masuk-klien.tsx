@@ -13,29 +13,42 @@ import {
   type RealmSSO,
 } from "./masuk-url";
 
+// Status halaman. Tidak ada fase "memeriksa" yang memblokir tombol: tombol
+// selalu siap ditekan, dan hasil pemeriksaan backend hanya menambah keterangan.
 type StatusLogin =
-  | { phase: "memeriksa" }
-  | { phase: "siap"; devLogin: boolean; ssoBelumSiap: boolean }
+  | { phase: "siap" }
   | { phase: "mengalihkan"; realm: RealmSSO }
   | { phase: "gagal"; realm: RealmSSO; pesan: string };
 
+type Keterangan = {
+  // devLogin: login lokal dev tersedia saat pemeriksaan selesai.
+  devLogin: boolean;
+  // ssoBelumSiap: /auth/me menjawab 503 (konfigurasi SSO kosong).
+  ssoBelumSiap: boolean;
+};
+
 // Kartu login bertema SSO Pemda DIY: satu kartu putih di tengah, dua pilihan
 // akun (JSP untuk masyarakat, Satriya untuk ASN), lalu satu tombol masuk.
-// Backend baru dipanggil saat tombol ditekan sehingga klik selalu memberi
-// umpan balik — termasuk ketika backend mati atau SSO belum dikonfigurasi.
+//
+// Tombol memakai navigasi penuh (window.location.assign) ke endpoint backend.
+// Browser mengikuti 302 ke issuer SSO secara native — termasuk melintasi origin
+// — sehingga tidak terkena CORS seperti fetch. Sebelum berpindah, endpoint
+// diperiksa tanpa mengikuti redirect agar balasan 4xx/5xx berpesan JSON bisa
+// ditampilkan di kartu; galat pada langkah itu tidak pernah menghalangi.
 export function MasukKlien({ redirect, realmAwal }: { redirect?: string; realmAwal?: RealmSSO }) {
   const tujuan = pathAman(redirect);
   const [realm, setRealm] = useState<RealmSSO>(realmAwal ?? "jsp");
-  const [status, setStatus] = useState<StatusLogin>({ phase: "memeriksa" });
+  const [status, setStatus] = useState<StatusLogin>({ phase: "siap" });
+  const [keterangan, setKeterangan] = useState<Keterangan>({
+    devLogin: false,
+    ssoBelumSiap: false,
+  });
 
   useEffect(() => {
     let aktif = true;
-    ssoBelumSiapEndpoint().then((belumSiap) => {
+    Promise.all([ssoBelumSiapEndpoint(), devLoginTersedia()]).then(([belumSiap, devLogin]) => {
       if (!aktif) return;
-      devLoginTersedia().then((devLogin) => {
-        if (!aktif) return;
-        setStatus({ phase: "siap", devLogin, ssoBelumSiap: belumSiap });
-      });
+      setKeterangan({ devLogin, ssoBelumSiap: belumSiap });
     });
     return () => {
       aktif = false;
@@ -45,56 +58,24 @@ export function MasukKlien({ redirect, realmAwal }: { redirect?: string; realmAw
   const lanjut = useCallback(
     async (pilihan: RealmSSO) => {
       setRealm(pilihan);
-      setStatus({ phase: "mengalihkan", realm: pilihan });
       const target = ssoHref(apiURL, pilihan, tujuan);
-      try {
-        const cek = await fetch(target, {
-          method: "GET",
-          credentials: "include",
-          redirect: "manual",
-          cache: "no-store",
-          headers: { Accept: "application/json" },
-        });
-        // Alur backend yang benar selalu mengalihkan ke issuer SSO: fetch manual
-        // melaporkan status 0/opaqueredirect. Demikian pula Respons yang memakai
-        // "inexact-relative" (redirect tak terekspos). Keduanya diteruskan.
-        if (cek.type === "opaqueredirect" || cek.status === 0 || "inexact" in cek) {
-          window.location.assign(target);
-          return;
-        }
-        // Status json 4xx/5xx yang memuat pesan error backend ditampilkan apa
-        // adanya (mis. realm belum dikonfigurasi, secret salah).
-        const data = (await cek.json().catch(() => null)) as { error?: string } | null;
-        if (data?.error) {
-          setStatus({
-            phase: "gagal",
-            realm: pilihan,
-            pesan: data.error,
-          });
-          return;
-        }
-        // Respons tanpa pesan error berarti fetch tidak melihat redirect (mis.
-        // mode "manual" tidak menghasilkan opaqueredirect). Jangan biarkan
-        // tombol diam: navigasi penuh ke endpoint backend agar server yang
-        // memutuskan pengalihan ke issuer SSO.
-        window.location.assign(target);
-      } catch {
-        // Backend tidak dapat dihubungi: beri pesan yang dapat ditindaklanjuti
-        // alih-alih membiarkan tombol berputar.
-        setStatus({
-          phase: "gagal",
-          realm: pilihan,
-          pesan:
-            "Server API SiTani tidak dapat dihubungi. Pastikan backend berjalan dan alamat API sudah benar.",
-        });
+      setStatus({ phase: "mengalihkan", realm: pilihan });
+
+      const pesanGalat = await pesanGalatBackend(target);
+      if (pesanGalat) {
+        setStatus({ phase: "gagal", realm: pilihan, pesan: pesanGalat });
+        return;
       }
+      // Navigasi penuh: browser mengikuti 302 backend ke issuer SSO sendiri,
+      // tanpa CORS dan tanpa menyentuh token di sisi klien.
+      window.location.assign(target);
     },
     [tujuan],
   );
 
-  const sibuk = status.phase === "memeriksa" || status.phase === "mengalihkan";
-  const ssoBelumSiap = status.phase === "siap" ? status.ssoBelumSiap : false;
-  const devLogin = status.phase === "siap" && status.devLogin;
+  const sibuk = status.phase === "mengalihkan";
+  const ssoBelumSiap = keterangan.ssoBelumSiap;
+  const devLogin = keterangan.devLogin;
 
   return (
     <section className="sso-card" aria-labelledby="masuk-judul">
@@ -147,7 +128,7 @@ export function MasukKlien({ redirect, realmAwal }: { redirect?: string; realmAw
         </p>
       )}
 
-      {status.phase !== "memeriksa" && ssoBelumSiap && (
+      {ssoBelumSiap && (
         <p className="sso-pesan sso-pesan-info" role="status">
           SSO Jogjaprov belum aktif di environment ini. Pengalihan tetap dicoba; bila gagal, gunakan
           kanal bantuan resmi.
@@ -162,9 +143,7 @@ export function MasukKlien({ redirect, realmAwal }: { redirect?: string; realmAw
       >
         {status.phase === "mengalihkan"
           ? `Mengalihkan ke ${labelRealm(status.realm)}…`
-          : status.phase === "memeriksa"
-            ? "Menyiapkan…"
-            : `Masuk dengan ${labelRealm(realm)}`}
+          : `Masuk dengan ${labelRealm(realm)}`}
       </button>
 
       <nav className="sso-tautan" aria-label="Bantuan masuk">
@@ -175,14 +154,12 @@ export function MasukKlien({ redirect, realmAwal }: { redirect?: string; realmAw
         <Link href="/kebijakan-privasi">Kebijakan Privasi</Link>
       </nav>
 
-      {status.phase !== "memeriksa" && devLogin && (
+      {devLogin && (
         <div className="sso-dev">
           <span className="badge badge-warning">Lingkungan development</span>
           <p>
             Backend ini mengaktifkan login lokal untuk UAT.{" "}
-            <Link href={masukHref(tujuan === "/" ? "/dashboard" : tujuan)}>Gunakan login lokal</Link>{" "}
-            atau buka{" "}
-            <Link href={`/dashboard/masuk?redirect=${encodeURIComponent(tujuan === "/" ? "/dashboard" : tujuan)}`}>
+            <Link href={masukHref(tujuan === "/" ? "/dashboard" : tujuan)}>
               formulir email &amp; password dev
             </Link>
             .
@@ -206,5 +183,28 @@ async function ssoBelumSiapEndpoint(): Promise<boolean> {
     return res.status === 503;
   } catch {
     return true;
+  }
+}
+
+// pesanGalatBackend memeriksa endpoint login tanpa mengikuti pengalihan dan
+// mengembalikan pesan galat backend bila ada. Alur normal (302 ke issuer SSO,
+// atau balasan yang tak terbaca karena CORS) menghasilkan null: navigasi penuh
+// yang akan menanganinya.
+async function pesanGalatBackend(target: string): Promise<string | null> {
+  try {
+    const res = await fetch(target, {
+      method: "GET",
+      credentials: "include",
+      redirect: "manual",
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    });
+    if (res.type === "opaqueredirect" || res.status === 0 || res.ok) return null;
+    const data = (await res.json().catch(() => null)) as { error?: unknown } | null;
+    return typeof data?.error === "string" && data.error !== ""
+      ? data.error
+      : `Server API menjawab ${res.status}.`;
+  } catch {
+    return null;
   }
 }

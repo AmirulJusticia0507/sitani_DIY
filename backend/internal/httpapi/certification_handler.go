@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -141,7 +140,7 @@ func (h *certificationHandler) buatPermohonan(w http.ResponseWriter, r *http.Req
 	}
 
 	var req permohonanRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -169,7 +168,7 @@ func (h *certificationHandler) simpanDraft(w http.ResponseWriter, r *http.Reques
 	}
 
 	var req permohonanRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -198,7 +197,9 @@ func (h *certificationHandler) ajukanPermohonan(w http.ResponseWriter, r *http.R
 
 	var req permohonanRequest
 	if r.Body != nil {
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+		// Body kosong berarti "ajukan draft yang tersimpan" (io.EOF); body yang
+		// melewati batas sudah dijawab 413 oleh bacaJSON.
+		if ok, err := bacaJSON(w, r, &req); !ok || (err != nil && !errors.Is(err, io.EOF)) {
 			respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 			return
 		}
@@ -299,7 +300,7 @@ func (h *certificationHandler) bayarAwal(w http.ResponseWriter, r *http.Request)
 	}
 
 	var req pembayaranAwalRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -325,7 +326,7 @@ func (h *certificationHandler) catatInspeksi(w http.ResponseWriter, r *http.Requ
 	}
 
 	var req inspeksiRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -351,7 +352,7 @@ func (h *certificationHandler) catatBukuInduk(w http.ResponseWriter, r *http.Req
 	}
 
 	var req bukuIndukRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -370,7 +371,7 @@ func (h *certificationHandler) ambilSampel(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	var req ambilSampelRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -395,7 +396,7 @@ func (h *certificationHandler) kodifikasiSampel(w http.ResponseWriter, r *http.R
 		return
 	}
 	var req kodifikasiSampelRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -413,7 +414,7 @@ func (h *certificationHandler) inputHasilUji(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	var req inputHasilUjiRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -432,7 +433,7 @@ func (h *certificationHandler) susunLaporanMutu(w http.ResponseWriter, r *http.R
 		return
 	}
 	var req susunLaporanMutuRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -451,7 +452,7 @@ func (h *certificationHandler) buatSertifikat(w http.ResponseWriter, r *http.Req
 		return
 	}
 	var req buatSertifikatRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -476,7 +477,7 @@ func (h *certificationHandler) tandaTanganiTTE(w http.ResponseWriter, r *http.Re
 		return
 	}
 	var req tandaTanganiTTERequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -499,7 +500,7 @@ func (h *certificationHandler) buatDraftLabel(w http.ResponseWriter, r *http.Req
 		return
 	}
 	var req buatDraftLabelRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -562,7 +563,7 @@ func (h *certificationHandler) legalisasiLabel(w http.ResponseWriter, r *http.Re
 		return
 	}
 	var req legalisasiLabelRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -580,7 +581,7 @@ func (h *certificationHandler) terimaDokumenPembayaranAkhir(w http.ResponseWrite
 		return
 	}
 	var req terimaDokumenRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}
@@ -598,7 +599,7 @@ func (h *certificationHandler) prosesHasilMutu(w http.ResponseWriter, r *http.Re
 		return
 	}
 	var req prosesMutuRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if ok, err := bacaJSON(w, r, &req); !ok || err != nil {
 		respondError(w, http.StatusBadRequest, "body permintaan tidak valid")
 		return
 	}

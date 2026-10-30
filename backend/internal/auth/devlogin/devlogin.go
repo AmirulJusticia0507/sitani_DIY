@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -177,6 +178,20 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
+// maksBodyLogin = batas body permintaan login lokal. Email dan password jauh di
+// bawahnya; nilai ini hanya mencegah body raksasa ditampung di memori.
+const maksBodyLogin = 4 << 10
+
+// cobaBacaBody membaca body dengan batas maksBodyLogin dan melaporkan apakah
+// body melewati batas. Hanya dipakai saat Content-Length sudah menyatakan body
+// terlalu besar, sehingga body kecil tidak ikut termakan.
+func cobaBacaBody(r *http.Request) bool {
+	terbatas := http.MaxBytesReader(nil, r.Body, maksBodyLogin)
+	_, err := io.Copy(io.Discard, terbatas)
+	var terlaluBesar *http.MaxBytesError
+	return errors.As(err, &terlaluBesar)
+}
+
 func (m *Manager) login(w http.ResponseWriter, r *http.Request) {
 	if !m.Aktif() {
 		writeError(w, http.StatusNotFound, "login lokal tidak tersedia")
@@ -189,15 +204,26 @@ func (m *Manager) login(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "origin permintaan tidak diizinkan")
 		return
 	}
+	// Batas body JSON berlaku sebelum pemeriksaan database: permintaan raksasa
+	// tidak boleh ditampung utuh, dan penyebabnya harus jelas (413, bukan 503).
+	if r.ContentLength > maksBodyLogin && cobaBacaBody(r) {
+		writeError(w, http.StatusRequestEntityTooLarge, "body permintaan melebihi batas 4 KB")
+		return
+	}
 	if m.database == nil {
 		writeError(w, http.StatusServiceUnavailable, "database identitas belum tersedia")
 		return
 	}
 
 	var payload loginRequest
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10))
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maksBodyLogin))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&payload); err != nil {
+		var terlaluBesar *http.MaxBytesError
+		if errors.As(err, &terlaluBesar) {
+			writeError(w, http.StatusRequestEntityTooLarge, "body permintaan melebihi batas 4 KB")
+			return
+		}
 		writeError(w, http.StatusBadRequest, "permintaan login tidak valid")
 		return
 	}

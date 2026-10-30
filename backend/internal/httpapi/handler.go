@@ -112,17 +112,23 @@ func NewHandler(database *db.DB) *Handler {
 
 // newAIHandler tidak menggagalkan start saat AI_* belum diisi; endpoint tetap
 // terdaftar dan menjawab 503 sampai konfigurasi tersedia. Pesan peringatan
-// tidak pernah memuat API key.
+// tidak pernah memuat API key. Konfigurasi kosong adalah keadaan normal selama
+// asisten AI belum dipakai, jadi tidak ditulis sebagai baris galat di log.
 func newAIHandler() *aiHandler {
 	client, err := ai.New(ai.ConfigFromEnv())
 	if err != nil {
-		os.Stderr.WriteString("asisten AI belum aktif: " + err.Error() + "\n")
+		if !errors.Is(err, ai.ErrNotConfigured) {
+			os.Stderr.WriteString("asisten AI tidak dapat diaktifkan: " + err.Error() + "\n")
+		}
 		return &aiHandler{limiter: newAILimiterDariEnv()}
 	}
 	return &aiHandler{client: client, limiter: newAILimiterDariEnv()}
 }
 
 // ServeMux mengembalikan http.Handler untuk kompatibilitas dengan http.Server.
+// Batas ukuran body JSON dipasang per handler lewat bacaJSON (lihat
+// batas_body.go), bukan middleware, karena rute unggah multipart harus memakai
+// batas sendiri. Endpoint /auth/* memasang batasnya masing-masing.
 func (h *Handler) ServeMux() http.Handler {
 	return cors(h.auth.ProtectAPI(h.mux))
 }
