@@ -6,7 +6,7 @@
     Membuat (atau memperbarui) di Keycloak lokal:
       - realm `sitani` (HTTP diizinkan karena hanya untuk pengembangan)
       - client `sitani-portal` (confidential, PKCE S256 + client secret)
-      - 5 akun uji @dev.example.invalid dengan peran berbeda
+      - 5 akun uji @sitani.local dengan peran berbeda
 
     Skrip ini TIDAK menyentuh realm Jogjaprov atau Keycloak proyek lain. Realm
     produksi (JSP/Satriya) tetap milik pengelola SSO Jogjaprov.
@@ -179,15 +179,15 @@ if ($existingClients -and $existingClients.Count -gt 0) {
 }
 
 Write-Host '4/5 Pastikan akun uji tersedia...' -ForegroundColor Cyan
-# Email memakai domain example.invalid agar tidak menyerupai alamat dinas.
+# Email memakai domain lokal sitani.local agar tidak menyerupai alamat dinas.
 # Peran bisnis (admin, pengawas, ...) TIDAK diambil dari claim token: backend
 # memetakan identitas SSO ke tabel users lokal berdasarkan email.
 $akunUji = @(
-    @{ username = 'admin.dev';        email = 'admin@dev.example.invalid';        nama = 'Admin Development' },
-    @{ username = 'pengawas.dev';     email = 'pengawas@dev.example.invalid';     nama = 'Pengawas Development' },
-    @{ username = 'analis.dev';       email = 'analis@dev.example.invalid';       nama = 'Analis Development' },
-    @{ username = 'penandatangan.dev'; email = 'penandatangan@dev.example.invalid'; nama = 'Penandatangan Development' },
-    @{ username = 'pelanggan.dev';    email = 'pelanggan@dev.example.invalid';    nama = 'Pelanggan Development' }
+    @{ username = 'admin.dev';        email = 'admin@sitani.local';        nama = 'Admin Development' },
+    @{ username = 'pengawas.dev';     email = 'pengawas@sitani.local';     nama = 'Pengawas Development' },
+    @{ username = 'analis.dev';       email = 'analis@sitani.local';       nama = 'Analis Development' },
+    @{ username = 'penandatangan.dev'; email = 'penandatangan@sitani.local'; nama = 'Penandatangan Development' },
+    @{ username = 'pelanggan.dev';    email = 'pelanggan@sitani.local';    nama = 'Pelanggan Development' }
 )
 foreach ($akun in $akunUji) {
     $ada = Invoke-Kc -Method Get -Uri ("{0}/{1}/users?exact=true&email={2}" -f $adminBase, $Realm, [uri]::EscapeDataString($akun.email))

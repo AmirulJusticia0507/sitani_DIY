@@ -25,8 +25,9 @@ import (
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/devseed"
 )
 
-// akunDev adalah akun uji, satu per peran. Email memakai domain contoh
-// (example.invalid) agar tidak menyerupai alamat dinas sungguhan, dan username
+// akunDev adalah akun uji, satu per peran. Email memakai domain lokal
+// sitani.local (TLD .local tidak pernah diarahkan ke internet) agar tidak
+// menyerupai alamat dinas sungguhan, dan username
 // berbasis peran (*.dev) agar tidak bentrok dengan username akun SSO nyata.
 var akunDev = []struct {
 	Username  string
@@ -35,18 +36,18 @@ var akunDev = []struct {
 	NPP       string
 	UnitKerja string
 }{
-	{Username: "superadmin.dev", Email: "superadmin@dev.example.invalid", Role: "superadmin", UnitKerja: "Diskominfo DIY (lokal)"},
-	{Username: "admin.dev", Email: "admin@dev.example.invalid", Role: "admin", UnitKerja: "BP3MBTP DIY"},
-	{Username: "pengawas.dev", Email: "pengawas@dev.example.invalid", Role: "pengawas", UnitKerja: "BP3MBTP DIY"},
-	{Username: "analis.dev", Email: "analis@dev.example.invalid", Role: "analis", UnitKerja: "Laboratorium BP3MBTP DIY"},
-	{Username: "penandatangan.dev", Email: "penandatangan@dev.example.invalid", Role: "penandatangan", UnitKerja: "BP3MBTP DIY"},
-	{Username: "legalisasi.dev", Email: "legalisasi@dev.example.invalid", Role: "legalisasi", UnitKerja: "BP3MBTP DIY"},
-	{Username: "percetakan.dev", Email: "percetakan@dev.example.invalid", Role: "percetakan", UnitKerja: "Percetakan rekanan"},
-	{Username: "pelanggan.dev", Email: "pelanggan@dev.example.invalid", Role: "pelanggan", UnitKerja: "Kelompok Tani Sido Makmur"},
-	{Username: "verifikator.dev", Email: "verifikator@dev.example.invalid", Role: "verifikator", UnitKerja: "Dinas Pertanian DIY"},
-	{Username: "inspektor.dev", Email: "inspektor@dev.example.invalid", Role: "inspektor", UnitKerja: "Dinas Pertanian DIY"},
-	{Username: "pbt.dev", Email: "pbt@dev.example.invalid", Role: "pbt", UnitKerja: "Dinas Pertanian DIY"},
-	{Username: "kasi.dev", Email: "kasi.pmbtp@dev.example.invalid", Role: "kasi_pmbtp", UnitKerja: "Dinas Pertanian DIY"},
+	{Username: "superadmin.dev", Email: "superadmin@sitani.local", Role: "superadmin", UnitKerja: "Diskominfo DIY (lokal)"},
+	{Username: "admin.dev", Email: "admin@sitani.local", Role: "admin", UnitKerja: "BP3MBTP DIY"},
+	{Username: "pengawas.dev", Email: "pengawas@sitani.local", Role: "pengawas", UnitKerja: "BP3MBTP DIY"},
+	{Username: "analis.dev", Email: "analis@sitani.local", Role: "analis", UnitKerja: "Laboratorium BP3MBTP DIY"},
+	{Username: "penandatangan.dev", Email: "penandatangan@sitani.local", Role: "penandatangan", UnitKerja: "BP3MBTP DIY"},
+	{Username: "legalisasi.dev", Email: "legalisasi@sitani.local", Role: "legalisasi", UnitKerja: "BP3MBTP DIY"},
+	{Username: "percetakan.dev", Email: "percetakan@sitani.local", Role: "percetakan", UnitKerja: "Percetakan rekanan"},
+	{Username: "pelanggan.dev", Email: "pelanggan@sitani.local", Role: "pelanggan", UnitKerja: "Kelompok Tani Sido Makmur"},
+	{Username: "verifikator.dev", Email: "verifikator@sitani.local", Role: "verifikator", UnitKerja: "Dinas Pertanian DIY"},
+	{Username: "inspektor.dev", Email: "inspektor@sitani.local", Role: "inspektor", UnitKerja: "Dinas Pertanian DIY"},
+	{Username: "pbt.dev", Email: "pbt@sitani.local", Role: "pbt", UnitKerja: "Dinas Pertanian DIY"},
+	{Username: "kasi.dev", Email: "kasi.pmbtp@sitani.local", Role: "kasi_pmbtp", UnitKerja: "Dinas Pertanian DIY"},
 }
 
 // permohonanContoh menghubungkan akun pelanggan dengan satu permohonan
@@ -158,7 +159,7 @@ func seed(ctx context.Context, database *db.DB, hash string) error {
 	).Scan(&permohonanID); err != nil {
 		return fmt.Errorf("gagal menyimpan permohonan contoh: %w", err)
 	}
-	fmt.Printf("permohonan contoh: %s (id=%d) milik pelanggan@dev.example.invalid\n", permohonanContoh.NomorPermohonan, permohonanID)
+	fmt.Printf("permohonan contoh: %s (id=%d) milik pelanggan@sitani.local\n", permohonanContoh.NomorPermohonan, permohonanID)
 
 	// Sampel contoh sudah dikodekan dan ditugaskan ke analis, sehingga akun
 	// Analis Lab punya data untuk diuji mutunya. Kode sampel unik menjadi kunci
@@ -175,7 +176,7 @@ func seed(ctx context.Context, database *db.DB, hash string) error {
 	); err != nil {
 		return fmt.Errorf("gagal menyimpan sampel contoh: %w", err)
 	}
-	fmt.Printf("sampel contoh: %s ditugaskan ke analis@dev.example.invalid (id=%d)\n", "SMP-DEV-0001", analisID)
+	fmt.Printf("sampel contoh: %s ditugaskan ke analis@sitani.local (id=%d)\n", "SMP-DEV-0001", analisID)
 
 	fmt.Println("selesai. Password seluruh akun = SEED_DEV_PASSWORD.")
 	return nil

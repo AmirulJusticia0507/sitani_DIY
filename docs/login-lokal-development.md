@@ -36,18 +36,18 @@ jalur masuk produksi.
 
    | Email | Peran | Keterangan |
    | --- | --- | --- |
-   | `superadmin@dev.example.invalid` | superadmin | Akses penuh, setara admin |
-   | `admin@dev.example.invalid` | admin | Semua modul |
-   | `pengawas@dev.example.invalid` | pengawas | Inspeksi lapangan, sertifikasi |
-   | `analis@dev.example.invalid` | analis | Uji Mutu Lab, Repository Data |
-   | `penandatangan@dev.example.invalid` | penandatangan | Penerbitan (TTE) |
-   | `legalisasi@dev.example.invalid` | legalisasi | Penerbitan (legalisasi label) |
-   | `percetakan@dev.example.invalid` | percetakan | Penerbitan (cetak label) |
-   | `pelanggan@dev.example.invalid` | pelanggan | Mengajukan sertifikasi & hortikultura |
-   | `verifikator@dev.example.invalid` | verifikator | Verifikasi proposal hortikultura |
-   | `inspektor@dev.example.invalid` | inspektor | Penjadwalan & audit GAP hortikultura |
-   | `pbt@dev.example.invalid` | pbt | Penilaian pohon induk |
-   | `kasi.pmbtp@dev.example.invalid` | kasi_pmbtp | Penilaian lanjutan |
+   | `superadmin@sitani.local` | superadmin | Akses penuh, setara admin |
+   | `admin@sitani.local` | admin | Semua modul |
+   | `pengawas@sitani.local` | pengawas | Inspeksi lapangan, sertifikasi |
+   | `analis@sitani.local` | analis | Uji Mutu Lab, Repository Data |
+   | `penandatangan@sitani.local` | penandatangan | Penerbitan (TTE) |
+   | `legalisasi@sitani.local` | legalisasi | Penerbitan (legalisasi label) |
+   | `percetakan@sitani.local` | percetakan | Penerbitan (cetak label) |
+   | `pelanggan@sitani.local` | pelanggan | Mengajukan sertifikasi & hortikultura |
+   | `verifikator@sitani.local` | verifikator | Verifikasi proposal hortikultura |
+   | `inspektor@sitani.local` | inspektor | Penjadwalan & audit GAP hortikultura |
+   | `pbt@sitani.local` | pbt | Penilaian pohon induk |
+   | `kasi.pmbtp@sitani.local` | kasi_pmbtp | Penilaian lanjutan |
 
    Selain akun, seed membuat **data contoh** yang saling terhubung:
 
@@ -146,7 +146,7 @@ kondisi tersebut dicakup `backend/internal/auth/require_devlocal_test.go`.
 ## Yang harus dilakukan sebelum produksi
 
 1. Pastikan `SITANI_DEV_LOGIN` tidak diset (atau `APP_ENV=production`).
-2. Hapus akun `*@dev.example.invalid` dari database produksi.
+2. Hapus akun `*@sitani.local` dari database produksi.
 3. Tetapkan password akun nyata lewat SSO; jangan membuat akun dengan password di produksi.
 
 ## Batasan

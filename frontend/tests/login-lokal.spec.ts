@@ -20,11 +20,11 @@ test.describe("login lokal development", () => {
     await expect(formulir).toBeVisible();
     await expect(page.getByText("Lingkungan development")).toBeVisible();
 
-    await page.getByLabel("Email").fill("admin@dev.example.invalid");
+    await page.getByLabel("Email").fill("admin@sitani.local");
     await page.getByLabel("Password").fill("rahasia-uji");
     await formulir.getByRole("button", { name: "Masuk", exact: true }).click();
 
-    await expect.poll(() => payload).toEqual({ email: "admin@dev.example.invalid", password: "rahasia-uji" });
+    await expect.poll(() => payload).toEqual({ email: "admin@sitani.local", password: "rahasia-uji" });
     // Setelah berhasil, halaman berpindah ke dashboard.
     await page.waitForURL("**/dashboard");
   });
@@ -59,7 +59,7 @@ test.describe("login lokal development", () => {
     await page.route("**/auth/me", (route) => route.fulfill({ status: 401, body: "" }));
 
     await page.goto("/dashboard/masuk");
-    await page.getByLabel("Email").fill("salah@dev.example.invalid");
+    await page.getByLabel("Email").fill("salah@sitani.local");
     await page.getByLabel("Password").fill("salah");
     await page.locator(".masuk-lokal-form").getByRole("button", { name: "Masuk", exact: true }).click();
 

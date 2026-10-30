@@ -158,7 +158,7 @@ $env:SEED_DEV_PASSWORD       = '<password-akun-uji-min-12-karakter>'
 Arahkan `SSO_JSP_ISSUER=http://host.docker.internal:8085/realms/sitani`,
 `SSO_JSP_CLIENT_ID=sitani-portal`, dan `SSO_JSP_CLIENT_SECRET=...` di `.env`, lalu
 `docker compose --env-file .env -f infra/compose.yml up -d --build backend`.
-Akun uji memakai email `*@dev.example.invalid` yang sama dengan `task seed-dev`.
+Akun uji memakai email `*@sitani.local` yang sama dengan `task seed-dev`.
 Detail, pemecahan masalah, dan batasan ada di `docs/sso-keycloak-lokal.md`.
 
 ### Skema Database & Migrasi

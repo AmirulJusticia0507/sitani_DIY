@@ -91,11 +91,11 @@ Karena itu SiTani memakai container, port, volume, dan realm sendiri:
 
 | Email | Peran bisnis (dari tabel `users` lokal) |
 | --- | --- |
-| `admin@dev.example.invalid` | admin |
-| `pengawas@dev.example.invalid` | pengawas |
-| `analis@dev.example.invalid` | analis |
-| `penandatangan@dev.example.invalid` | penandatangan |
-| `pelanggan@dev.example.invalid` | pelanggan |
+| `admin@sitani.local` | admin |
+| `pengawas@sitani.local` | pengawas |
+| `analis@sitani.local` | analis |
+| `penandatangan@sitani.local` | penandatangan |
+| `pelanggan@sitani.local` | pelanggan |
 
 Peran **tidak** diambil dari claim token. Backend memetakan identitas SSO ke tabel
 `users` berdasarkan email, sesuai `docs/login-lokal-development.md`. Karena itu
