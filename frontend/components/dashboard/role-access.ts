@@ -106,7 +106,7 @@ const SEMUA_NAV: Record<DashboardModule, DashboardNavItem> = {
   "registrasi-benih": { key: "registrasi-benih", label: "Registrasi & Stok Benih", href: "/benih", deskripsi: "Master lot, persediaan, dan mutasi stok." },
   "penjualan-benih": { key: "penjualan-benih", label: "Penjualan Benih", href: "/benih", deskripsi: "Transaksi penjualan dan pembatalan." },
   laporan: { key: "laporan", label: "Laporan", href: "/benih", deskripsi: "Registrasi, stok, kedaluwarsa, dan penjualan." },
-  dokumen: { key: "dokumen", label: "Dokumen", href: "/v1/dokumen", deskripsi: "Lampiran privat sesuai hak akses." },
+  dokumen: { key: "dokumen", label: "Dokumen", href: "/dashboard/dokumen", deskripsi: "Lampiran privat sesuai hak akses." },
   profil: { key: "profil", label: "Profil & Akses", href: "/dashboard/profil", deskripsi: "Identitas sesi dan modul yang tersedia." },
 };
 

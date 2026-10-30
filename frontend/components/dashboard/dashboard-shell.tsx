@@ -211,6 +211,7 @@ function getModulAktif(pathname: string, role?: string): string | null {
     if (akses.has("laboratorium")) return "laboratorium";
     return "penerbitan";
   }
+  if (pathname.startsWith("/dashboard/dokumen")) return "dokumen";
   if (pathname.startsWith("/v1/dokumen")) return "dokumen";
   return null;
 }
