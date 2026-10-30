@@ -162,7 +162,8 @@ export const VARIETAS_BENIH: Readonly<Record<string, ReadonlyArray<string>>> = {
 };
 
 // JENIS_BENIH_DATAR dikirim sebagai daftar datar ke <datalist> untuk isian di
-// luar halaman ini; form permohonan memakai <Autocomplete> berkelompok.
+// luar halaman ini; form permohonan dan registrasi benih memakai <Autocomplete>
+// berkelompok dengan penyaringan varietas per jenis.
 export const JENIS_BENIH_DATAR: ReadonlyArray<string> = JENIS_BENIH_OPTIONS.flatMap(
   (kelompok) => kelompok.jenis,
 );

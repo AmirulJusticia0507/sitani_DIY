@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -6,7 +6,7 @@ import { Autocomplete } from "../../components/autocomplete";
 import { Badge } from "../../components/badge";
 import { Button } from "../../components/button";
 import { Card } from "../../components/card";
-import { JENIS_BENIH_OPTIONS, VARIETAS_BENIH } from "./jenis-benih";
+import { JENIS_BENIH_OPTIONS, VARIETAS_BENIH } from "../../lib/jenis-benih";
 
 // Saran autocomplete jenis benih: satu entri per komoditas dengan label grup
 // komoditasnya, sehingga daftar saran tampil berkelompok.
@@ -18,7 +18,7 @@ const samakan = (v: string) => v.trim().toLowerCase();
 
 // Jenis benih wajib berupa salah satu komoditas pada daftar, supaya data
 // permohonan dapat direkap per komoditas. Komoditas baru ditambahkan ke
-// frontend/app/certification/jenis-benih.ts setelah daftar resmi dikonfirmasi.
+// frontend/lib/jenis-benih.ts setelah daftar resmi dikonfirmasi.
 function jenisDikenal(nilai: string): boolean {
   const isian = samakan(nilai);
   return OPSI_JENIS_BENIH.some((o) => samakan(o.nilai) === isian);

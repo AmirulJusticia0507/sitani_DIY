@@ -39,6 +39,7 @@ export function Autocomplete({
   onPilih,
   induk,
   indukLabel,
+  required = false,
   className = "",
 }: {
   id?: string;
@@ -58,6 +59,8 @@ export function Autocomplete({
   induk?: string;
   /** Label kolom induk untuk pesan "pilih ... terlebih dahulu". */
   indukLabel?: string;
+  /** Atribut required HTML agar formulir dikirim lewat validasi bawaan. */
+  required?: boolean;
   className?: string;
 }) {
   const idDasar = useId();
@@ -163,6 +166,7 @@ export function Autocomplete({
           value={nilai}
           placeholder={pesanPlaceholder}
           disabled={dinonaktifkan}
+          required={required}
           autoComplete="off"
           aria-autocomplete="list"
           aria-expanded={terbuka}

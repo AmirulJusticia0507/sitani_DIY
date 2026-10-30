@@ -5,6 +5,18 @@ import { Layout } from "../../components/layout";
 import { Card } from "../../components/card";
 import { Badge } from "../../components/badge";
 import { Button } from "../../components/button";
+import { Autocomplete } from "../../components/autocomplete";
+import { JENIS_BENIH_OPTIONS, VARIETAS_BENIH } from "../../lib/jenis-benih";
+
+// Saran komoditas untuk registrasi lot: dikelompokkan per rumpun komoditas.
+const OPSI_KOMODITAS = JENIS_BENIH_OPTIONS.flatMap((kelompok) =>
+  kelompok.jenis.map((jenis) => ({ nilai: jenis, grup: kelompok.grup })),
+);
+
+// Saran varietas mengikuti komoditas terpilih (penyaringan bertingkat).
+const OPSI_VARIETAS = Object.entries(VARIETAS_BENIH).flatMap(([jenis, daftar]) =>
+  daftar.map((varietas) => ({ nilai: varietas, induk: jenis })),
+);
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ||
@@ -96,6 +108,10 @@ export default function BenihPage() {
   const [laporanKedaluwarsa, setLaporanKedaluwarsa] = useState<Registrasi[] | null>(null);
   const [permohonanSiap, setPermohonanSiap] = useState<PermohonanSiap[] | null>(null);
   const [permohonanID, setPermohonanID] = useState("");
+  // Input autocomplete dikendalikan React, sedangkan atribut `name`-nya tetap
+  // menyertakan nilai pada FormData saat formulir dikirim.
+  const [komoditas, setKomoditas] = useState("");
+  const [varietas, setVarietas] = useState("");
   const [pesan, setPesan] = useState("");
   const [galat, setGalat] = useState("");
   const [memuatPermohonan, setMemuatPermohonan] = useState(false);
@@ -210,6 +226,8 @@ export default function BenihPage() {
       );
       formEl.reset();
       setPermohonanID("");
+      setKomoditas("");
+      setVarietas("");
       await Promise.all([muatRegistrasi(), muatPermohonanSiap()]);
     } catch (err) {
       setInfo("", err instanceof Error ? err.message : String(err));
@@ -377,14 +395,34 @@ export default function BenihPage() {
                     ))}
                   </select>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Komoditas</label>
-                  <input name="komoditas" className="form-input" placeholder="Komoditas" required />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Varietas</label>
-                  <input name="varietas" className="form-input" placeholder="Varietas" required />
-                </div>
+                <Autocomplete
+                  id="benih-komoditas"
+                  nama="komoditas"
+                  label="Komoditas"
+                  opsi={OPSI_KOMODITAS}
+                  nilai={komoditas}
+                  onUbah={setKomoditas}
+                  wajib
+                  required
+                  pesanKosong="Komoditas wajib diisi."
+                  placeholder="Ketik atau pilih komoditas, mis. Padi"
+                  bantuan="Pilih dari saran atau ketik komoditas yang belum tercantum."
+                />
+                <Autocomplete
+                  id="benih-varietas"
+                  nama="varietas"
+                  label="Varietas"
+                  opsi={OPSI_VARIETAS}
+                  nilai={varietas}
+                  onUbah={setVarietas}
+                  induk={komoditas}
+                  indukLabel="Komoditas"
+                  wajib
+                  required
+                  pesanKosong="Varietas wajib diisi."
+                  placeholder="Ketik atau pilih varietas"
+                  bantuan="Saran varietas mengikuti komoditas. Ketik langsung bila varietas belum tercantum."
+                />
                 <div className="form-group">
                   <label className="form-label">Produsen</label>
                   <input name="produsen" className="form-input" placeholder="Produsen" required />
