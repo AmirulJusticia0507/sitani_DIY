@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/ai"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/auth"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/auth/devlogin"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/dataset"
@@ -38,6 +39,7 @@ type Handler struct {
 	dokumen      *dokumenHandler
 	dataset      *datasetHandler
 	horticulture *horticultureHandler
+	ai           *aiHandler
 	storageSiap  bool
 	notify       *notify.Client
 	obs          *observability.Client
@@ -103,7 +105,21 @@ func NewHandler(database *db.DB) *Handler {
 	}
 	h.horticulture = &horticultureHandler{repo: horticultureRepo}
 	h.horticulture.register(h.mux)
+	h.ai = newAIHandler()
+	h.ai.register(h.mux)
 	return h
+}
+
+// newAIHandler tidak menggagalkan start saat AI_* belum diisi; endpoint tetap
+// terdaftar dan menjawab 503 sampai konfigurasi tersedia. Pesan peringatan
+// tidak pernah memuat API key.
+func newAIHandler() *aiHandler {
+	client, err := ai.New(ai.ConfigFromEnv())
+	if err != nil {
+		os.Stderr.WriteString("asisten AI belum aktif: " + err.Error() + "\n")
+		return &aiHandler{limiter: newAILimiterDariEnv()}
+	}
+	return &aiHandler{client: client, limiter: newAILimiterDariEnv()}
 }
 
 // ServeMux mengembalikan http.Handler untuk kompatibilitas dengan http.Server.

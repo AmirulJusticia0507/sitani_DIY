@@ -31,6 +31,7 @@
 
 ## 📍 Tahap 4: Notifikasi, Logging & Quality Assurance
 - [x] Integrasi Discord Webhook Notifikasi
+- [x] Fondasi proxy asisten AI: adaptor `internal/ai` (OpenAI-compatible), endpoint `POST /v1/ai/chat` terautentikasi SSO, batas pesan/laju, dan tes dengan server palsu — panggilan langsung & pemilihan model menunggu `AI_API_KEY` serta evaluasi kualitas
 - [x] Integrasi Sentry Error Logging
 - [x] Dokumentasi anticipasi kerentanan Node.js & PHP Oktober 2026 (`docs/keamanan-kerentanan-nodejs-php-oktober-2026.md`)
 - [x] Fondasi PWA (manifest, ikon, service worker terbatas ke aset publik) serta halaman Tentang, Kebijakan Privasi (draf), dan Bantuan
