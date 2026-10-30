@@ -1113,6 +1113,70 @@ a:hover {
   padding: 1.35rem 0.9rem 1.75rem;
   background: white;
   border-right: 1px solid var(--color-sitani-border);
+  /* Lebar animasi saat rail dilipat; konten nav menyusut mengikuti. */
+  transition: width 0.18s ease, flex-basis 0.18s ease, padding 0.18s ease;
+}
+
+/* Rail ikon (layar lebar): menu tetap tampil sebagai ikon dan labelnya
+   disembunyikan secara visual — tetap terbaca pembaca layar dan tooltip. */
+.dashboard-sidebar.is-terlipat {
+  flex-basis: 76px;
+  width: 76px;
+  padding-left: 0.55rem;
+  padding-right: 0.55rem;
+}
+
+.dashboard-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.dashboard-sidebar.is-terlipat .dashboard-nav ul {
+  align-items: center;
+}
+
+.dashboard-sidebar.is-terlipat .dashboard-sidebar-note,
+.dashboard-sidebar.is-terlipat .dashboard-warning {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.dashboard-sidebar.is-terlipat .dashboard-nav-link {
+  justify-content: center;
+  padding: 0.7rem;
+  min-width: 44px;
+  min-height: 44px;
+  border-left: none;
+  border: 1px solid transparent;
+}
+
+.dashboard-sidebar.is-terlipat .dashboard-nav-link:hover {
+  border-color: var(--color-sitani-border);
+}
+
+.dashboard-sidebar.is-terlipat .dashboard-nav-link.is-active {
+  border-color: var(--color-sitani-green-600);
+  background: var(--color-sitani-green-50);
+}
+
+.dashboard-sidebar.is-terlipat .dashboard-nav-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .dashboard-sidebar-note {
@@ -1140,7 +1204,9 @@ a:hover {
 }
 
 .dashboard-nav-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
   padding: 0.6rem 0.75rem;
   border-radius: 0.55rem;
   color: var(--color-sitani-green-800);
@@ -1149,6 +1215,19 @@ a:hover {
   text-decoration: none;
   border-left: 3px solid transparent;
 }
+
+.dashboard-nav-ikon {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  color: var(--color-sitani-green-600);
+}
+
+.dashboard-nav-link.is-active .dashboard-nav-ikon {
+  color: var(--color-sitani-green-700);
+}
+
+.dashboard-nav-label { min-width: 0; }
 
 .dashboard-nav-link:hover {
   background: var(--color-sitani-green-50);
@@ -1361,7 +1440,7 @@ a:hover {
   .dashboard-body { flex-direction: column; }
 
   /* Panel lipat: tidak memakan tempat saat tertutup, dan tombol menu tetap
-     tersedia di layar lebar untuk menyembunyikan sidebar. */
+     tersedia di layar lebar untuk melipat sidebar menjadi rail ikon. */
   .dashboard-sidebar {
     position: static;
     width: 100%;
@@ -1386,6 +1465,8 @@ a:hover {
     font-size: 0.85rem;
     padding: 0.45rem 0.7rem;
   }
+
+  .dashboard-nav-ikon { width: 17px; height: 17px; }
 
   .dashboard-nav-link.is-active {
     border-color: var(--color-sitani-green-600);
