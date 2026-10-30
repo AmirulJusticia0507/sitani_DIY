@@ -28,6 +28,23 @@ const PERAN: ReadonlyArray<{ id: Role; label: string; keterangan: string }> = [
   { id: "penandatangan", label: "Penandatangan", keterangan: "Menandatangani hasil" },
 ];
 
+// Ikon stepper mengikuti pola Material Tailwind (user / settings / home).
+const IKON_PELANGGAN = (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" className="w-5 h-5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+  </svg>
+);
+const IKON_ANALIS = (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" className="w-5 h-5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m16.5 0H21m-1.5 0H12m-8.457 3.077l1.41-.513m14.095-5.13l1.41-.513M5.106 17.785l1.15-.964m11.49-9.642l1.149-.964M7.501 19.795l.75-1.3m7.5-12.99l.75-1.3m-6.063 16.658l.26-1.477m2.605-14.772l.26-1.477m0 17.726l-.26-1.477M10.698 4.614l-.26-1.477M16.5 19.794l-.75-1.299M7.5 4.205L12 12m6.894 5.785l-1.149-.964M6.256 7.178l-1.15-.964m15.352 8.864l-1.41-.513M4.954 9.435l-1.41-.514M12.002 12l-3.75 6.495" />
+  </svg>
+);
+const IKON_PENANDATANGAN = (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" className="w-5 h-5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" />
+  </svg>
+);
+
 interface Permohonan {
   ID: number;
   NomorPermohonan: string;
@@ -183,50 +200,62 @@ export default function CertificationPage() {
             </p>
           </div>
 
-          {/* Stepper peran mengikuti pola Material Tailwind "stepper with dots":
-              satu garis horizontal penuh di belakang titik-titik, progres terisi
-              dari kiri ke posisi langkah aktif, label di bawah setiap titik. */}
-          <div className="stepper" role="group" aria-label="Peran dalam alur sertifikasi">
-            <div className="stepper-jalur" aria-hidden="true">
+          {/* Stepper peran mengikuti struktur Material Tailwind stepper: garis penuh di
+              belakang, lingkaran 40px berisi ikon, label di bawah setiap langkah, tombol
+              Prev/Next. Langkah aktif/selesai hijau solid, langkah pending abu. */}
+          <div className="stepper-mt" role="group" aria-label="Peran dalam alur sertifikasi">
+            <div className="stepper-mt-jalur" aria-hidden="true">
               <span
-                className="stepper-jalur-isi"
+                className="stepper-mt-garis"
+                aria-hidden="true"
+              />
+              <span
+                className="stepper-mt-garis-isi"
                 style={{
-                  // Garis hijau berhenti di tengah langkah aktif (seperti stepper umumnya).
                   width: `${(PERAN.findIndex((p) => p.id === role) / (PERAN.length - 1)) * 100}%`,
                 }}
               />
-              {PERAN.map((item, index) => {
+              {PERAN.map((item) => {
                 const idx = PERAN.findIndex((p) => p.id === item.id);
                 const idxAktif = PERAN.findIndex((p) => p.id === role);
-                const selesai = idx < idxAktif;
-                return (
-                  <span
-                    key={item.id}
-                    className={`stepper-titik${selesai ? " is-selesai" : ""}${role === item.id ? " is-aktif" : ""}`}
-                    aria-label={`${index + 1}. ${item.label}`}
-                  >
-                    {selesai ? "✓" : index + 1}
-                  </span>
-                );
-              })}
-            </div>
-
-            <div className="stepper-label-baris">
-              {PERAN.map((item) => {
                 const aktif = role === item.id;
+                const selesai = idx < idxAktif;
+                const ikon = item.id === "pelanggan" ? IKON_PELANGGAN : item.id === "analis" ? IKON_ANALIS : IKON_PENANDATANGAN;
                 return (
                   <button
                     key={item.id}
                     type="button"
-                    className={`stepper-label-tombol${aktif ? " is-aktif" : ""}`}
+                    className={`stepper-mt-tombol${aktif ? " is-aktif" : ""}${selesai ? " is-selesai" : ""}${!aktif && !selesai ? " is-pending" : ""}`}
                     aria-current={aktif ? "step" : undefined}
                     onClick={() => setRole(item.id)}
                   >
-                    <span className="stepper-label">{item.label}</span>
-                    <span className="stepper-keterangan">{item.keterangan}</span>
+                    {ikon}
+                    <span className="stepper-mt-label">
+                      <span className="stepper-mt-label-judul">{item.label}</span>
+                      <span className="stepper-mt-label-detail">{item.keterangan}</span>
+                    </span>
                   </button>
                 );
               })}
+            </div>
+
+            <div className="stepper-mt-footer">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={role === PERAN[0].id}
+                onClick={() => setRole(PERAN[Math.max(0, PERAN.findIndex((p) => p.id === role) - 1)].id)}
+              >
+                Prev
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={role === PERAN[PERAN.length - 1].id}
+                onClick={() => setRole(PERAN[Math.min(PERAN.length - 1, PERAN.findIndex((p) => p.id === role) + 1)].id)}
+              >
+                Next
+              </Button>
             </div>
           </div>
         </div>
