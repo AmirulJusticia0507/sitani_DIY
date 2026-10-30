@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { masukHref } from "../../../components/auth/masuk-url";
 
@@ -9,6 +9,8 @@ type Principal = { name?: string; email: string; role: string };
 type Application = { id: number; nomor_permohonan: string; nama_organisasi: string; status: string; dibuat_pada: string; jadwal_inspeksi?: { id: number; waktu: string; lokasi: string; status: string }[]; inspeksi?: { id: number; temuan: string; rekomendasi: string }[]; penilaian?: { id: number; jenis_penilaian: string; rekomendasi: string; nama_tanaman: string; varietas: string; skor_vigoritas:number; skor_kesehatan:number; skor_kebenaran_varietas:number; catatan:string }[] };
 type Upload = { id: number; nama: string };
 type Attachment = { id: number; jenis: string; nama: string };
+type CropRow = { nama: string; varietas: string; jumlah: string; sumber: string };
+
 const attachmentTypes = [
   ["proposal", "Proposal permohonan"],
   ["organization", "Struktur organisasi"],
@@ -17,6 +19,25 @@ const attachmentTypes = [
   ["farm_map", "Peta kebun"],
   ["other", "Dokumen pendukung lain"],
 ] as const;
+
+const jenisLampiran = (value: string) =>
+  attachmentTypes.find(([jenis]) => jenis === value)?.[1] ?? value;
+
+// Empat langkah form pengajuan. Tampilan hanya memecah bagian; data tetap dikirim
+// sebagai satu permintaan di akhir, sehingga validasi dan otorisasi tetap milik
+// backend.
+const langkahPengajuan = [
+  { judul: "Dokumen pendukung", ringkas: "Lampiran privat" },
+  { judul: "Pemohon", ringkas: "Kelompok tani" },
+  { judul: "Lokasi lahan", ringkas: "Alamat & luas" },
+  { judul: "Komoditas", ringkas: "Tanaman & benih" },
+] as const;
+
+// Daftar kabupaten/kota DIY untuk pilihan cepat; isian tetap berupa kolom teks
+// biasa agar nilai lain tidak tertolak.
+const kabupatenDIY = ["Kota Yogyakarta", "Sleman", "Bantul", "Gunungkidul", "Kulon Progo"];
+
+const cropKosong = (): CropRow => ({ nama: "", varietas: "", jumlah: "", sumber: "" });
 
 async function errorMessage(response: Response): Promise<string> {
   try { return ((await response.json()) as { error?: string }).error ?? `Permintaan gagal (${response.status})`; }
@@ -32,6 +53,20 @@ export function HorticulturePanel() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  // Form pemohon: nilai dipisah per kolom agar pilihan kabupaten, pratinjau
+  // lampiran, dan ringkasan langkah bisa ditampilkan/asalkan tanpa membaca DOM.
+  const [jenisAktif, setJenisAktif] = useState<string>("proposal");
+  const [berkasTerpilih, setBerkasTerpilih] = useState<string>("");
+  const [organisasi, setOrganisasi] = useState("");
+  const [kontak, setKontak] = useState("");
+  const [telepon, setTelepon] = useState("");
+  const [alamat, setAlamat] = useState("");
+  const [kalurahan, setKalurahan] = useState("");
+  const [kapanewon, setKapanewon] = useState("");
+  const [kabupaten, setKabupaten] = useState("");
+  const [luas, setLuas] = useState("");
+  const [crops, setCrops] = useState<CropRow[]>([cropKosong()]);
 
   const loadApplications = useCallback(async () => {
     const response = await fetch(`${apiURL}/v1/horticulture/applications`, { credentials: "include" });
@@ -60,8 +95,7 @@ export function HorticulturePanel() {
   async function uploadFiles(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
-    const form = new FormData(formElement);
-    const file = form.get("file");
+    const file = new FormData(formElement).get("file");
     if (!(file instanceof File) || file.size === 0) { setError("Pilih berkas terlebih dahulu."); return; }
     setBusy(true); setError(""); setMessage("");
     const upload = new FormData();
@@ -71,8 +105,9 @@ export function HorticulturePanel() {
       const response = await fetch(`${apiURL}/v1/dokumen`, { method: "POST", credentials: "include", body: upload });
       if (!response.ok) throw new Error(await errorMessage(response));
       const saved = (await response.json()) as Upload;
-      setAttachments((current) => [...current, { id: saved.id, nama: saved.nama, jenis: String(form.get("jenis")) }]);
+      setAttachments((current) => [...current, { id: saved.id, nama: saved.nama, jenis: jenisAktif }]);
       formElement.reset();
+      setBerkasTerpilih("");
       setMessage(`Lampiran “${saved.nama}” berhasil diunggah secara privat.`);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unggah lampiran gagal."); }
     finally { setBusy(false); }
@@ -80,23 +115,21 @@ export function HorticulturePanel() {
 
   async function submitApplication(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const formElement = event.currentTarget;
     if (attachments.length === 0) { setError("Unggah minimal satu lampiran sebelum mengirim permohonan."); return; }
-    const values = new FormData(formElement);
-    const tanaman = [0, 1, 2].flatMap((index) => {
-      const nama = String(values.get(`tanaman_${index}_nama`) ?? "").trim();
-      const varietas = String(values.get(`tanaman_${index}_varietas`) ?? "").trim();
+    const tanaman = crops.flatMap((row) => {
+      const nama = row.nama.trim();
+      const varietas = row.varietas.trim();
       if (!nama && !varietas) return [];
-      return [{ nama, varietas, jumlah_tanaman: Number(values.get(`tanaman_${index}_jumlah`) || 0), sumber_benih: String(values.get(`tanaman_${index}_sumber`) ?? "").trim() }];
+      return [{ nama, varietas, jumlah_tanaman: Number(row.jumlah || 0), sumber_benih: row.sumber.trim() }];
     });
     setBusy(true); setError(""); setMessage("");
     try {
       const response = await fetch(`${apiURL}/v1/horticulture/applications`, {
         method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          nama_organisasi: values.get("organisasi"), nama_kontak: values.get("kontak"), telepon: values.get("telepon"),
-          alamat: values.get("alamat"), kalurahan: values.get("kalurahan"), kapanewon: values.get("kapanewon"),
-          kabupaten_kota: values.get("kabupaten"), luas_lahan_ha: Number(values.get("luas")), tanaman,
+          nama_organisasi: organisasi, nama_kontak: kontak, telepon,
+          alamat, kalurahan, kapanewon,
+          kabupaten_kota: kabupaten, luas_lahan_ha: Number(luas), tanaman,
           dokumen: attachments.map(({ id, jenis }) => ({ id, jenis })),
         }),
       });
@@ -104,7 +137,9 @@ export function HorticulturePanel() {
       const saved = (await response.json()) as Application;
       setMessage(`Permohonan ${saved.nomor_permohonan} berhasil diajukan.`);
       setAttachments([]);
-      formElement.reset();
+      setOrganisasi(""); setKontak(""); setTelepon(""); setAlamat("");
+      setKalurahan(""); setKapanewon(""); setKabupaten(""); setLuas("");
+      setCrops([cropKosong()]);
       await loadApplications();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Pengajuan gagal."); }
     finally { setBusy(false); }
@@ -137,42 +172,186 @@ export function HorticulturePanel() {
     return <section className="repository-content"><div className="repository-card"><h2>Masuk diperlukan</h2><p>Masuk dengan akun yang telah terverifikasi melalui SSO.</p><div className="repository-actions"><a href={masukHref(redirect, "jsp")}>Masuk dengan JSP</a><a href={masukHref(redirect, "satriya")}>Masuk dengan Satriya</a></div></div></section>;
   }
 
+  const bolehMengajukan = principal.role === "pelanggan" || principal.role === "admin" || principal.role === "superadmin";
+  const bolehMelihatRiwayat = ["pelanggan", "admin", "superadmin", "pengawas", "verifikator", "inspektor", "pbt", "kasi_pmbtp"].includes(principal.role);
+  const komoditasTerisi = crops.filter((row) => row.nama.trim() || row.varietas.trim()).length;
+
   return <section className="repository-content">
     <p className="repository-session">Masuk sebagai <strong>{principal.name || principal.email}</strong> · {principal.role}</p>
-    {principal.role === "pelanggan" || principal.role === "admin" || principal.role === "superadmin" ? <>
-      <section className="repository-card" aria-labelledby="form-title">
-        <p className="eyebrow">Pengajuan baru</p><h2 id="form-title">Data pemohon dan lahan</h2>
-        <p>Nomor registrasi akan diberikan setelah permohonan tercatat. Pengajuan ini belum merupakan persetujuan registrasi.</p>
-        <form className="horticulture-upload" onSubmit={uploadFiles}>
-          <fieldset><legend>Lampiran dokumen privat</legend>
-            <p>Unggah proposal, struktur organisasi, daftar anggota, form registrasi kebun, dan peta kebun. Format PDF/gambar/spreadsheet/dokumen/ZIP; ukuran maksimum mengikuti konfigurasi layanan.</p>
-            <label>Jenis lampiran<select name="jenis" defaultValue="proposal">{attachmentTypes.map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-            <label>Berkas<input name="file" type="file" required accept=".pdf,.png,.jpg,.jpeg,.zip,.csv,.xls,.xlsx,.doc,.docx,application/pdf,image/png,image/jpeg,application/zip,text/csv" /></label>
-            <button className="repository-button secondary" type="submit" disabled={busy}>Unggah lampiran</button>
-            {attachments.length > 0 && <ul>{attachments.map((item) => <li key={item.id}>{item.nama} — {attachmentTypes.find(([value]) => value === item.jenis)?.[1] ?? item.jenis} <button className="repository-link-button" type="button" onClick={() => setAttachments((current) => current.filter((doc) => doc.id !== item.id))}>hapus dari pengajuan</button></li>)}</ul>}
+    {bolehMengajukan ? <>
+      <section className="repository-card hortikultura-pengajuan" aria-labelledby="form-title">
+        <header className="pengajuan-head">
+          <div>
+            <p className="eyebrow">Pengajuan baru</p>
+            <h2 id="form-title">Registrasi kebun hortikultura</h2>
+            <p>Nomor registrasi diberikan setelah permohonan tercatat. Pengajuan ini belum merupakan persetujuan registrasi.</p>
+          </div>
+          <ol className="pengajuan-langkah" aria-label="Langkah pengajuan">
+            {langkahPengajuan.map((langkah, index) => (
+              <li key={langkah.judul}>
+                <span aria-hidden="true">{index + 1}</span>
+                <span>
+                  <strong>{langkah.judul}</strong>
+                  <small>{langkah.ringkas}</small>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </header>
+
+        {error && <p className="repository-alert error" role="alert">{error}</p>}
+        {message && <p className="repository-alert success" role="status">{message}</p>}
+
+        <form className="hortikultura-form" onSubmit={submitApplication}>
+          <fieldset className="pengajuan-bagian">
+            <legend>
+              <span className="pengajuan-nomor" aria-hidden="true">1</span>
+              Dokumen pendukung
+            </legend>
+            <p className="pengajuan-hint">
+              Unggah proposal, struktur organisasi, daftar anggota, form registrasi kebun, dan peta kebun.
+              Berkas disimpan privat dan hanya dapat dibuka pengguna berhak.
+            </p>
+            <Pengunggah
+              jenis={jenisAktif}
+              onJenis={setJenisAktif}
+              berkas={berkasTerpilih}
+              onBerkas={setBerkasTerpilih}
+              busy={busy}
+              onSubmit={uploadFiles}
+            />
+            <div className="lampiran">
+              <div className="lampiran-judul">
+                <h3>Lampiran siap dikirim</h3>
+                <span className={attachments.length > 0 ? "lampiran-hitung is-ada" : "lampiran-hitung"}>
+                  {attachments.length} berkas
+                </span>
+              </div>
+              {attachments.length === 0
+                ? <p className="lampiran-kosong">Belum ada lampiran. Unggah minimal satu berkas untuk melanjutkan.</p>
+                : <ul>{attachments.map((item) => <li key={item.id}>
+                    <span className="lampiran-ikon" aria-hidden="true">{ekstensi(item.nama)}</span>
+                    <span className="lampiran-nama">
+                      <strong>{item.nama}</strong>
+                      <small>{jenisLampiran(item.jenis)}</small>
+                    </span>
+                    <button className="repository-link-button" type="button" onClick={() => setAttachments((current) => current.filter((doc) => doc.id !== item.id))}>
+                      Hapus
+                    </button>
+                  </li>)}</ul>}
+            </div>
           </fieldset>
-        </form>
-        <form className="horticulture-form" onSubmit={submitApplication}>
-          <label>Nama kelompok tani / organisasi<input name="organisasi" required maxLength={200} /></label>
-          <label>Nama penanggung jawab<input name="kontak" required maxLength={150} /></label>
-          <label>Nomor telepon<input name="telepon" required type="tel" maxLength={40} /></label>
-          <label>Alamat lengkap<textarea name="alamat" required maxLength={500} rows={3} /></label>
-          <label>Kalurahan<input name="kalurahan" required maxLength={120} /></label>
-          <label>Kapanewon<input name="kapanewon" required maxLength={120} /></label>
-          <label>Kabupaten / Kota<input name="kabupaten" required maxLength={120} /></label>
-          <label>Luas lahan (ha)<input name="luas" required type="number" min="0.0001" max="100000" step="0.0001" /></label>
-          <fieldset><legend>Detail tanaman (minimal satu komoditas)</legend>{[0, 1, 2].map((index) => <div className="horticulture-crop" key={index}>
-            <label>Komoditas {index + 1}<input name={`tanaman_${index}_nama`} required={index === 0} maxLength={120} /></label>
-            <label>Varietas<input name={`tanaman_${index}_varietas`} required={index === 0} maxLength={120} /></label>
-            <label>Jumlah tanaman<input name={`tanaman_${index}_jumlah`} type="number" min="0" max="100000000" step="1" /></label>
-            <label>Sumber benih<input name={`tanaman_${index}_sumber`} maxLength={200} /></label>
-          </div>)}</fieldset>
-          {error && <p className="repository-alert error" role="alert">{error}</p>}{message && <p className="repository-alert success" role="status">{message}</p>}
-          <button className="repository-button" type="submit" disabled={busy}>{busy ? "Menyimpan…" : "Kirim permohonan"}</button>
+
+          <fieldset className="pengajuan-bagian">
+            <legend>
+              <span className="pengajuan-nomor" aria-hidden="true">2</span>
+              Data pemohon
+            </legend>
+            <div className="hortikultura-grid">
+              <label className="kolom-lebar">
+                <span>Nama kelompok tani / organisasi</span>
+                <input name="organisasi" required maxLength={200} value={organisasi} onChange={(e) => setOrganisasi(e.target.value)} placeholder="Contoh: Kelompok Tani Ngudi Rejeki" />
+              </label>
+              <label>
+                <span>Nama penanggung jawab</span>
+                <input name="kontak" required maxLength={150} value={kontak} onChange={(e) => setKontak(e.target.value)} placeholder="Nama lengkap" />
+              </label>
+              <label>
+                <span>Nomor telepon</span>
+                <input name="telepon" required type="tel" maxLength={40} value={telepon} onChange={(e) => setTelepon(e.target.value)} placeholder="08xxxxxxxxxx" inputMode="tel" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset className="pengajuan-bagian">
+            <legend>
+              <span className="pengajuan-nomor" aria-hidden="true">3</span>
+              Lokasi lahan
+            </legend>
+            <div className="hortikultura-grid">
+              <label className="kolom-lebar">
+                <span>Alamat lengkap</span>
+                <textarea name="alamat" required maxLength={500} rows={3} value={alamat} onChange={(e) => setAlamat(e.target.value)} placeholder="Jalan, RT/RW, patokan lokasi kebun" />
+              </label>
+              <label>
+                <span>Kalurahan</span>
+                <input name="kalurahan" required maxLength={120} value={kalurahan} onChange={(e) => setKalurahan(e.target.value)} />
+              </label>
+              <label>
+                <span>Kapanewon</span>
+                <input name="kapanewon" required maxLength={120} value={kapanewon} onChange={(e) => setKapanewon(e.target.value)} />
+              </label>
+              <label>
+                <span>Kabupaten / Kota</span>
+                <input name="kabupaten" required maxLength={120} list="kabupaten-diy" value={kabupaten} onChange={(e) => setKabupaten(e.target.value)} />
+                <datalist id="kabupaten-diy">
+                  {kabupatenDIY.map((nama) => <option key={nama} value={nama} />)}
+                </datalist>
+              </label>
+              <label>
+                <span>Luas lahan (ha)</span>
+                <input name="luas" required type="number" min="0.0001" max="100000" step="0.0001" value={luas} onChange={(e) => setLuas(e.target.value)} placeholder="0,2500" inputMode="decimal" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset className="pengajuan-bagian">
+            <legend>
+              <span className="pengajuan-nomor" aria-hidden="true">4</span>
+              Detail tanaman
+            </legend>
+            <p className="pengajuan-hint">Isi minimal satu komoditas. Kolom jumlah dan sumber benih boleh dikosongkan bila belum diketahui.</p>
+            <div className="komoditas-daftar">
+              {crops.map((row, index) => (
+                <article className="komoditas-kartu" key={index} aria-label={`Komoditas ${index + 1}`}>
+                  <header>
+                    <h3>Komoditas {index + 1}</h3>
+                    {crops.length > 1 && (
+                      <button className="repository-link-button" type="button" onClick={() => setCrops((current) => current.filter((_, i) => i !== index))}>
+                        Hapus
+                      </button>
+                    )}
+                  </header>
+                  <div className="hortikultura-grid">
+                    <label>
+                      <span>Komoditas</span>
+                      <input name={`tanaman_${index}_nama`} required={index === 0} maxLength={120} value={row.nama} onChange={(e) => ubahCrop(index, "nama", e.target.value, setCrops)} placeholder="Cabai, tomat, bawang merah…" />
+                    </label>
+                    <label>
+                      <span>Varietas</span>
+                      <input name={`tanaman_${index}_varietas`} required={index === 0} maxLength={120} value={row.varietas} onChange={(e) => ubahCrop(index, "varietas", e.target.value, setCrops)} />
+                    </label>
+                    <label>
+                      <span>Jumlah tanaman</span>
+                      <input name={`tanaman_${index}_jumlah`} type="number" min="0" max="100000000" step="1" value={row.jumlah} onChange={(e) => ubahCrop(index, "jumlah", e.target.value, setCrops)} inputMode="numeric" />
+                    </label>
+                    <label>
+                      <span>Sumber benih</span>
+                      <input name={`tanaman_${index}_sumber`} maxLength={200} value={row.sumber} onChange={(e) => ubahCrop(index, "sumber", e.target.value, setCrops)} placeholder="Balai benih, penangkar, swadaya…" />
+                    </label>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <button className="tombol-tambah" type="button" onClick={() => setCrops((current) => [...current, cropKosong()])}>
+              + Tambah komoditas
+            </button>
+          </fieldset>
+
+          <div className="pengajuan-kirim">
+            <p>
+              <strong>{attachments.length} lampiran</strong> · <strong>{komoditasTerisi} komoditas</strong> terisi.
+              Pastikan data sudah benar sebelum dikirim.
+            </p>
+            <button className="repository-button" type="submit" disabled={busy}>
+              {busy ? "Mengirim…" : "Kirim permohonan"}
+            </button>
+          </div>
         </form>
       </section>
     </> : <section className="repository-card"><h2>Akses pemohon</h2><p>Pengajuan baru tersedia bagi pemohon atau admin.</p></section>}
-    {(principal.role === "pelanggan" || principal.role === "admin" || principal.role === "superadmin" || principal.role === "pengawas" || principal.role === "verifikator" || principal.role === "inspektor" || principal.role === "pbt" || principal.role === "kasi_pmbtp") && <section className="repository-card horticulture-history"><h2>Riwayat permohonan</h2>
+
+    {bolehMelihatRiwayat && <section className="repository-card horticulture-history"><h2>Riwayat permohonan</h2>
       {applications.length === 0 ? <p>Belum ada permohonan.</p> : <div className="repository-table-wrap"><table className="repository-table"><thead><tr><th>Nomor</th><th>Organisasi</th><th>Status</th><th>Tanggal</th><th>Aksi</th></tr></thead><tbody>{applications.map((item) => <tr key={item.id}><td>{item.nomor_permohonan}</td><td>{item.nama_organisasi}</td><td>{item.status}</td><td>{new Date(item.dibuat_pada).toLocaleDateString("id-ID")}</td><td><button className="repository-link-button" type="button" onClick={() => void openApplication(item)}>Buka detail</button></td></tr>)}</tbody></table></div>}
     </section>}
     {selected && <section className="repository-card horticulture-history"><h2>Alur permohonan {selected.nomor_permohonan}</h2><p>Status: <strong>{selected.status}</strong></p>
@@ -188,6 +367,76 @@ export function HorticulturePanel() {
     </section>}
     {error && <p className="repository-alert error" role="alert">{error}</p>}{message && <p className="repository-alert success" role="status">{message}</p>}
   </section>;
+}
+
+// ubahCrop mengganti satu kolom pada kartu komoditas tanpa mengubah urutan
+// (nama kolom input diturunkan dari indeks array).
+function ubahCrop(index: number, kolom: keyof CropRow, nilai: string, setCrops: (fn: (current: CropRow[]) => CropRow[]) => void) {
+  setCrops((current) => current.map((row, i) => (i === index ? { ...row, [kolom]: nilai } : row)));
+}
+
+function ekstensi(nama: string): string {
+  const bagian = nama.split(".");
+  const akhir = bagian.length > 1 ? bagian.pop() ?? "" : "";
+  return akhir.slice(0, 4).toUpperCase() || "FILE";
+}
+
+// Pengunggah menampilkan jenis lampiran, tombol unggah, pratinjau nama berkas,
+// dan batas format/ukuran dalam satu blok agar tidak perlu menebak.
+function Pengunggah({ jenis, onJenis, berkas, onBerkas, busy, onSubmit }: {
+  jenis: string;
+  onJenis: (value: string) => void;
+  berkas: string;
+  onBerkas: (value: string) => void;
+  busy: boolean;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  const id = useId();
+  const berkasRef = useRef<HTMLInputElement>(null);
+
+  return <form className="unggah" onSubmit={onSubmit}>
+    <div className="unggah-jenis" role="group" aria-labelledby={`${id}-jenis`}>
+      <span className="unggah-label" id={`${id}-jenis`}>Jenis lampiran</span>
+      <div className="unggah-pil">
+        {attachmentTypes.map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            className={jenis === value ? "pil is-aktif" : "pil"}
+            aria-pressed={jenis === value}
+            onClick={() => onJenis(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    <input type="hidden" name="jenis" value={jenis} readOnly />
+    <div className="unggah-drop">
+      <input
+        ref={berkasRef}
+        id={`${id}-berkas`}
+        className="unggah-input"
+        name="file"
+        type="file"
+        required
+        accept=".pdf,.png,.jpg,.jpeg,.zip,.csv,.xls,.xlsx,.doc,.docx,application/pdf,image/png,image/jpeg,application/zip,text/csv"
+        onChange={(event) => onBerkas(event.currentTarget.files?.[0]?.name ?? "")}
+      />
+      <span className="unggah-ikon" aria-hidden="true">📎</span>
+      <span className="unggah-teks">
+        <strong>{berkas || "Belum ada berkas dipilih"}</strong>
+        <small>PDF, gambar, spreadsheet, dokumen, atau ZIP. Ukuran maksimum mengikuti konfigurasi layanan.</small>
+      </span>
+      <button className="repository-button secondary" type="button" onClick={() => berkasRef.current?.click()}>
+        {berkas ? "Ganti berkas" : "Pilih berkas"}
+      </button>
+      <button className="repository-button" type="submit" disabled={busy || !berkas}>
+        {busy ? "Mengunggah…" : "Unggah"}
+      </button>
+    </div>
+  </form>;
 }
 
 const gapChecks = ["legalitas_lahan","riwayat_lahan","kondisi_lahan","sumber_air","drainase","konservasi_tanah","benih_bibit","pemupukan","pengendalian_hama","panen_pascapanen","pencatatan_budidaya"];
