@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 
 import { masukHref } from "../auth/masuk-url";
 import { Brand } from "../brand";
-import { apiURL, devLoginTersedia, getRealmLabel, getRoleLabel, type DashboardPrincipal } from "./principal";
+import { akhiriSesi, apiURL, devLoginTersedia, getRealmLabel, getRoleLabel, type DashboardPrincipal } from "./principal";
 import { getDashboardNav, getRoleAccess, isRole } from "./role-access";
 type Status = "memuat" | "masuk" | "tamu";
 
@@ -56,12 +56,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   async function handleKeluar() {
-    // Sesi lokal dan SSO memakai cookie berbeda; keduanya diakhiri agar tombol
-    // Keluar berperilaku sama pada kedua alur.
-    await Promise.all([
-      fetch(`${apiURL}/auth/dev/logout`, { method: "POST", credentials: "include" }).catch(() => null),
-      fetch(`${apiURL}/auth/logout`, { method: "POST", credentials: "include" }).catch(() => null),
-    ]);
+    // Sesi lokal dan SSO memakai cookie berbeda; akhiriSesi mengakhiri keduanya
+    // lalu mengembalikan URL logout penyedia identitas bila ada.
+    const tujuan = await akhiriSesi();
+    if (tujuan) {
+      window.location.assign(tujuan);
+      return;
+    }
     window.location.assign("/dashboard");
   }
 

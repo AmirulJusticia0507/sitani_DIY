@@ -50,7 +50,7 @@ func TestVerifierMenerimaTokenValid(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	verified, verifiedRealm, err := NewVerifier(map[string]Realm{"jsp": realm}).Verify(context.Background(), rawToken)
+	verified, verifiedRealm, err := NewVerifier(map[string]Realm{"jsp": realm}).VerifyIssuer(context.Background(), rawToken)
 	if err != nil {
 		t.Fatalf("verifikasi token: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestVerifierMenolakIssuerTidakDikenal(t *testing.T) {
 	token.Header["kid"] = "test-key"
 	rawToken, _ := token.SignedString(privateKey)
 
-	if _, _, err := NewVerifier(map[string]Realm{}).Verify(context.Background(), rawToken); err == nil {
+	if _, _, err := NewVerifier(map[string]Realm{}).VerifyIssuer(context.Background(), rawToken); err == nil {
 		t.Fatal("issuer tidak dikenal seharusnya ditolak")
 	}
 }

@@ -63,7 +63,7 @@ func TestVerifierMenerimaTokenKeycloakDenganAudPeranResource(t *testing.T) {
 	realm, privateKey := realmKeycloak(t)
 	raw := signedKeycloakToken(t, realm, privateKey, jwt.ClaimStrings{"account"}, "sitani-portal")
 
-	claims, verifiedRealm, err := NewVerifier(map[string]Realm{"jsp": realm}).Verify(context.Background(), raw)
+	claims, verifiedRealm, err := NewVerifier(map[string]Realm{"jsp": realm}).VerifyIssuer(context.Background(), raw)
 	if err != nil {
 		t.Fatalf("token Keycloak ditolak: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestVerifierMenolakTokenDariClientLain(t *testing.T) {
 	realm, privateKey := realmKeycloak(t)
 	raw := signedKeycloakToken(t, realm, privateKey, jwt.ClaimStrings{"account"}, "client-lain")
 
-	if _, _, err := NewVerifier(map[string]Realm{"jsp": realm}).Verify(context.Background(), raw); err == nil {
+	if _, _, err := NewVerifier(map[string]Realm{"jsp": realm}).VerifyIssuer(context.Background(), raw); err == nil {
 		t.Fatal("token dengan azp client lain seharusnya ditolak")
 	}
 }
@@ -85,7 +85,7 @@ func TestVerifierMenolakTokenTanpaAuthorizedParty(t *testing.T) {
 	realm, privateKey := realmKeycloak(t)
 	raw := signedKeycloakToken(t, realm, privateKey, jwt.ClaimStrings{"sitani-portal"}, "")
 
-	if _, _, err := NewVerifier(map[string]Realm{"jsp": realm}).Verify(context.Background(), raw); err == nil {
+	if _, _, err := NewVerifier(map[string]Realm{"jsp": realm}).VerifyIssuer(context.Background(), raw); err == nil {
 		t.Fatal("token tanpa azp seharusnya ditolak")
 	}
 }

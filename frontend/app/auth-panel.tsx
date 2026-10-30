@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { apiURL, devLoginTersedia } from "../components/dashboard/principal";
+import { akhiriSesi, apiURL, devLoginTersedia } from "../components/dashboard/principal";
 import { masukHref } from "../components/auth/masuk-url";
 
 type Principal = {
@@ -42,10 +42,13 @@ export function AuthPanel() {
   }, []);
 
   async function logout() {
-    await Promise.all([
-      fetch(`${apiURL}/auth/dev/logout`, { method: "POST", credentials: "include" }).catch(() => null),
-      fetch(`${apiURL}/auth/logout`, { method: "POST", credentials: "include" }).catch(() => null),
-    ]);
+    // akhiriSesi mengakhiri sesi lokal dan SSO, lalu mengembalikan URL logout
+    // penyedia identitas bila sesi SSO masih aktif.
+    const tujuan = await akhiriSesi();
+    if (tujuan) {
+      window.location.assign(tujuan);
+      return;
+    }
     setPrincipal(null);
   }
 

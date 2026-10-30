@@ -10,6 +10,7 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -24,6 +25,9 @@ type Claims struct {
 	EmailVerified   bool   `json:"email_verified"`
 	Username        string `json:"preferred_username"`
 	Name            string `json:"name"`
+	// SessionID dipakai pada id_token untuk mengakhiri sesi di penyedia
+	// identitas (parameter sid pada end_session_endpoint Keycloak).
+	SessionID string `json:"sid"`
 }
 
 type jwk struct {
@@ -49,6 +53,7 @@ type Verifier struct {
 	client *http.Client
 	mu     sync.RWMutex
 	cache  map[string]cachedKeys
+	leeway time.Duration
 }
 
 func NewVerifier(realms map[string]Realm) *Verifier {
@@ -56,10 +61,32 @@ func NewVerifier(realms map[string]Realm) *Verifier {
 		realms: realms,
 		client: &http.Client{Timeout: 10 * time.Second},
 		cache:  make(map[string]cachedKeys),
+		leeway: DefaultLeeway,
 	}
 }
 
-func (v *Verifier) Verify(ctx context.Context, rawToken string) (*Claims, Realm, error) {
+// SetLeeway mengatur toleransi selisih jam untuk exp/iat/nbf token.
+func (v *Verifier) SetLeeway(leeway time.Duration) {
+	if leeway < 0 {
+		leeway = 0
+	}
+	v.leeway = leeway
+}
+
+// Verifier mengembalikan verifier yang sudah memakai toleransi jam config
+// dan bisa dipakai untuk memeriksa token pada realm tertentu tanpa bergantung
+// pada klaim issuer (yang belum diverifikasi).
+func (m *Manager) Verifier() *Verifier {
+	if m.verifier != nil {
+		m.verifier.SetLeeway(m.config.leeway())
+	}
+	return m.verifier
+}
+
+// Verify memverifikasi token terhadap konfigurasi realm yang diberikan, bukan
+// dari issuer di dalam token. Aman dipakai untuk access token yang sudah
+// kedaluwarsa: issuer tetap wajib sama dengan realm pada issuer check.
+func (v *Verifier) Verify(ctx context.Context, rawToken string, realm Realm) (*Claims, Realm, error) {
 	if rawToken == "" {
 		return nil, Realm{}, errors.New("token tidak tersedia")
 	}
@@ -67,9 +94,15 @@ func (v *Verifier) Verify(ctx context.Context, rawToken string) (*Claims, Realm,
 	if _, _, err := new(jwt.Parser).ParseUnverified(rawToken, unverified); err != nil {
 		return nil, Realm{}, errors.New("format token tidak valid")
 	}
-	realm, ok := v.realmByIssuer(unverified.Issuer)
-	if !ok {
-		return nil, Realm{}, errors.New("issuer token tidak diizinkan")
+	issuer := strings.TrimRight(unverified.Issuer, "/")
+	expectedIssuer := realm.Issuer
+	if issuer != expectedIssuer {
+		// Host issuer berbeda dari konfigurasi: terima hanya bila ekuivalen
+		// (lihat issuerAlias) lalu verifikasi dengan issuer pada token.
+		if !issuerAlias(issuer, expectedIssuer) {
+			return nil, Realm{}, errors.New("issuer token tidak diizinkan")
+		}
+		expectedIssuer = issuer
 	}
 
 	claims := &Claims{}
@@ -82,7 +115,7 @@ func (v *Verifier) Verify(ctx context.Context, rawToken string) (*Claims, Realm,
 			return nil, errors.New("header kid tidak tersedia")
 		}
 		return v.publicKey(ctx, realm, kid)
-	}, jwt.WithIssuer(realm.Issuer), jwt.WithExpirationRequired())
+	}, jwt.WithIssuer(expectedIssuer), jwt.WithExpirationRequired(), jwt.WithIssuedAt(), jwt.WithLeeway(v.leeway))
 	if err != nil || !token.Valid {
 		return nil, Realm{}, fmt.Errorf("verifikasi token gagal: %w", err)
 	}
@@ -98,6 +131,22 @@ func (v *Verifier) Verify(ctx context.Context, rawToken string) (*Claims, Realm,
 	return claims, realm, nil
 }
 
+// VerifyIssuer memverifikasi token dengan realm yang dipilih dari klaim issuer.
+func (v *Verifier) VerifyIssuer(ctx context.Context, rawToken string) (*Claims, Realm, error) {
+	if rawToken == "" {
+		return nil, Realm{}, errors.New("token tidak tersedia")
+	}
+	unverified := &Claims{}
+	if _, _, err := new(jwt.Parser).ParseUnverified(rawToken, unverified); err != nil {
+		return nil, Realm{}, errors.New("format token tidak valid")
+	}
+	realm, ok := v.realmByIssuer(unverified.Issuer)
+	if !ok {
+		return nil, Realm{}, errors.New("issuer token tidak diizinkan")
+	}
+	return v.Verify(ctx, rawToken, realm)
+}
+
 func (v *Verifier) realmByIssuer(issuer string) (Realm, bool) {
 	issuer = strings.TrimRight(issuer, "/")
 	for _, realm := range v.realms {
@@ -106,6 +155,41 @@ func (v *Verifier) realmByIssuer(issuer string) (Realm, bool) {
 		}
 	}
 	return Realm{}, false
+}
+
+// hostAlias menerjemahkan host penyedia identitas lokal yang setara. Keycloak
+// lokal diakses browser melalui localhost, sedangkan container backend
+// mengaksesnya melalui host.docker.internal; keduanya menunjuk instance dan
+// realm yang sama, sehingga issuer token dapat berbeda hanya pada host.
+var hostAlias = map[string]string{
+	"localhost":            "host.docker.internal",
+	"127.0.0.1":            "host.docker.internal",
+	"host.docker.internal": "localhost",
+}
+
+// issuerAlias melaporkan apakah dua issuer menunjuk realm yang sama dengan
+// perbedaan hanya pada host alias di atas. Path, port, dan skema harus sama,
+// sehingga issuer dari host yang benar-benar berbeda tetap ditolak.
+//
+// Pengecualian ini hanya melonggarkan pencocokan issuer; tanda tangan token
+// tetap diverifikasi dengan kunci realm yang dikonfigurasi.
+func issuerAlias(tokenIssuer, configuredIssuer string) bool {
+	tokenURL, err := url.Parse(tokenIssuer)
+	if err != nil {
+		return false
+	}
+	configuredURL, err := url.Parse(configuredIssuer)
+	if err != nil {
+		return false
+	}
+	if tokenURL.Scheme != configuredURL.Scheme || tokenURL.Port() != configuredURL.Port() {
+		return false
+	}
+	if strings.TrimRight(tokenURL.Path, "/") != strings.TrimRight(configuredURL.Path, "/") {
+		return false
+	}
+	alias, ok := hostAlias[strings.ToLower(tokenURL.Hostname())]
+	return ok && alias == strings.ToLower(configuredURL.Hostname())
 }
 
 func (v *Verifier) publicKey(ctx context.Context, realm Realm, kid string) (*rsa.PublicKey, error) {

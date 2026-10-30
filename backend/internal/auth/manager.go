@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -22,6 +21,10 @@ import (
 )
 
 const accessTokenCookie = "sitani_sso_access"
+
+// realmCookie menyimpan kunci realm alur SSO (jsp/satriya) agar permintaan
+// berikutnya dapat memilih konfigurasi bahkan setelah access token kedaluwarsa.
+const realmCookie = "sitani_sso_realm"
 
 type Principal struct {
 	UserID   int64  `json:"user_id"`
@@ -61,12 +64,14 @@ type Manager struct {
 }
 
 func NewManager(config Config, database *db.DB) *Manager {
-	return &Manager{
+	manager := &Manager{
 		config:   config,
 		verifier: NewVerifier(config.Realms),
 		database: database,
 		client:   &http.Client{Timeout: 10 * time.Second},
 	}
+	manager.verifier.SetLeeway(config.leeway())
+	return manager
 }
 
 // SetDevLocal memasang login lokal (development/UAT). Bila tidak dipasang,
@@ -77,6 +82,7 @@ func (m *Manager) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /auth/login/{realm}", m.login)
 	mux.HandleFunc("GET /auth/callback/{realm}", m.callback)
 	mux.HandleFunc("POST /auth/logout", m.logout)
+	mux.HandleFunc("POST /auth/refresh", m.refresh)
 	mux.Handle("GET /auth/me", m.Require(http.HandlerFunc(m.me)))
 	if m.devLocal != nil {
 		m.devLocal.RegisterRoutes(mux)
@@ -122,7 +128,32 @@ func (m *Manager) Require(next http.Handler) http.Handler {
 			writeAuthError(w, http.StatusForbidden, "origin permintaan tidak diizinkan")
 			return
 		}
-		claims, realm, err := m.verifier.Verify(r.Context(), rawToken)
+		if fromCookie {
+			cookie, cookieErr := r.Cookie(accessTokenCookie)
+			if cookieErr != nil || cookie.Value == "" {
+				writeAuthError(w, http.StatusUnauthorized, "token SSO tidak valid")
+				return
+			}
+			session, sesiErr := m.sesiDariCookie(r)
+			if sesiErr != nil || session.perluDiperbarui(m.config.refreshSkew()) {
+				if session.refresh == "" {
+					m.clearSessionCookies(w)
+					writeAuthError(w, http.StatusUnauthorized, "sesi SSO telah berakhir")
+					return
+				}
+				diperbarui, refreshErr := m.perbaruiSesi(w, r, session)
+				if refreshErr != nil {
+					slog.Warn("perpanjangan sesi SSO gagal", "realm", session.realm.Name, "error", refreshErr)
+					m.clearSessionCookies(w)
+					writeAuthError(w, http.StatusUnauthorized, "sesi SSO telah berakhir")
+					return
+				}
+				session = diperbarui
+			}
+			m.terapkanSesi(w, r, session, next)
+			return
+		}
+		claims, realm, err := m.verifier.VerifyIssuer(r.Context(), rawToken)
 		if err != nil {
 			writeAuthError(w, http.StatusUnauthorized, "token SSO tidak valid")
 			return
@@ -139,6 +170,22 @@ func (m *Manager) Require(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), principalKey{}, principal)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// terapkanSesi memetakan sesi SSO yang sudah valid ke principal lalu
+// meneruskan permintaan.
+func (m *Manager) terapkanSesi(w http.ResponseWriter, r *http.Request, session sesiSSO, next http.Handler) {
+	principal, err := m.resolvePrincipal(r.Context(), session.claims, session.realm)
+	if err != nil {
+		writeAuthError(w, http.StatusUnauthorized, "identitas SSO tidak dapat dipetakan")
+		return
+	}
+	// Kompatibilitas sementara untuk handler bisnis lama. Nilai dari client
+	// sudah dihapus dan diganti hanya setelah token berhasil diverifikasi.
+	r.Header.Set("X-User-ID", strconv.FormatInt(principal.UserID, 10))
+	r.Header.Set("X-User-Role", principal.Role)
+	ctx := context.WithValue(r.Context(), principalKey{}, principal)
+	next.ServeHTTP(w, r.WithContext(ctx))
 }
 
 func (m *Manager) allowedBrowserOrigin(origin string) bool {
@@ -209,7 +256,7 @@ func (m *Manager) callback(w http.ResponseWriter, r *http.Request) {
 		writeAuthError(w, http.StatusBadRequest, "authorization code tidak tersedia")
 		return
 	}
-	token, expiresIn, err := m.exchangeCode(r.Context(), realm, code, verifierCookie.Value)
+	token, codeToken, idToken, expiresIn, err := m.exchangeCode(r.Context(), realm, code, verifierCookie.Value)
 	if err != nil {
 		// Dicatat agar kegagalan konfigurasi (redirect_uri, secret, PKCE) dapat
 		// didiagnosis. Nilai error hanya berisi kode kesalahan OAuth.
@@ -217,10 +264,16 @@ func (m *Manager) callback(w http.ResponseWriter, r *http.Request) {
 		writeAuthError(w, http.StatusUnauthorized, "pertukaran authorization code gagal")
 		return
 	}
-	claims, verifiedRealm, err := m.verifier.Verify(r.Context(), token)
+	claims, verifiedRealm, err := m.verifier.VerifyIssuer(r.Context(), token)
 	if err != nil {
 		slog.Warn("verifikasi token SSO gagal", "realm", realm.Name, "error", err)
 		writeAuthError(w, http.StatusUnauthorized, "token SSO hasil callback tidak valid")
+		return
+	}
+	if m.database == nil {
+		// Callback tidak boleh panik bila database identitas belum siap; token
+		// tidak dapat dipetakan sehingga permintaan ditolak dengan jelas.
+		writeAuthError(w, http.StatusServiceUnavailable, "database identitas belum tersedia")
 		return
 	}
 	if _, err := m.resolvePrincipal(r.Context(), claims, verifiedRealm); err != nil {
@@ -228,65 +281,22 @@ func (m *Manager) callback(w http.ResponseWriter, r *http.Request) {
 		writeAuthError(w, http.StatusUnauthorized, "identitas SSO tidak dapat dipetakan")
 		return
 	}
-	http.SetCookie(w, &http.Cookie{
-		Name: accessTokenCookie, Value: token, Path: "/", HttpOnly: true,
-		Secure: m.config.SecureCookie, SameSite: http.SameSiteLaxMode, MaxAge: expiresIn,
-	})
+	// id_token diverifikasi secara terpisah karena aud-nya memang client id
+	// (berbeda dari access token). Bila tidak valid, cookie id_token tidak
+	// disimpan sehingga logout hanya memakai access token.
+	if idToken != "" {
+		if _, idErr := m.verifikasiIDToken(r.Context(), idToken, realm); idErr != nil {
+			slog.Warn("id_token SSO tidak valid", "realm", realm.Name, "error", idErr)
+			idToken = ""
+		}
+	}
+	m.simpanSesi(w, realm, sesiSSO{token: token, refresh: codeToken, idToken: idToken}, expiresIn)
 	redirect := "/"
 	if cookie, err := r.Cookie("sitani_sso_redirect_" + realm.Name); err == nil {
 		redirect = safeRedirect(cookie.Value)
 	}
 	m.clearFlowCookies(w, realm.Name)
 	http.Redirect(w, r, m.config.FrontendURL+redirect, http.StatusFound)
-}
-
-func (m *Manager) exchangeCode(ctx context.Context, realm Realm, code, verifier string) (string, int, error) {
-	values := url.Values{
-		"grant_type":    {"authorization_code"},
-		"client_id":     {realm.ClientID},
-		"redirect_uri":  {m.callbackURL(realm)},
-		"code":          {code},
-		"code_verifier": {verifier},
-	}
-	// Client confidential mengautentikasi dengan secret; client publik yang
-	// hanya memakai PKCE tidak mengirimnya.
-	if realm.ClientSecret != "" {
-		values.Set("client_secret", realm.ClientSecret)
-	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, realm.Issuer+"/protocol/openid-connect/token", strings.NewReader(values.Encode()))
-	if err != nil {
-		return "", 0, err
-	}
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	response, err := m.client.Do(request)
-	if err != nil {
-		return "", 0, err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		// Hanya kode kesalahan OAuth yang dicatat: pesannya berasal dari
-		// penyedia identitas dan tidak memuat token atau data pribadi.
-		var oauthErr struct {
-			Error       string `json:"error"`
-			Description string `json:"error_description"`
-		}
-		_ = json.NewDecoder(io.LimitReader(response.Body, 4<<10)).Decode(&oauthErr)
-		return "", 0, fmt.Errorf("token endpoint status %d: %s %s", response.StatusCode, oauthErr.Error, oauthErr.Description)
-	}
-	var payload struct {
-		AccessToken string `json:"access_token"`
-		ExpiresIn   int    `json:"expires_in"`
-	}
-	if err := json.NewDecoder(io.LimitReader(response.Body, 1<<20)).Decode(&payload); err != nil {
-		return "", 0, err
-	}
-	if payload.AccessToken == "" {
-		return "", 0, errors.New("access token kosong")
-	}
-	if payload.ExpiresIn <= 0 {
-		payload.ExpiresIn = 300
-	}
-	return payload.AccessToken, payload.ExpiresIn, nil
 }
 
 func (m *Manager) resolvePrincipal(ctx context.Context, claims *Claims, realm Realm) (Principal, error) {
@@ -346,8 +356,108 @@ func (m *Manager) logout(w http.ResponseWriter, r *http.Request) {
 		writeAuthError(w, http.StatusForbidden, "origin permintaan tidak diizinkan")
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: accessTokenCookie, Path: "/", HttpOnly: true, Secure: m.config.SecureCookie, SameSite: http.SameSiteLaxMode, MaxAge: -1})
-	w.WriteHeader(http.StatusNoContent)
+	target := m.akhiriSesiSSO(r)
+	m.clearSessionCookies(w)
+	writeJSON(w, http.StatusOK, map[string]string{"logout_url": target})
+}
+
+// refresh adalah endpoint eksplisit untuk memperbarui sesi sebelum access
+// token kedaluwarsa. Require sudah memperbarui otomatis; endpoint ini berguna
+// untuk aplikasi yang perlu memastikan sesi masih hidup.
+func (m *Manager) refresh(w http.ResponseWriter, r *http.Request) {
+	if !m.allowedBrowserOrigin(r.Header.Get("Origin")) {
+		writeAuthError(w, http.StatusForbidden, "origin permintaan tidak diizinkan")
+		return
+	}
+	if err := m.config.Validate(); err != nil {
+		writeAuthError(w, http.StatusServiceUnavailable, err.Error())
+		return
+	}
+	session, err := m.sesiDariCookie(r)
+	if session.refresh == "" {
+		m.clearSessionCookies(w)
+		writeAuthError(w, http.StatusUnauthorized, "sesi SSO telah berakhir")
+		return
+	}
+	baru, refreshErr := m.perbaruiSesi(w, r, session)
+	if refreshErr != nil {
+		slog.Warn("perpanjangan sesi SSO gagal", "realm", session.realm.Name, "error", refreshErr)
+		m.clearSessionCookies(w)
+		writeAuthError(w, http.StatusUnauthorized, "sesi SSO telah berakhir")
+		return
+	}
+	if err != nil {
+		slog.Info("access token lama tidak valid, sesi diperbarui", "realm", baru.realm.Name)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"realm":      baru.realm.Name,
+		"expires_at": baru.kedaluwarsa.UTC().Format(time.RFC3339),
+	})
+}
+
+// akhiriSesiSSO mencabut refresh token di penyedia identitas lalu menyusun URL
+// end_session_endpoint (OIDC RP-Initiated Logout) agar sesi SSO di browser juga
+// berakhir. Gagal mencabut token tidak menghalangi logout lokal; kegagalannya
+// dicatat dan URL end_session tetap diberikan bila dapat disusun.
+func (m *Manager) akhiriSesiSSO(r *http.Request) string {
+	session, _ := m.sesiDariCookie(r)
+	if session.realm.Name == "" {
+		return ""
+	}
+	realm := session.realm
+	if session.refresh != "" {
+		values := url.Values{
+			"token":           {session.refresh},
+			"token_type_hint": {"refresh_token"},
+			"client_id":       {realm.ClientID},
+		}
+		if realm.ClientSecret != "" {
+			values.Set("client_secret", realm.ClientSecret)
+		}
+		if err := m.revoke(r.Context(), realm, values); err != nil {
+			slog.Warn("pencabutan refresh token gagal", "realm", realm.Name, "error", err)
+		}
+	}
+	return m.logoutURL(session, m.config.FrontendURL+"/masuk")
+}
+
+// revoke memanggil revocation_endpoint. Endpoint ini tidak wajib ada di setiap
+// penyedia; status selain 200 dicatat sebagai kesalahan.
+func (m *Manager) revoke(ctx context.Context, realm Realm, values url.Values) error {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, realm.Issuer+"/protocol/openid-connect/revoke", strings.NewReader(values.Encode()))
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response, err := m.client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("revocation endpoint status %d", response.StatusCode)
+	}
+	return nil
+}
+
+// logoutURL menyusun URL end_session_endpoint untuk mengakhiri sesi di
+// penyedia identitas. id_token_hint memakai id_token yang sudah diverifikasi;
+// bila tidak ada, client_id dan post_logout_redirect_uri dipakai (Keycloak
+// menerima keduanya bila redirect terdaftar pada post.logout.redirect.uris).
+func (m *Manager) logoutURL(session sesiSSO, postLogout string) string {
+	realm := session.realm
+	values := url.Values{}
+	if session.idToken != "" {
+		if claims, err := m.verifikasiIDToken(context.Background(), session.idToken, realm); err == nil {
+			values.Set("id_token_hint", session.idToken)
+			if claims.SessionID != "" {
+				values.Set("sid", claims.SessionID)
+			}
+		}
+	}
+	values.Set("client_id", realm.ClientID)
+	values.Set("post_logout_redirect_uri", postLogout)
+	return realm.Issuer + "/protocol/openid-connect/logout?" + values.Encode()
 }
 
 func (m *Manager) callbackURL(realm Realm) string {

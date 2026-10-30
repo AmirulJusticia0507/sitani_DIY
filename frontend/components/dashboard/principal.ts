@@ -62,3 +62,24 @@ export async function devLoginTersedia(): Promise<boolean> {
     return false;
   }
 }
+
+// akhiriSesi mengakhiri sesi lokal dan sesi SSO. Backend mencabut refresh
+// token lalu mengembalikan `logout_url` end_session_endpoint penyedia
+// identitas; hanya URL https/http milik penyedia yang diikuti agar respons
+// backend yang tidak terduga tidak dapat mengalihkan pengguna ke situs lain.
+export async function akhiriSesi(): Promise<string | null> {
+  const [, sso] = await Promise.all([
+    fetch(`${apiURL}/auth/dev/logout`, { method: "POST", credentials: "include" }).catch(() => null),
+    fetch(`${apiURL}/auth/logout`, { method: "POST", credentials: "include" }).catch(() => null),
+  ]);
+  if (!sso || !sso.ok) return null;
+  try {
+    const data = (await sso.json()) as { logout_url?: unknown };
+    if (typeof data.logout_url !== "string" || data.logout_url === "") return null;
+    const tujuan = new URL(data.logout_url);
+    if (tujuan.protocol !== "https:" && tujuan.protocol !== "http:") return null;
+    return tujuan.toString();
+  } catch {
+    return null;
+  }
+}

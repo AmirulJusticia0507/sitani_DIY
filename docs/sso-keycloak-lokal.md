@@ -118,6 +118,53 @@ bisa dipakai untuk login lokal.
   dicatat di log backend sebagai `WARN` dengan kode kesalahan OAuth saja — token,
   email, dan isi dokumen tidak dicatat.
 
+### Cookie sesi
+
+| Cookie | Path | Isi | Umur |
+| --- | --- | --- | --- |
+| `sitani_sso_access` | `/` | access token | `expires_in` token endpoint |
+| `sitani_sso_realm` | `/` | kunci realm (`jsp`/`satriya`) | sesi browser |
+| `sitani_sso_refresh` | `/auth/` | refresh token | sesi browser |
+| `sitani_sso_id` | `/auth/` | id_token | sesi browser |
+
+Semua cookie `HttpOnly` dan `SameSite=Lax`; `Secure` mengikuti
+`SSO_COOKIE_SECURE`. Path `/auth/` membuat refresh dan id_token hanya terkirim ke
+`/auth/refresh`, `/auth/logout`, dan `/auth/callback/*`, bukan ke setiap permintaan
+API.
+
+### Perpanjangan sesi
+
+`Require` (dipakai `/auth/me` dan seluruh `/v1/*`) mengambil sesi dari cookie. Bila
+access token gagal diverifikasi **atau** sisa umurnya kurang dari
+`SSO_REFRESH_SKEW_SECONDS` (bawaan 60), backend menukar `sitani_sso_refresh` di
+token endpoint, memverifikasi access token hasilnya, lalu menulis ulang cookie.
+Bila refresh gagal, semua cookie sesi dihapus dan permintaan dijawab
+`401 {"error":"sesi SSO telah berakhir"}`.
+
+`POST /auth/refresh` (wajib `Origin` frontend) melakukan langkah yang sama tanpa
+memakai access token, sehingga frontend dapat memastikan sesi masih hidup saat
+memuat halaman.
+
+Verifikasi memakai toleransi jam `SSO_TOKEN_LEEWAY_SECONDS` (bawaan 60) dan
+mewajibkan klaim `iat`.
+
+### Logout
+
+`POST /auth/logout` memeriksa `Origin`, mencabut refresh token di
+`/protocol/openid-connect/revoke`, menghapus keempat cookie, lalu menjawab
+`200 {"logout_url": "..."}`. URL berisi `id_token_hint` (bila id_token tersedia
+dan valid), `sid`, `client_id`, dan `post_logout_redirect_uri` ke
+`{FRONTEND_PUBLIC_URL}/masuk`. Frontend (`akhiriSesi()` di
+`frontend/components/dashboard/principal.ts`) mengakhiri sesi dev + SSO lalu
+mengikuti `logout_url` hanya bila skemanya `http`/`https`.
+
+Agar Keycloak menerima pengalihan setelah logout, alamat
+`{FRONTEND_PUBLIC_URL}/*` harus ada di atribut
+**Valid post logout redirect URIs** client (`post.logout.redirect.uris`, sudah
+diisi `configure-realm.ps1` untuk `:3000`–`:3002`). Atribut bertitik ini harus
+diubah lewat UI admin atau Admin REST API; `kcadm.sh -s attributes."..."` tidak
+menerapkannya.
+
 ## Pemecahan masalah
 
 | Gejala | Penyebab umum |
@@ -131,6 +178,9 @@ bisa dipakai untuk login lokal.
 | `403` saat login/logout | `FRONTEND_PUBLIC_URL` tidak sama dengan origin frontend yang dipakai |
 | Halaman Keycloak Jogjaprov menjawab `Invalid parameter: redirect_uri` | realm Jogjaprov, **bukan** Keycloak lokal. Terjadi bila `SSO_*_ISSUER` masih `sso.jogjaprov.go.id` atau proses backend lama masih hidup (mis. binary `api.exe` dari `go run` di port 8081). Hentikan proses itu dan jalankan backend dengan `.env` terbaru; client `portal` di Jogjaprov belum mendaftarkan `redirect_uri` proyek ini (`/auth/callback/jsp` ditolak di semua host) |
 | `404` untuk `/v1/dokumen?_rsc=...` di konsol | versi frontend lama yang menautkan menu **Dokumen** ke endpoint API. Menu kini mengarah ke halaman `/dashboard/dokumen`; rebuild frontend |
+| Refresh gagal dengan log `Invalid token issuer. Expected 'http://host.docker.internal:8085/...'` | access token diterbitkan dengan issuer `http://localhost:8085/...` (browser membuka Keycloak lewat `localhost`), sedangkan backend memakai issuer `host.docker.internal`. Verifikasi token tetap diterima (host lokal dianggap setara), tetapi **Keycloak menolak refresh token lintas host**. Solusi: samakan issuer yang dilihat browser dan backend — buka portal/Keycloak lewat host yang sama atau setel `KC_HOSTNAME` ke satu URL tetap |
+| `logout_url` hanya berisi `client_id` dan `post_logout_redirect_uri` | id_token tidak valid/tidak ada, sehingga `id_token_hint` dan `sid` tidak dikirim. Keycloak tetap dapat menampilkan konfirmasi logout; pastikan cookie `sitani_sso_id` ada (path `/auth/`) |
+| Keycloak menolak `post_logout_redirect_uri` | alamat frontend belum terdaftar di **Valid post logout redirect URIs** client |
 
 ## Menu Dokumen
 
@@ -175,3 +225,16 @@ ditolak `503`, tetapi daftar dokumen tetap dapat dibuka.
   `/v1/dokumen`): tamu melihat ajakan masuk, sesi SSO melihat daftar dari
   `GET /v1/dokumen` (`200`, "0 dokumen"). `npm run typecheck` dan `npm run lint`
   lulus.
+- `go test ./internal/auth/...` mencakup perilaku baru: penyimpanan cookie terbatas
+  path, `sesiDariCookie` saat access token kedaluwarsa, perpanjangan sesi, rotasi
+  refresh token, verifikasi id_token (`aud`/`azp`), penolakan `Origin` asing saat
+  logout, `issuerAlias`, serta pembacaan `SSO_REFRESH_SKEW_SECONDS` /
+  `SSO_TOKEN_LEEWAY_SECONDS`.
+- Uji nyata terhadap build backend + Keycloak 26.0 (`KC_HOSTNAME` tetap,
+  issuer `http://host.docker.internal:8086/realms/sitani`) dengan akun `admin.dev`:
+  `/auth/me` `200` (`"role":"admin"`), `POST /auth/refresh` `200`
+  (`{"expires_at":...,"realm":"jsp"}`), `POST /auth/logout` `200` dengan
+  `logout_url` memuat `id_token_hint`, `sid`, `client_id`, dan
+  `post_logout_redirect_uri=http://localhost:3001/masuk`; refresh setelah logout
+  `401`. `Origin` asing tetap `403`. Token hasil `token-exchange` tidak dipakai:
+  Keycloak 26.0 menjawab `unsupported_grant_type` untuk grant tersebut.

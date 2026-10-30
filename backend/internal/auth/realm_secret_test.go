@@ -38,7 +38,7 @@ func TestExchangeCodeMengirimClientSecretHanyaUntukClientConfidential(t *testing
 	server, terekam := tokenServer(t, "token-uji")
 	manager := NewManager(Config{BackendURL: "http://localhost:8080"}, nil)
 
-	if _, _, err := manager.exchangeCode(t.Context(), Realm{
+	if _, _, _, _, err := manager.exchangeCode(t.Context(), Realm{
 		Name: "jsp", Issuer: server.URL, ClientID: "sitani-portal", ClientSecret: "rahasia-client",
 	}, "kode", "verifier"); err != nil {
 		t.Fatalf("pertukaran token gagal: %v", err)
@@ -50,7 +50,7 @@ func TestExchangeCodeMengirimClientSecretHanyaUntukClientConfidential(t *testing
 		t.Fatalf("redirect_uri = %q", got)
 	}
 
-	if _, _, err := manager.exchangeCode(t.Context(), Realm{
+	if _, _, _, _, err := manager.exchangeCode(t.Context(), Realm{
 		Name: "jsp", Issuer: server.URL, ClientID: "portal",
 	}, "kode", "verifier"); err != nil {
 		t.Fatalf("pertukaran token tanpa secret gagal: %v", err)

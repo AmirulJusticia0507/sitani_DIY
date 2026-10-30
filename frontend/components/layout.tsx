@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { masukHref } from "./auth/masuk-url";
+import { akhiriSesi } from "./dashboard/principal";
 
 const apiURL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080";
 
@@ -121,10 +122,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
   }
 
   async function handleLogout() {
-    await Promise.all([
-      fetch(`${apiURL}/auth/dev/logout`, { method: "POST", credentials: "include" }).catch(() => null),
-      fetch(`${apiURL}/auth/logout`, { method: "POST", credentials: "include" }).catch(() => null),
-    ]);
+    // Sesi lokal dan SSO diakhiri sekaligus. Bila backend memberi URL logout
+    // penyedia identitas, pengguna dibawa ke sana agar sesi SSO ikut berakhir.
+    const tujuan = await akhiriSesi();
+    if (tujuan) {
+      window.location.assign(tujuan);
+      return;
+    }
     setPrincipal(null);
   }
 

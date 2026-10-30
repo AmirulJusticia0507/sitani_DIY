@@ -39,6 +39,8 @@ services:
       BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:-http://localhost:8080}
       FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://localhost:3000}
       SSO_COOKIE_SECURE: ${SSO_COOKIE_SECURE:-false}
+      SSO_REFRESH_SKEW_SECONDS: ${SSO_REFRESH_SKEW_SECONDS:-60}
+      SSO_TOKEN_LEEWAY_SECONDS: ${SSO_TOKEN_LEEWAY_SECONDS:-60}
       # Login lokal development/UAT (docs/login-lokal-development.md). Backend
       # menolak mengaktifkannya bila lingkungan terdeteksi produksi.
       SITANI_DEV_LOGIN: ${SITANI_DEV_LOGIN:-false}
