@@ -1809,10 +1809,116 @@ a:hover {
 
 
 /* ===== Stepper peran (halaman sertifikasi) =====
-   Mengikuti pola Material Tailwind "stepper with dots": lingkaran bernomor,
-   garis penghubung hijau/abu mengikuti status langkah sebelumnya, step selesai
-   berisi tanda centang, step aktif putih bergaris hijau, step pending putih
-   bergaris abu. Klik label untuk berpindah peran. */
+   Mengikuti struktur Material Tailwind stepper: garis penuh di belakang, lingkaran
+   40px berisi ikon, label absolute di bawah setiap langkah, tombol Prev/Next.
+   Langkah aktif: hijau solid. Langkah selesai: hijau solid. Langkah pending: abu. */
+.stepper-mt {
+  width: 100%;
+  padding: 0 1rem;
+}
+
+.stepper-mt-jalur {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.stepper-mt-garis {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  height: 3px;
+  transform: translateY(-50%);
+  background: var(--color-sitani-border);
+  z-index: 1;
+}
+
+.stepper-mt-garis-isi {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 3px;
+  transform: translateY(-50%);
+  background: var(--color-sitani-green-600);
+  z-index: 1;
+  transition: width 0.5s ease;
+}
+
+.stepper-mt-tombol {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: var(--color-sitani-green-600);
+  color: var(--color-white);
+  border: 0;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stepper-mt-tombol:hover { transform: scale(1.08); box-shadow: 0 8px 20px rgba(13,73,56,0.25); }
+
+.stepper-mt-tombol.is-aktif {
+  background: var(--color-sitani-green-600);
+  box-shadow: 0 0 0 4px rgba(31, 107, 73, 0.18);
+}
+
+.stepper-mt-tombol.is-pending {
+  background: var(--color-sitani-border);
+  color: var(--color-sitani-muted);
+}
+
+.stepper-mt-tombol svg {
+  width: 20px;
+  height: 20px;
+}
+
+.stepper-mt-label {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 3.5rem;
+  text-align: center;
+  pointer-events: none;
+}
+
+.stepper-mt-label .stepper-mt-label-judul {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-sitani-muted);
+  white-space: nowrap;
+}
+
+.stepper-mt-label .stepper-mt-label-detail {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--color-sitani-muted);
+  margin-top: 0.15rem;
+  white-space: nowrap;
+}
+
+.stepper-mt-tombol.is-aktif .stepper-mt-label .stepper-mt-label-judul,
+.stepper-mt-tombol.is-aktif .stepper-mt-label .stepper-mt-label-detail {
+  color: var(--color-sitani-green-800);
+}
+
+.stepper-mt-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5.5rem;
+  gap: 1rem;
+}
+
+.stepper-mt-footer .btn {
+  min-width: 120px;
+}
 .stepper {
   margin: 1.5rem 0 0.5rem;
   padding: 1.5rem 1.75rem 1rem;
