@@ -126,9 +126,10 @@ bisa dipakai untuk login lokal.
 | Callback `401` + log `dial tcp [::1]:8085: connect: connection refused` | issuer memakai `localhost` dari dalam container; ganti ke `host.docker.internal` |
 | Token endpoint `unauthorized_client` | password client di Keycloak berbeda dari `.env`; jalankan ulang skrip dengan `-ClientSecret` yang sama (skrip memverifikasi) |
 | Token endpoint `invalid_grant: Code not valid` | authorization code sudah dipakai/kedaluwarsa — perilaku normal saat diuji manual |
-| Keycloak menjawab `Invalid parameter: redirect_uri` | `redirect_uri` callback tidak terdaftar. Tambahkan host/port baru di `configure-realm.ps1` lalu jalankan ulang |
+| Keycloak **lokal** (port 8085) menjawab `Invalid parameter: redirect_uri` | `redirect_uri` callback tidak terdaftar. Tambahkan host/port baru di `configure-realm.ps1` lalu jalankan ulang |
 | Log `verifikasi token SSO gagal ... invalid audience` | versi backend lama yang masih memvalidasi `aud`; rebuild backend |
 | `403` saat login/logout | `FRONTEND_PUBLIC_URL` tidak sama dengan origin frontend yang dipakai |
+| Halaman Keycloak Jogjaprov menjawab `Invalid parameter: redirect_uri` | realm Jogjaprov, **bukan** Keycloak lokal. Terjadi bila `SSO_*_ISSUER` masih `sso.jogjaprov.go.id` atau proses backend lama masih hidup (mis. binary `api.exe` dari `go run` di port 8081). Hentikan proses itu dan jalankan backend dengan `.env` terbaru; client `portal` di Jogjaprov belum mendaftarkan `redirect_uri` proyek ini (`/auth/callback/jsp` ditolak di semua host) |
 | `404` untuk `/v1/dokumen?_rsc=...` di konsol | versi frontend lama yang menautkan menu **Dokumen** ke endpoint API. Menu kini mengarah ke halaman `/dashboard/dokumen`; rebuild frontend |
 
 ## Menu Dokumen
