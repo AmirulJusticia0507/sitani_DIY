@@ -110,6 +110,9 @@ Ringkas bila database dijalankan lewat `infra/compose.yml`:
   `SameSite=Lax`. Database hanya menyimpan hash SHA-256 dari token. Masa berlaku 8 jam.
   Logout menghapus baris sesi, sehingga token lama tidak dapat dipakai ulang.
 - **Terpisah dari SSO.** Cookie dan alur berbeda; tidak menggantikan verifikasi token SSO.
+- **SSO lokal.** Untuk menguji alur SSO tanpa Jogjaprov, tersedia Keycloak lokal dengan
+  realm sendiri; lihat `docs/sso-keycloak-lokal.md`. Realm itu hanya untuk
+  development/UAT.
 
 ## Hubungan dengan verifikasi API
 

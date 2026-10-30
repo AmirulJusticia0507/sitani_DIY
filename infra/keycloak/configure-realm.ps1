@@ -25,6 +25,12 @@
 .PARAMETER SeedPassword
     Password akun uji; default dari SEED_DEV_PASSWORD. Minimal 12 karakter.
 
+.PARAMETER IssuerHosts
+    Nama host pada redirect_uri, default localhost dan host.docker.internal.
+
+.PARAMETER CallbackPorts
+    Port backend pada redirect_uri, default 8080 (Compose) dan 8081 (dev host).
+
 .EXAMPLE
     $env:KEYCLOAK_ADMIN_PASSWORD = 'password-admin-lokal'
     $env:SEED_DEV_PASSWORD = 'password-dev-lokal-123'

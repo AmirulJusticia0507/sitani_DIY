@@ -140,6 +140,27 @@ login email/password dari database lokal. Akun dibuat lewat `task seed-dev` dan
 password diambil dari `SEED_DEV_PASSWORD`. Fitur ini dimatikan otomatis bila
 lingkungan terdeteksi produksi. Lihat `docs/login-lokal-development.md`.
 
+### SSO lokal dengan Keycloak (opsional)
+
+Untuk menguji alur SSO sungguhan tanpa menunggu aktivasi Jogjaprov, repo ini
+menyediakan Keycloak terpisah (`infra/keycloak/compose.yml`, port host `8085`,
+realm `sitani`). Realm Jogjaprov dan Keycloak proyek lain tidak disentuh.
+
+```bash
+# KEYCLOAK_ADMIN_PASSWORD dan KEYCLOAK_HOST_PORT di .env
+docker compose --env-file .env -f infra/keycloak/compose.yml up -d
+# lalu (PowerShell):
+$env:KEYCLOAK_ADMIN_PASSWORD = '<password-admin-lokal>'
+$env:SEED_DEV_PASSWORD       = '<password-akun-uji-min-12-karakter>'
+./infra/keycloak/configure-realm.ps1 -ClientSecret '<secret-pilihan-anda>'
+```
+
+Arahkan `SSO_JSP_ISSUER=http://host.docker.internal:8085/realms/sitani`,
+`SSO_JSP_CLIENT_ID=sitani-portal`, dan `SSO_JSP_CLIENT_SECRET=...` di `.env`, lalu
+`docker compose --env-file .env -f infra/compose.yml up -d --build backend`.
+Akun uji memakai email `*@dev.example.invalid` yang sama dengan `task seed-dev`.
+Detail, pemecahan masalah, dan batasan ada di `docs/sso-keycloak-lokal.md`.
+
 ### Skema Database & Migrasi
 
 Skema PostgreSQL dikelola sebagai berkas SQL terversi di

@@ -129,6 +129,16 @@ bisa dipakai untuk login lokal.
 | Keycloak menjawab `Invalid parameter: redirect_uri` | `redirect_uri` callback tidak terdaftar. Tambahkan host/port baru di `configure-realm.ps1` lalu jalankan ulang |
 | Log `verifikasi token SSO gagal ... invalid audience` | versi backend lama yang masih memvalidasi `aud`; rebuild backend |
 | `403` saat login/logout | `FRONTEND_PUBLIC_URL` tidak sama dengan origin frontend yang dipakai |
+| `404` untuk `/v1/dokumen?_rsc=...` di konsol | versi frontend lama yang menautkan menu **Dokumen** ke endpoint API. Menu kini mengarah ke halaman `/dashboard/dokumen`; rebuild frontend |
+
+## Menu Dokumen
+
+Menu **Dokumen** di sidebar membuka halaman `/dashboard/dokumen`. Halaman ini
+memakai `GET /v1/dokumen` (hanya ditampilkan bila sesi sudah aktif), menampilkan
+nama berkas, tujuan, jenis, ukuran, dan waktu unggah, serta tautan unduh ke
+`GET /v1/dokumen/{id}/unduh`. Backend tetap memeriksa hak akses; pengguna yang
+belum masuk melihat ajakan masuk. MinIO belum dikonfigurasi berarti unggahan baru
+ditolak `503`, tetapi daftar dokumen tetap dapat dibuka.
 
 ## Batasan
 
@@ -137,8 +147,10 @@ bisa dipakai untuk login lokal.
 - UAT dengan SSO Jogjaprov tetap memerlukan client `portal` (atau client resmi lain)
   yang didaftarkan dan diserahkan konfigurasinya oleh pengelola SSO. Endpoint,
   format token, dan `redirect_uri` produksi tidak ditebak di repositori ini.
-- Kode sumber `configure-realm.ps1` melakukan autentikasi dengan *password grant*
-  `admin-cli`; ini hanya dapat diterima di Keycloak mode pengembangan.
+- Tanpa MinIO, unggahan dokumen ditolak `503 "penyimpanan dokumen belum dikonfigurasi"`
+  dan `/health` melaporkan `"storage":"belum-dikonfigurasi"`.
+- Kode `configure-realm.ps1` memakai *password grant* `admin-cli` untuk autentikasi
+  administrator; ini hanya sesuai Keycloak mode pengembangan.
 
 ## Verifikasi yang sudah dijalankan
 
@@ -155,3 +167,10 @@ bisa dipakai untuk login lokal.
   `302` ke `http://localhost:3001/dashboard`, `GET /auth/me` `200`
   (`"realm":"jsp"`, `"role":"analis"`), nama tampil di dashboard, dan sesi tetap
   ada setelah reload. Tanpa error konsol maupun permintaan gagal.
+- Jalur login portal diuji dua kali (lewat `/dashboard/masuk` → `/masuk` → tombol
+  **Masuk dengan JSP**, dan langsung ke `/auth/login/jsp`); keduanya berakhir di
+  dashboard sebagai `Analis Development` setelah reload.
+- Halaman `/dashboard/dokumen` (menggantikan tautan menu yang dulu menunjuk ke
+  `/v1/dokumen`): tamu melihat ajakan masuk, sesi SSO melihat daftar dari
+  `GET /v1/dokumen` (`200`, "0 dokumen"). `npm run typecheck` dan `npm run lint`
+  lulus.
