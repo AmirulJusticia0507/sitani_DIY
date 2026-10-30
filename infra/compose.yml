@@ -60,7 +60,11 @@ services:
       retries: 5
       start_period: 5s
     ports:
-      - "${BACKEND_PORT:-8080}:8080"
+      # Bind hanya ke loopback agar alamat login (localhost:3001/8080) selalu
+      # sama dengan yang diperiksa backend dan tidak bentrok dengan portproxy
+      # WSL/Docker di antarmuka lain. Set BIND_HOST=0.0.0.0 bila perlu diakses
+      # dari mesin lain (tambahkan juga redirect URI di client SSO).
+      - "${BIND_HOST:-127.0.0.1}:${BACKEND_PORT:-8080}:8080"
     networks:
       - internal
 
@@ -90,7 +94,7 @@ services:
       retries: 5
       start_period: 10s
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "${BIND_HOST:-127.0.0.1}:${FRONTEND_PORT:-3000}:3000"
     networks:
       - internal
 
