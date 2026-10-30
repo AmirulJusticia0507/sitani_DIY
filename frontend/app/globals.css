@@ -1907,11 +1907,19 @@ a:hover {
   font-size: 0.88rem;
   font-weight: 700;
   color: var(--color-sitani-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .stepper-keterangan {
   font-size: 0.74rem;
   color: var(--color-sitani-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .stepper-label-tombol.is-aktif .stepper-label {
@@ -1920,6 +1928,10 @@ a:hover {
 
 .stepper-label-tombol.is-aktif .stepper-keterangan {
   color: var(--color-sitani-green-700);
+}
+
+.stepper-label-tombol.is-aktif {
+  background: var(--color-sitani-green-50);
 }
 
 @media (max-width: 640px) {
