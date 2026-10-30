@@ -6,8 +6,11 @@ import (
 
 // Role sesuai 7 aktor swimlane alur sertifikasi benih BP3MBTP.
 const (
-	RolePelanggan     = "pelanggan"
-	RoleAdmin         = "admin"
+	RolePelanggan = "pelanggan"
+	RoleAdmin     = "admin"
+	// RoleSuperadmin adalah administrator tertinggi untuk lingkungan
+	// lokal/UAT. Izinnya disamakan dengan admin pada pemeriksaan otorisasi.
+	RoleSuperadmin    = "superadmin"
 	RolePengawas      = "pengawas"
 	RoleAnalis        = "analis"
 	RolePenandatangan = "penandatangan"

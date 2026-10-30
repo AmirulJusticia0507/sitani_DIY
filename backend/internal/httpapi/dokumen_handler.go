@@ -39,7 +39,7 @@ func (h *dokumenHandler) register(mux *http.ServeMux) {
 // mengunduh dokumen pelanggan untuk kebutuhan verifikasi/penilaian.
 func internalRole(role string) bool {
 	switch role {
-	case db.RoleAdmin, db.RolePengawas, db.RoleAnalis, db.RolePenandatangan, db.RoleLegalisasi, db.RolePercetakan:
+	case db.RoleAdmin, db.RoleSuperadmin, db.RolePengawas, db.RoleAnalis, db.RolePenandatangan, db.RoleLegalisasi, db.RolePercetakan:
 		return true
 	default:
 		return false

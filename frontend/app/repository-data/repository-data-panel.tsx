@@ -56,7 +56,7 @@ export function RepositoryDataPanel() {
         const user = (await response.json()) as Principal;
         if (!active) return;
         setPrincipal(user);
-        if (user.role === "admin" || user.role === "analis") await loadImports();
+        if (user.role === "admin" || user.role === "superadmin" || user.role === "analis") await loadImports();
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : "Gagal memuat sesi atau daftar import.");
       } finally {
@@ -129,7 +129,7 @@ export function RepositoryDataPanel() {
       </section>
     );
   }
-  if (principal.role !== "admin" && principal.role !== "analis") {
+  if (principal.role !== "admin" && principal.role !== "superadmin" && principal.role !== "analis") {
     return (
       <section className="repository-content">
         <h2>Akses terbatas</h2>

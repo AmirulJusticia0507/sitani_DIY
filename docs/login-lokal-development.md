@@ -34,18 +34,35 @@ jalur masuk produksi.
 
    Akun yang dibuat (semua memakai password yang sama):
 
-   | Email | Peran |
-   | --- | --- |
-   | `admin@dev.example.invalid` | admin |
-   | `pengawas@dev.example.invalid` | pengawas |
-   | `analis@dev.example.invalid` | analis |
-   | `penandatangan@dev.example.invalid` | penandatangan |
-   | `legalisasi@dev.example.invalid` | legalisasi |
-   | `percetakan@dev.example.invalid` | percetakan |
-   | `pelanggan@dev.example.invalid` | pelanggan |
+   | Email | Peran | Keterangan |
+   | --- | --- | --- |
+   | `superadmin@dev.example.invalid` | superadmin | Akses penuh, setara admin |
+   | `admin@dev.example.invalid` | admin | Semua modul |
+   | `pengawas@dev.example.invalid` | pengawas | Inspeksi lapangan, sertifikasi |
+   | `analis@dev.example.invalid` | analis | Uji Mutu Lab, Repository Data |
+   | `penandatangan@dev.example.invalid` | penandatangan | Penerbitan (TTE) |
+   | `legalisasi@dev.example.invalid` | legalisasi | Penerbitan (legalisasi label) |
+   | `percetakan@dev.example.invalid` | percetakan | Penerbitan (cetak label) |
+   | `pelanggan@dev.example.invalid` | pelanggan | Mengajukan sertifikasi & hortikultura |
+   | `verifikator@dev.example.invalid` | verifikator | Verifikasi proposal hortikultura |
+   | `inspektor@dev.example.invalid` | inspektor | Penjadwalan & audit GAP hortikultura |
+   | `pbt@dev.example.invalid` | pbt | Penilaian pohon induk |
+   | `kasi.pmbtp@dev.example.invalid` | kasi_pmbtp | Penilaian lanjutan |
 
-   Perintah ini idempoten: menjalankan ulang akan memperbarui hash password sesuai
-   `SEED_DEV_PASSWORD` terbaru.
+   Selain akun, seed membuat **data contoh** yang saling terhubung:
+
+   - Permohonan `SPB-DEV-0001` (padi Inpari 32) milik akun pelanggan, status
+     `diajukan`, pembayaran awal `belum`.
+   - Sampel `SMP-DEV-0001` atas permohonan itu, sudah berstatus `dikodekan` dan
+     ditugaskan ke akun analis, sehingga akun Analis Lab langsung punya data
+     untuk diuji mutunya.
+
+   Perintah ini idempoten: menjalankan ulang akan memperbarui hash password dan
+   menyamakan data contoh tanpa membuat akun, permohonan, atau sampel ganda.
+
+   > Catatan: `superadmin` disamakan dengan `admin` pada pemeriksaan otorisasi
+   > backend (`peranAdmin`) dan mendapat seluruh modul di dashboard. Peran ini
+   > disediakan untuk lokal/UAT; hapus akunnya sebelum produksi.
 
 3. Jalankan backend dengan flag aktif.
 
@@ -144,6 +161,13 @@ kondisi tersebut dicakup `backend/internal/auth/require_devlocal_test.go`.
   origin asing, endpoint nonaktif, dan pematian otomatis di produksi.
 - Uji manual terhadap PostgreSQL 17: migrasi 009, seed 7 akun, login berhasil/gagal,
   `GET /auth/me`, dan logout. Dengan `APP_ENV=production` login ditolak `404`.
+- `go test ./internal/devseed/...` — format dan parameter argon2id, serta salt acak.
+- Uji manual terhadap PostgreSQL 17 (migrasi 010): seed 12 akun + permohonan dan
+  sampel contoh, dijalankan dua kali tanpa duplikat. Login lokal `superadmin`,
+  `analis`, dan `pelanggan` berhasil (cookie `HttpOnly`), lalu analis menginput
+  hasil uji pada `SMP-DEV-0001` (`201`) dan superadmin memproses hasil mutu (`200`, `lulus`).
+  Dashboard menampilkan menu sesuai peran: superadmin semua modul, analis
+  (Uji Mutu Lab, Repository Data), pelanggan (Sertifikasi Benih, Hortikultura).
 - `npx playwright test tests/login-lokal.spec.ts` — 6 tes (desktop + mobile).
 - Uji di stack Docker Compose (PostgreSQL 17 pada volume `sitani-diy_postgres_data`,
   migrasi 008–009, `task seed-dev`): login admin berhasil, sesi bertahan setelah

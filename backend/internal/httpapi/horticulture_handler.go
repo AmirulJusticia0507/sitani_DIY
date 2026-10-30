@@ -10,10 +10,17 @@ import (
 	"unicode/utf8"
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/auth"
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/horticulture"
 )
 
 type horticultureHandler struct{ repo horticulture.Repository }
+
+// peranAdmin menganggap admin dan superadmin setara pada pemeriksaan
+// otorisasi. Superadmin adalah administrator tertinggi di lingkungan lokal/UAT.
+func peranAdmin(role string) bool {
+	return role == db.RoleAdmin || role == db.RoleSuperadmin
+}
 
 func (h *horticultureHandler) register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/horticulture/applications", h.create)
@@ -71,7 +78,7 @@ func (h *horticultureHandler) create(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusUnauthorized, "identitas SSO tidak tersedia")
 		return
 	}
-	if principal.Role != "pelanggan" && principal.Role != "admin" {
+	if principal.Role != "pelanggan" && !peranAdmin(principal.Role) {
 		respondError(w, http.StatusForbidden, "peran tidak diizinkan mengajukan registrasi lahan")
 		return
 	}
@@ -155,7 +162,7 @@ func (h *horticultureHandler) list(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusUnauthorized, "identitas SSO tidak tersedia")
 		return
 	}
-	if principal.Role != "pelanggan" && principal.Role != "admin" && principal.Role != "pengawas" && principal.Role != "verifikator" && principal.Role != "inspektor" && principal.Role != "pbt" && principal.Role != "kasi_pmbtp" {
+	if principal.Role != "pelanggan" && !peranAdmin(principal.Role) && principal.Role != "pengawas" && principal.Role != "verifikator" && principal.Role != "inspektor" && principal.Role != "pbt" && principal.Role != "kasi_pmbtp" {
 		respondError(w, http.StatusForbidden, "peran tidak diizinkan melihat permohonan")
 		return
 	}
@@ -177,7 +184,7 @@ func (h *horticultureHandler) get(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusUnauthorized, "identitas SSO tidak tersedia")
 		return
 	}
-	if principal.Role != "pelanggan" && principal.Role != "admin" && principal.Role != "pengawas" && principal.Role != "verifikator" && principal.Role != "inspektor" && principal.Role != "pbt" && principal.Role != "kasi_pmbtp" {
+	if principal.Role != "pelanggan" && !peranAdmin(principal.Role) && principal.Role != "pengawas" && principal.Role != "verifikator" && principal.Role != "inspektor" && principal.Role != "pbt" && principal.Role != "kasi_pmbtp" {
 		respondError(w, http.StatusForbidden, "peran tidak diizinkan melihat permohonan")
 		return
 	}
@@ -222,7 +229,7 @@ func (h *horticultureHandler) verify(w http.ResponseWriter, r *http.Request) {
 		respondError(w, 401, "identitas SSO tidak tersedia")
 		return
 	}
-	if p.Role != "admin" && p.Role != "verifikator" {
+	if !peranAdmin(p.Role) && p.Role != "verifikator" {
 		respondError(w, 403, "hanya verifikator yang dapat memverifikasi proposal")
 		return
 	}
@@ -264,7 +271,7 @@ func (h *horticultureHandler) schedule(w http.ResponseWriter, r *http.Request) {
 		respondError(w, 401, "identitas SSO tidak tersedia")
 		return
 	}
-	if p.Role != "admin" && p.Role != "inspektor" {
+	if !peranAdmin(p.Role) && p.Role != "inspektor" {
 		respondError(w, 403, "hanya inspektor yang dapat menjadwalkan inspeksi")
 		return
 	}
@@ -311,7 +318,7 @@ func (h *horticultureHandler) completeInspection(w http.ResponseWriter, r *http.
 		respondError(w, 401, "identitas SSO tidak tersedia")
 		return
 	}
-	if p.Role != "admin" && p.Role != "inspektor" {
+	if !peranAdmin(p.Role) && p.Role != "inspektor" {
 		respondError(w, 403, "hanya inspektor yang dapat mengisi audit GAP")
 		return
 	}
@@ -367,7 +374,7 @@ func (h *horticultureHandler) evaluate(w http.ResponseWriter, r *http.Request) {
 		respondError(w, 401, "identitas SSO tidak tersedia")
 		return
 	}
-	if p.Role != "admin" && p.Role != "pbt" && p.Role != "kasi_pmbtp" {
+	if !peranAdmin(p.Role) && p.Role != "pbt" && p.Role != "kasi_pmbtp" {
 		respondError(w, 403, "hanya PBT atau Kasi PMBTP yang dapat menilai")
 		return
 	}
@@ -407,7 +414,7 @@ func (h *horticultureHandler) listEvaluations(w http.ResponseWriter, r *http.Req
 		respondError(w, 401, "identitas SSO tidak tersedia")
 		return
 	}
-	if p.Role != "pelanggan" && p.Role != "admin" && p.Role != "pengawas" && p.Role != "pbt" && p.Role != "kasi_pmbtp" {
+	if p.Role != "pelanggan" && !peranAdmin(p.Role) && p.Role != "pengawas" && p.Role != "pbt" && p.Role != "kasi_pmbtp" {
 		respondError(w, 403, "peran tidak diizinkan melihat hasil penilaian")
 		return
 	}

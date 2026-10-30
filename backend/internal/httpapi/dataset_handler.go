@@ -10,6 +10,7 @@ import (
 
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/auth"
 	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/dataset"
+	"github.com/AmirulJusticia0507/sitani_DIY/backend/internal/db"
 )
 
 type datasetHandler struct{ repo dataset.Repository }
@@ -20,7 +21,9 @@ func (h *datasetHandler) register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/dataset/import/{id}", h.getImport)
 }
 
-func datasetRole(role string) bool { return role == "admin" || role == "analis" }
+func datasetRole(role string) bool {
+	return role == db.RoleAdmin || role == db.RoleSuperadmin || role == db.RoleAnalis
+}
 
 func (h *datasetHandler) importData(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.PrincipalFromContext(r.Context())

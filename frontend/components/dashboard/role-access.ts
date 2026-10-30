@@ -4,6 +4,7 @@
 export type Role =
   | "pelanggan"
   | "admin"
+  | "superadmin"
   | "pengawas"
   | "verifikator"
   | "inspektor"
@@ -42,6 +43,7 @@ const SEMUA_MODUL: DashboardModule[] = [
 ];
 
 const MODUL: Record<Role, DashboardModule[]> = {
+  superadmin: SEMUA_MODUL,
   admin: SEMUA_MODUL,
   pelanggan: ["ringkasan", "sertifikasi", "hortikultura", "dokumen", "profil"],
   pengawas: ["ringkasan", "sertifikasi", "hortikultura", "registrasi-benih", "penjualan-benih", "laporan", "dokumen", "profil"],
@@ -58,6 +60,7 @@ const MODUL: Record<Role, DashboardModule[]> = {
 const LABEL_PERAN: Record<Role, string> = {
   pelanggan: "Pelanggan",
   admin: "Administrator",
+  superadmin: "Superadmin",
   pengawas: "Pengawas / PBT",
   verifikator: "Petugas Verifikator",
   inspektor: "Petugas Inspektor",

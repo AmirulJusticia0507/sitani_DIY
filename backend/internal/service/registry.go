@@ -161,7 +161,7 @@ func (s *Service) ListPermohonanSiapRegistrasi(ctx context.Context, actorID int6
 	if !boleh(actorRole, "registrasi:lihat") && !boleh(actorRole, "permohonan:lihat") {
 		return nil, errors.New("role tidak diizinkan melihat permohonan")
 	}
-	semua := actorRole == db.RoleAdmin
+	semua := actorRole == db.RoleAdmin || actorRole == db.RoleSuperadmin
 	items, err := s.st.ListPermohonanSiapRegistrasi(ctx, actorID, semua, batasLimit(0))
 	if err != nil {
 		return nil, fmt.Errorf("daftar permohonan siap registrasi: %w", err)
