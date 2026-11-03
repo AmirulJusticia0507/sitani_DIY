@@ -54,6 +54,30 @@ test("menampilkan identitas dan modul utama", async ({ page }, testInfo) => {
   expect(manifestBody.display).toBe("standalone");
   expect(manifestBody.icons).toHaveLength(3);
 
+  // Manifest ditautkan otomatis dan warna bilah peramban konsisten dengan
+  // theme_color pada manifest.
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute(
+    "href",
+    "/manifest.webmanifest",
+  );
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute(
+    "content",
+    "#0d4938",
+  );
+  // iOS tidak mengenal SVG untuk ikon layar utama, jadi harus PNG.
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute(
+    "href",
+    "/apple-touch-icon.png",
+  );
+
+  // Service worker tidak boleh tersimpan di cache: versi lama akan menahan
+  // aset lama setelah deploy.
+  const serviceWorker = await page.request.get("/sw.js");
+  expect(serviceWorker.ok()).toBeTruthy();
+  expect(serviceWorker.headers()["content-type"]).toContain("javascript");
+  expect(serviceWorker.headers()["cache-control"]).toContain("no-store");
+  expect(await serviceWorker.text()).toContain("sitani-static-");
+
   await page.screenshot({
     path: `../.ui-check/${testInfo.project.name}.png`,
     fullPage: true,

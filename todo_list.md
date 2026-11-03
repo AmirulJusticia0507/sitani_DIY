@@ -40,6 +40,8 @@
 - [x] Integrasi Sentry Error Logging
 - [x] Dokumentasi anticipasi kerentanan Node.js & PHP Oktober 2026 (`docs/keamanan-kerentanan-nodejs-php-oktober-2026.md`)
 - [x] Fondasi PWA (manifest, ikon, service worker terbatas ke aset publik) serta halaman Tentang, Kebijakan Privasi (draf), dan Bantuan
+- [x] Pengerasan PWA produksi: service worker tidak di-cache (`Cache-Control: no-store`), hanya didaftarkan pada build produksi, fallback navigasi ke `/offline`, `theme-color` lewat `viewport`, dan ikon Apple 180x180. Diverifikasi pada build produksi dengan Chrome (manifest, header, dan halaman offline).
+- [ ] Deployment publik — rencana dan variabel lingkungan ada di `docs/deployment-cloudflare-vercel.md`, Worker router di `infra/cloudflare/`. Frontend Vercel dan variabel lingkungannya **belum dibuat** karena URL publik backend belum ada; backend Go tidak dapat dijalankan langsung di Cloudflare Workers (butuh host/VPS atau Cloudflare Containers berbayar).
 - [ ] Testing Unit & Integration Test — cakupan unit backend berjalan (paket `auth`, `dataset`, `db`, `httpapi`, `service`, `spl`; `go test ./...` lulus). Tes E2E frontend (Playwright, desktop + mobile) mencakup portal publik dan kerangka dashboard (`tests/dashboard.spec.ts`). Modul `horticulture`, `notify`, `observability`, `storage`, `store`, dan `cmd/*` belum memiliki tes; tes integrasi ke PostgreSQL/MinIO serta CI otomatis belum tersedia.
 - [ ] User Acceptance Testing (UAT) bersama DPKP DIY & Diskominfo DIY
 

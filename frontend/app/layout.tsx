@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
 
@@ -25,7 +25,8 @@ export const metadata: Metadata = {
   },
   icons: [
     { rel: "icon", type: "image/svg+xml", url: "/favicon.svg" },
-    { rel: "apple-touch-icon", url: "/favicon.svg" },
+    // iOS tidak memakai SVG untuk ikon layar utama; sediakan PNG 180x180.
+    { rel: "apple-touch-icon", sizes: "180x180", url: "/apple-touch-icon.png" },
   ],
   applicationName: "SiTani DIY",
   appleWebApp: {
@@ -33,6 +34,13 @@ export const metadata: Metadata = {
     title: "SiTani DIY",
     statusBarStyle: "default",
   },
+};
+
+// theme-color tidak lagi dibaca dari `metadata` pada Next.js 16; tempatnya di
+// `viewport`. Nilainya sama dengan theme_color pada app/manifest.ts agar bilah
+// peramban dan splash screen PWA konsisten.
+export const viewport: Viewport = {
+  themeColor: "#0d4938",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

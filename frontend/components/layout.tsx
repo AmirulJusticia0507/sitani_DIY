@@ -72,10 +72,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const tombolRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator && window.isSecureContext) {
-      void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {
-        // PWA enhancement is optional; core portal remains usable if registration fails.
-      });
+    // Service worker hanya didaftarkan pada build produksi. Di `next dev`
+    // strategi cache-first untuk `/_next/static/` dapat menyajikan bundel lama
+    // setelah berkas diubah, yang muncul sebagai hydration mismatch sampai
+    // cache peramban dibersihkan.
+    if (
+      process.env.NODE_ENV === "production" &&
+      "serviceWorker" in navigator &&
+      window.isSecureContext
+    ) {
+      void navigator.serviceWorker
+        .register("/sw.js", { scope: "/", updateViaCache: "none" })
+        .catch(() => {
+          // PWA enhancement is optional; core portal remains usable if registration fails.
+        });
     }
     fetch(`${apiURL}/auth/me`, { credentials: "include" })
       .then((res) => (res.ok ? res.json() : null))

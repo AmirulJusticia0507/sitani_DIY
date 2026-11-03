@@ -1,0 +1,14 @@
+# Konfigurasi Worker router SiTani DIY.
+# Nilai origin sengaja tidak ditulis di sini: isi lewat `wrangler secret put`
+# agar URL internal tidak ikut ter-commit.
+name = "sitani-router"
+main = "sitani-router.js"
+compatibility_date = "2026-11-01"
+
+# Aktifkan setelah zona DNS portal dikelola Cloudflare dan domain resmi
+# ditetapkan. Contoh:
+# routes = [{ pattern = "sitani.example.go.id/*", zone_name = "example.go.id" }]
+
+# Wajib diisi sebelum deploy:
+#   wrangler secret put BACKEND_ORIGIN   # https://backend.internal.example
+#   wrangler secret put FRONTEND_ORIGIN  # https://<proyek>.vercel.app
