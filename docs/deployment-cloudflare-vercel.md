@@ -9,8 +9,8 @@ platform, dan variabel lingkungan yang harus diisi. Status terakhir diperbarui
 | Bagian | Status |
 | --- | --- |
 | PWA frontend (manifest, ikon, service worker, halaman offline) | Tersedia dan diuji lewat build produksi |
-| Frontend di Vercel | Belum di-deploy; CLI sudah login, proyek belum ditautkan |
-| Variabel lingkungan Vercel | Belum dibuat; menunggu URL publik backend |
+| Proyek Vercel | Dibuat dan ditautkan: `sitani-diy-frontend`, root directory `frontend`, Node.js 22.x, repositori GitHub tersambung |
+| Variabel lingkungan Vercel | **Belum ada**; menunggu URL publik backend |
 | Backend Go di Cloudflare Workers | **Tidak dapat dijalankan langsung** (lihat di bawah) |
 | Backend Go di host biasa/VPS | Didukung lewat Docker (`infra/compose.yml`) |
 | Cloudflare sebagai DNS + router tepi | Siap dikonfigurasi, belum diterapkan |
@@ -100,35 +100,21 @@ Nilai persisnya harus dikonfirmasi ke pengelola SSO; kode menyusunnya dari
 
 Frontend berada di subdirektori `frontend/`, bukan akar repositori.
 
-1. Tautkan proyek (dari direktori `frontend/`):
+Proyek Vercel sudah dibuat dan ditautkan dari direktori `frontend/`:
 
-   ```powershell
-   vercel link
-   ```
+| Pengaturan | Nilai |
+| --- | --- |
+| Nama proyek | `sitani-diy-frontend` |
+| Scope | `amirulputra0507-9703s-projects` |
+| Root Directory | `frontend` |
+| Framework Preset | Next.js |
+| Node.js Version | 22.x (sama dengan `frontend/Dockerfile`) |
+| Repositori GitHub | Tersambung ke `AmirulJusticia0507/sitani_DIY` |
 
-   Pilih scope akun/organisasi dan buat proyek baru, misalnya
-   `sitani-diy-frontend`. Saat diminta *root directory*, gunakan `frontend`.
-
-2. Atur *Root Directory* = `frontend`, *Framework Preset* = Next.js,
-   *Build Command* = `npm run build`, *Install Command* = `npm ci`.
-   Node.js 22 dipakai saat pengembangan lokal.
-
-3. Tambahkan variabel lingkungan (produksi dan preview):
-
-   ```powershell
-   vercel env add NEXT_PUBLIC_BACKEND_URL production
-   vercel env add NEXT_PUBLIC_BACKEND_URL preview
-   ```
-
-   Nilainya **domain publik portal**, bukan `localhost`, misalnya
-   `https://sitani.example.go.id`. Karena frontend memanggil backend lewat
-   domain yang sama, nilai ini tidak membocorkan rahasia apa pun.
-
-4. Deploy:
-
-   ```powershell
-   vercel --prod
-   ```
+Karena repositori tersambung, setiap push ke `main` memicu deployment produksi
+otomatis. Deployment itu **belum layak dipakai** sampai
+`NEXT_PUBLIC_BACKEND_URL` diisi; tanpa nilai tersebut frontend memakai
+`http://localhost:8080` dan semua panggilan API gagal.
 
 ### Variabel lingkungan frontend
 
@@ -137,11 +123,39 @@ Frontend berada di subdirektori `frontend/`, bukan akar repositori.
 | `NEXT_PUBLIC_BACKEND_URL` | Ya | `https://sitani.example.go.id` | Ikut terkirim ke browser; jangan berisi rahasia |
 | `NEXT_PUBLIC_API_BASE` | Tidak | — | Alias lama; dipakai lebih dulu bila diisi |
 
+Saat dokumen ini diperbarui, **belum ada variabel lingkungan** di proyek Vercel
+(`vercel env ls` kosong) karena URL publik backend belum ditetapkan. Setelah
+domain portal diketahui, jalankan dari direktori `frontend/`:
+
+```powershell
+vercel env add NEXT_PUBLIC_BACKEND_URL production
+vercel env add NEXT_PUBLIC_BACKEND_URL preview
+
+# Deploy ulang: NEXT_PUBLIC_* dibekukan saat build, bukan dibaca saat runtime.
+vercel --prod
+```
+
 Tidak ada rahasia di sisi frontend. API key AI, DSN Sentry, kredensial MinIO,
 dan secret SSO hanya boleh berada di backend.
 
-Setelah mengubah `NEXT_PUBLIC_*`, deploy ulang: nilainya dibekukan saat build,
-bukan dibaca saat runtime.
+### Perlindungan deployment
+
+Proyek memakai *Vercel Authentication* dengan cakupan
+`all_except_custom_domains`: URL `*.vercel.app` hanya bisa dibuka anggota tim,
+sedangkan domain kustom tidak terlindungi. Konsekuensinya untuk Worker
+Cloudflare:
+
+- menembak `https://sitani-diy-frontend.vercel.app` akan menerima halaman login
+  Vercel, bukan aplikasi;
+- jadi arahkan Worker ke **domain kustom Vercel** (mis.
+  `origin.sitani.example.go.id`), atau aktifkan *Protection Bypass for
+  Automation* lalu kirim header `x-vercel-protection-bypass` dari Worker
+  (simpan token sebagai secret).
+
+Region proyek masih `iad1` (Amerika Serikat). Untuk pengguna DIY, region
+Singapura (`sin1`) lebih dekat; ubah lewat dasbor Vercel → Settings → Functions
+bila deployment sudah dipakai sungguhan. Halaman publik hampir seluruhnya
+statis, sehingga dampaknya kecil sampai fitur dinamis bertambah.
 
 ## Langkah 3 — Cloudflare sebagai router tepi
 
@@ -171,9 +185,9 @@ menu *Workers Routes* di dasbor Cloudflare).
 Catatan penting:
 
 - Worker meneruskan respons apa adanya, termasuk `Set-Cookie` dan `302` ke SSO.
-- Bila deployment Vercel memakai *Deployment Protection*, Worker akan menerima
-  halaman login Vercel, bukan aplikasi. Nonaktifkan proteksi untuk domain
-  produksi atau gunakan *Protection Bypass for Automation*.
+- Deployment Protection Vercel **aktif** untuk `*.vercel.app` (lihat bagian
+  Perlindungan deployment), jadi Worker harus menembak domain kustom Vercel atau
+  memakai *Protection Bypass for Automation*.
 - Jangan menaruh Cloudflare di depan backend **dan** mengubah `Host`; backend
   memakai `BACKEND_PUBLIC_URL` dari environment, bukan header `Host`.
 
@@ -191,8 +205,8 @@ Catatan penting:
 
 ## Yang belum selesai
 
-- URL publik backend belum ada, sehingga variabel Vercel belum dapat diisi.
-- Proyek Vercel belum ditautkan dan belum ada deployment.
+- URL publik backend belum ada, sehingga `NEXT_PUBLIC_BACKEND_URL` belum dapat
+  diisi dan belum ada deployment Vercel yang diuji.
 - Worker Cloudflare belum di-deploy (butuh akun, zona DNS, dan `wrangler`).
 - Domain resmi, sertifikat, dan pendaftaran redirect URI SSO harus melalui
   Diskominfo/DPKP.
