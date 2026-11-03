@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -76,6 +78,8 @@ func NewHandler(database *db.DB) *Handler {
 	h.auth.RegisterRoutes(h.mux)
 	newCertificationHandler(h.svc).register(h.mux)
 	newRegistryHandler(h.svc).register(h.mux)
+	// Endpoint referensi harga benih dari Superset pusat
+	h.mux.HandleFunc("GET /v1/referensi/harga_benih", h.getReferensiHargaBenih)
 
 	// Object storage dokumen aktif saat MINIO_* terkonfigurasi; jika koneksi
 	// gagal, endpoint dokumen tetap terdaftar tetapi menjawab 503.
@@ -193,4 +197,49 @@ func (h *Handler) health(w http.ResponseWriter, _ *http.Request) {
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		http.Error(w, "gagal menulis respons", http.StatusInternalServerError)
 	}
+}
+
+func (h *Handler) getReferensiHargaBenih(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "metode tidak diizinkan", http.StatusMethodNotAllowed)
+		return
+	}
+	// URL Superset bisa di-set via env SUPPSET_URL; jika kosong return placeholder
+	suppUrl := strings.TrimRight(os.Getenv("SUPPSET_URL"), "/")
+	if suppUrl == "" {
+		respondJSON(w, http.StatusOK, map[string]interface{}{
+			"status": "belum-configured",
+			"pesan": "Set env SUPPSET_URL ke URL Superset pusat (https://dwh.jogjaprov.go.id)",
+		})
+		return
+	}
+	// Ambil data dengan timeout 10 detik
+	resp, err := http.Get(suppUrl)
+	if err != nil {
+		respondJSON(w, http.StatusServiceUnavailable, map[string]interface{}{
+			"status": "gagal-ambil",
+			"pesan": err.Error(),
+		})
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		respondJSON(w, resp.StatusCode, map[string]interface{}{
+			"status": "error-superset",
+			"pesan": fmt.Sprintf("Superset response %d: %s", resp.StatusCode, string(body)),
+		})
+		return
+	}
+	body, _ := io.ReadAll(resp.Body)
+	// Coba parse JSON; kalau gagal coba baca teks biasa
+	var data any
+	if err := json.Unmarshal(body, &data); err != nil {
+		data = map[string]string{"raw": string(body)}
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"status": "ok",
+		"url":    suppUrl,
+		"data":   data,
+	})
 }
