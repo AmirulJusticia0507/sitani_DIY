@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
@@ -19,16 +20,11 @@ type verifikasiNikRequest struct {
 }
 
 // nik16 validasi NIK 16 digit.
+// Pola ini sesuai agriculture-be: `regexp.MustCompile(`^[0-9]{16}$`)`.
+var nik16Pattern = regexp.MustCompile(`^[0-9]{16}$`)
+
 func nik16(s string) bool {
-	if len(s) != 16 {
-		return false
-	}
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			return false
-		}
-	}
-	return true
+	return nik16Pattern.MatchString(s)
 }
 
 // registerVerifikasiNikRoutes mendaftarkan endpoint verifikasi NIK.
