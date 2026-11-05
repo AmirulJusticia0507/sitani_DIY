@@ -107,3 +107,9 @@ Rencana kerja 1–30 November 2026. Setiap task di bawah masih berupa rencana: d
 - MinIO harus berjalan untuk alur dokumen; SSO Jogjaprov (`client portal`) dan issuer lokal (`127.0.0.1:8085`) masih terblokir dari browser host.
 - Notifikasi Discord dan tanda tangan TTE pada alur penerbitan memakai layanan eksternal: gunakan mode uji, jangan kirim pesan atau tanda tangan sungguhan tanpa persetujuan DPKP/Diskominfo.
 
+## 📍 Tahap 6: Fitur Verifikasi NIK (Integrasi Agriculture)
+- [ ] **Verifikasi NIK manual** — form input NIK 16 digit, validasi format, cek duplikasi akun, buat antrean status `pending`; dikirim ke antrean verifikator. Kriteria selesai: endpoint `POST /v1/verifikasi-nik` berjalan, validasi 16 digit lulus, antrean terbentuk di DB.
+- [ ] **Verifikasi NIK dari foto e-KTP** — unggah file e-KTP (PDF/JPEG/PNG), OCR ekstrak NIK, tampilkan NIK untuk konfirmasi sebelum submit, simpan path foto ke verifikasi untuk audit. Kriteria selesai: endpoint `POST /v1/verifikasi-nik/from-ktp` menerima file, OCR berhasil atau form dikirim kembali untuk diedit, path foto tersimpan.
+- [ ] **Alur kerja verifikasi terintegrasi** — setelah NIK diverifikasi status berubah, pengguna login ulang dan membawa residency; boleh melanjutkan ke tahap berikut sitani (inspeksi/lab). Workflow 3 fasa verifikasi→inspeksi→sertifikasi tetap utuh, hanya menambah tahap verifikasi NIK di awal. Kriteria selesai: user setelah verifikasi NIK bisa akses fitur permohonan sesuai peran, audit trail verifikasi tercatat.
+- [ ] **Keycloak lokal tetap digunakan** — semua fitur verifikasi NIK pakai session Keycloak sitani (`/auth/me`), bukan identity-service eksternal. Token dan session management sesuai konvensi sitani. Kriteria selesai: test end-to-end pakai akun sitani.local, tidak ada error 401/403 dari external identity.
+
