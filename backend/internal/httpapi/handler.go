@@ -114,6 +114,12 @@ func NewHandler(database *db.DB) *Handler {
 	return h
 }
 
+// registerVerifikasiNikRoutes mendaftarkan endpoint verifikasi NIK (manual dan dari KTP).
+func registerVerifikasiNikRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("POST /v1/verifikasi-nik", handleVerifikasiNikManual)
+	mux.HandleFunc("POST /v1/verifikasi-nik/from-ktp", handleVerifikasiNikFromKTP)
+}
+
 // newAIHandler tidak menggagalkan start saat AI_* belum diisi; endpoint tetap
 // terdaftar dan menjawab 503 sampai konfigurasi tersedia. Pesan peringatan
 // tidak pernah memuat API key. Konfigurasi kosong adalah keadaan normal selama
